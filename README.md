@@ -80,7 +80,7 @@ ResearchVault/
 
 ## Getting started
 
-See the [installation guide](installation-guide-local-research-workflow-v1.11.md) for full step-by-step instructions covering all tools, configuration, and the first test run.
+See the [installation guide](installation-guide-local-research-workflow-v1.11.md) for full step-by-step instructions covering all tools, configuration, and the first test run. The guide is also published as a book at **[pjastam.github.io/ResearchVault](https://pjastam.github.io/ResearchVault/)**.
 
 To configure Claude Code's permission settings for this vault, run the setup script from your vault directory:
 
