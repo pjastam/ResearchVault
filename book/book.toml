@@ -1,0 +1,10 @@
+[book]
+title = "Local Research Workflow"
+description = "A local, privacy-first research workflow for academic researchers, built on Claude Code, Zotero, Obsidian, and Ollama."
+language = "en"
+src = "src"
+
+[output.html]
+site-url = "/ResearchVault/"
+git-repository-url = "https://github.com/pjastam/ResearchVault"
+edit-url-template = "https://github.com/pjastam/ResearchVault/edit/main/book/src/{path}"
