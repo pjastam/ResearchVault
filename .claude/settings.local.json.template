@@ -13,9 +13,9 @@
       "Bash(zotero-mcp:*)",
       "Bash(zotero-mcp db-status:*)",
       "Bash(curl*localhost*)",
-      "Bash(/JOUW-PAD/.local/share/uv/tools/zotero-mcp-server/bin/python3*)",
-      "Bash(grep -n \"^def \\|^class \" /JOUW-PAD/.local/share/uv/tools/zotero-mcp-server/lib/python3.12/site-packages/zotero_mcp/semantic_search.py*)",
-      "Bash(ZOTERO_LOCAL=true ZOTERO_LIBRARY_ID=JOUW-LIBRARY-ID /JOUW-PAD/.local/share/uv/tools/zotero-mcp-server/bin/python3*)"
+      "Bash(/YOUR-PATH/.local/share/uv/tools/zotero-mcp-server/bin/python3*)",
+      "Bash(grep -n \"^def \\|^class \" /YOUR-PATH/.local/share/uv/tools/zotero-mcp-server/lib/python3.12/site-packages/zotero_mcp/semantic_search.py*)",
+      "Bash(ZOTERO_LOCAL=true ZOTERO_LIBRARY_ID=YOUR-LIBRARY-ID /YOUR-PATH/.local/share/uv/tools/zotero-mcp-server/bin/python3*)"
     ]
   }
 }

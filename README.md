@@ -80,7 +80,13 @@ ResearchVault/
 
 See the [installation guide](installation-guide-local-research-workflow-v1.11.md) for full step-by-step instructions covering all tools, configuration, and the first test run.
 
-For Claude Code configuration, copy `.claude/settings.local.json.template` to `.claude/settings.local.json` and replace the placeholder paths with your own.
+To configure Claude Code's permission settings for this vault, run the setup script from your vault directory:
+
+```bash
+./setup.sh
+```
+
+The script auto-detects your home path and asks for your Zotero library ID (found via `zotero-mcp setup-info`).
 
 ---
 
