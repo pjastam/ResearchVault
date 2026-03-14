@@ -14,9 +14,9 @@ The workflow is built around three explicit phases — every source passes throu
 
 | Phase                        | Goal                                        | Approach                                                                                                                                                                                  |
 | --------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **1 — Capture broadly**        | Low threshold, no filtering                | Each source has its own dump layer: Browser (Zotero Connector/iOS), NetNewsWire (RSS), Overcast (podcasts), YouTube (videos), Other (iOS share sheet) — everything flows together into Zotero `_inbox` |
-| **2 — Filter**            | You decide what goes into the vault             | Claude Code generates a summary; you give a Go or No-go                                                                                                                              |
-| **3 — Process & store** | Full processing of approved items | Claude Code → Obsidian vault                                                                                                                                               |
+| **1 — Cast wide**        | Low threshold, no filtering                | Each source has its own dump layer: Browser (Zotero Connector/iOS), NetNewsWire (RSS), Overcast (podcasts), YouTube (videos), Other (iOS share sheet) — everything flows together into Zotero `_inbox` |
+| **2 — Filter**            | You decide what enters the vault             | Qwen3.5:9b (local) generates a 2–3 sentence summary per inbox item; you give a **Go** or **No-go**                                                                                                                              |
+| **3 — Process** | Full processing of approved items | Claude Code writes a structured literature note to the Obsidian vault, including key findings, methodology notes, relevant quotes, and flashcards for spaced repetition                                                                                                                                               |
 
 The distinction between phase 1 and phase 3 prevents your vault from being polluted with material that seemed interesting at the moment of capture but turns out to be irrelevant on reflection.
 
@@ -225,13 +225,11 @@ It is important to understand what runs locally in this workflow and what goes t
 | yt-dlp (fetching transcripts) | ✅ Local | Scraping on your Mac |
 | whisper.cpp (transcribing audio) | ✅ Local | M4 Metal GPU |
 | Semantic search (Zotero MCP) | ✅ Local | Local vector database |
-| **Reasoning, summarizing, writing syntheses** | ⚠️ **Cloud** | Prompt + context go to Anthropic API |
+| **Reasoning, summarizing, writing syntheses** | ✅ **Local** | Qwen3.5:9b via Ollama (default); Anthropic API only when `--hd` is used |
 
-That last step is the core of what Claude Code does: every time you have a summary, literature note, or synthesis created, Claude Code sends the full text as a prompt to the Anthropic API. This is effective but consumes tokens and leaves your machine.
+In the default mode, all generative work — summaries, literature notes, flashcards — is handled locally by Qwen3.5:9b via Ollama. Claude Code orchestrates the workflow but does not send source content to the Anthropic API. No tokens, no data transfer.
 
-**Ollama solves this:** when you configure Ollama as the engine for synthesis tasks, the reasoning work runs entirely locally on your M4. No tokens, no data transfer. The M4 with 24 GB is powerful enough for this.
-
-**The honest trade-off:** local models are less capable than Claude Sonnet for complex or nuanced tasks. For simple summaries and flashcards the difference is small; for writing rich literature notes or drawing subtle connections between sources, Claude Sonnet is noticeably better. A hybrid approach — Ollama for routine tasks, Claude Code for work where quality matters — is the most practical for most users.
+**The honest trade-off:** local models are less capable than Claude Sonnet for complex or nuanced tasks. For simple summaries and flashcards the difference is small; for writing rich literature notes or drawing subtle connections between sources, Claude Sonnet is noticeably better. Add `--hd` to any request to switch to Claude Sonnet 4.6 via the Anthropic API for that task — Claude Code always announces this and asks for confirmation before making the API call.
 
 ---
 
@@ -282,24 +280,24 @@ Check whether Ollama is active and which models are available:
 ollama list
 ```
 
-### 6d. Set up Ollama as the engine for synthesis tasks
+### 6d. How Ollama is used in the workflow
 
-Claude Code can call Ollama via its bash tool for tasks you want to handle locally. The simplest approach is to explicitly instruct Claude Code when you want local processing.
+Qwen3.5:9b is the default engine for all generative tasks. Claude Code calls Ollama via its bash tool whenever it needs to generate a summary, write a literature note, or create flashcards. No explicit configuration is needed per task — the CLAUDE.md in your vault already sets this as the default.
 
-**Option 1: Specify per task (simplest)**
+**Option 1: Verify per task (if needed)**
 
-Type in Claude Code for each task you want to use Ollama for:
+To confirm that a specific task runs locally, you can instruct Claude Code explicitly:
 
 ```
 Use Ollama (qwen3.5:9b) to create a summary of this transcript.
 Call the model via: ollama run qwen3.5:9b
 ```
 
-Claude Code then runs the command locally via the bash tool and processes the output without making an Anthropic API call for that step.
+Claude Code runs the command locally via the bash tool and processes the output without making an Anthropic API call for that step.
 
 **Option 2: Default rule in CLAUDE.md**
 
-Add a section to your `CLAUDE.md` to instruct Claude Code to use Ollama by default for all processing tasks:
+The starter `CLAUDE.md` from step 7d already contains the following section — no further action needed. It instructs Claude Code to use Ollama by default for all processing tasks:
 
 ```markdown
 ## Local processing via Ollama
