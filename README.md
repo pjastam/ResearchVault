@@ -1,4 +1,4 @@
-# My ResearchVault
+# ResearchVault
 
 A local, privacy-first research workflow for academic researchers, built on **Claude Code**, **Zotero**, **Obsidian**, and **Ollama**. Designed for a Mac with Apple Silicon; no cloud storage for your research data.
 
