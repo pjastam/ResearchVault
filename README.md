@@ -16,6 +16,8 @@ Every source — paper, podcast, video, RSS article — passes through three exp
 
 The separation between phases 1 and 3 keeps the vault clean: only sources you have consciously approved end up there.
 
+![Architecture diagram](assets/architecture-diagram-v1.8.svg)
+
 ---
 
 ## Tools required

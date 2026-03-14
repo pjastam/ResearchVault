@@ -992,16 +992,7 @@ Fetch the show notes from [URL] and give a 3-sentence summary.
 
 ### Workflow overview at a glance
 
-```
-PHASE 1 — DUMP (sources → _inbox)    PHASE 2 — FILTER          PHASE 3 — PROCESS
-──────────────────────────────────    ──────────────────────    ──────────────────────
-Browser (Connector/iOS)  ──┐
-NetNewsWire RSS          ──┤
-Overcast (iOS share)     ──┼──► Zotero _inbox ──► Qwen3.5:9b summary ──► Claude Code + vault
-YouTube (iOS share)      ──┤                      Your Go/No-go
-Other (iOS share)        ──┘
-                                   ↓ No-go: delete from _inbox
-```
+![Architecture diagram](assets/architecture-diagram-v1.8.svg)
 
 ---
 
