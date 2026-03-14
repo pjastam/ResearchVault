@@ -1,0 +1,27 @@
+# macOS systeembestanden
+.DS_Store
+**/.DS_Store
+
+# Obsidian-instellingen (machine-specifiek, niet deelbaar)
+.obsidian/
+
+# Claude Code lokale instellingen (bevatten persoonlijke paden en IDs)
+.claude/settings.local.json
+
+# Persoonlijke onderzoeksinhoud — niet delen, maar mapstructuur wel bewaren
+literature/*.md
+literature/annotations/*
+!literature/annotations/.gitkeep
+daily/*
+!daily/.gitkeep
+syntheses/*
+!syntheses/.gitkeep
+projects/*
+!projects/.gitkeep
+inbox/*.vtt
+inbox/*.mp3
+inbox/*.txt
+inbox/*.md
+!inbox/.gitkeep
+
+# Laat lege mappen zichtbaar via .gitkeep (zie per map)
