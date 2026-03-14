@@ -1,0 +1,299 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Step 6: Ollama - Local Research Workflow</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="A local, privacy-first research workflow for academic researchers, built on Claude Code, Zotero, Obsidian, and Ollama.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('light')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../introduction.html">Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Installation</li><li class="chapter-item expanded "><a href="../installation/homebrew.html"><strong aria-hidden="true">1.</strong> Step 1: Homebrew</a></li><li class="chapter-item expanded "><a href="../installation/zotero.html"><strong aria-hidden="true">2.</strong> Step 2: Zotero</a></li><li class="chapter-item expanded "><a href="../installation/python.html"><strong aria-hidden="true">3.</strong> Step 3: Python environment</a></li><li class="chapter-item expanded "><a href="../installation/zotero-mcp.html"><strong aria-hidden="true">4.</strong> Step 4: Zotero MCP</a></li><li class="chapter-item expanded "><a href="../installation/claude-code.html"><strong aria-hidden="true">5.</strong> Step 5: Claude Code</a></li><li class="chapter-item expanded "><a href="../installation/ollama.html" class="active"><strong aria-hidden="true">6.</strong> Step 6: Ollama</a></li><li class="chapter-item expanded "><a href="../installation/obsidian.html"><strong aria-hidden="true">7.</strong> Step 7: Obsidian</a></li><li class="chapter-item expanded "><a href="../installation/connect.html"><strong aria-hidden="true">8.</strong> Step 8: Connect everything</a></li><li class="chapter-item expanded "><a href="../installation/first-test.html"><strong aria-hidden="true">9.</strong> Step 9: First test</a></li><li class="chapter-item expanded affix "><li class="part-title">Extensions</li><li class="chapter-item expanded "><a href="../extensions/yt-dlp.html"><strong aria-hidden="true">10.</strong> Step 10: yt-dlp & semantic search</a></li><li class="chapter-item expanded "><a href="../extensions/podcasts.html"><strong aria-hidden="true">11.</strong> Step 11: Podcast integration</a></li><li class="chapter-item expanded "><a href="../extensions/rss.html"><strong aria-hidden="true">12.</strong> Step 12: RSS integration</a></li><li class="chapter-item expanded "><a href="../extensions/spaced-repetition.html"><strong aria-hidden="true">13.</strong> Step 13: Spaced repetition</a></li><li class="chapter-item expanded "><a href="../extensions/filter-layer.html"><strong aria-hidden="true">14.</strong> Step 14: Filter layer per source</a></li><li class="chapter-item expanded affix "><li class="part-title">Reference</li><li class="chapter-item expanded "><a href="../reference/daily-workflow.html"><strong aria-hidden="true">15.</strong> Activating the skill & daily workflow</a></li><li class="chapter-item expanded "><a href="../reference/troubleshooting.html"><strong aria-hidden="true">16.</strong> Troubleshooting</a></li><li class="chapter-item expanded "><a href="../reference/privacy.html"><strong aria-hidden="true">17.</strong> Privacy overview</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Local Research Workflow</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/pjastam/ResearchVault" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/pjastam/ResearchVault/edit/main/book/src/src/installation/ollama.md" title="Suggest an edit" aria-label="Suggest an edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="step-6-install-ollama"><a class="header" href="#step-6-install-ollama">Step 6: Install Ollama</a></h1>
+<h2 id="local-vs-cloud--what-happens-where"><a class="header" href="#local-vs-cloud--what-happens-where">Local vs. cloud — what happens where?</a></h2>
+<p>It is important to understand what runs locally in this workflow and what goes through the cloud:</p>
+<div class="table-wrapper"><table><thead><tr><th>Step</th><th>Where</th><th>Notes</th></tr></thead><tbody>
+<tr><td>Zotero MCP (querying library)</td><td>✅ Local</td><td>Connection via <code>localhost</code></td></tr>
+<tr><td>yt-dlp (fetching transcripts)</td><td>✅ Local</td><td>Scraping on your Mac</td></tr>
+<tr><td>whisper.cpp (transcribing audio)</td><td>✅ Local</td><td>M4 Metal GPU</td></tr>
+<tr><td>Semantic search (Zotero MCP)</td><td>✅ Local</td><td>Local vector database</td></tr>
+<tr><td><strong>Reasoning, summarizing, writing syntheses</strong></td><td>✅ <strong>Local</strong></td><td>Qwen3.5:9b via Ollama (default); Anthropic API only when <code>--hd</code> is used</td></tr>
+</tbody></table>
+</div>
+<p>In the default mode, all generative work — summaries, literature notes, flashcards — is handled locally by Qwen3.5:9b via Ollama. Claude Code orchestrates the workflow but does not send source content to the Anthropic API. No tokens, no data transfer.</p>
+<p><strong>The honest trade-off:</strong> local models are less capable than Claude Sonnet for complex or nuanced tasks. For simple summaries and flashcards the difference is small; for writing rich literature notes or drawing subtle connections between sources, Claude Sonnet is noticeably better. Add <code>--hd</code> to any request to switch to Claude Sonnet 4.6 via the Anthropic API for that task — Claude Code always announces this and asks for confirmation before making the API call.</p>
+<hr />
+<h2 id="6a-install"><a class="header" href="#6a-install">6a. Install</a></h2>
+<pre><code class="language-bash">brew install ollama
+</code></pre>
+<h2 id="6b-download-models"><a class="header" href="#6b-download-models">6b. Download models</a></h2>
+<p>For an M4 Mac mini with 24 GB memory, <strong>Qwen3.5:9b</strong> is the recommended default model for all local processing tasks in the workflow:</p>
+<pre><code class="language-bash">ollama pull qwen3.5:9b   # ~6.6 GB — default model for all tasks
+</code></pre>
+<p>Qwen3.5:9b has a context window of 256K tokens, recent training with explicit attention to multilingualism (201 languages, including Dutch), and a hybrid architecture that stays fast even with long input. It replaces both llama3.1:8b and mistral for all workflow tasks.</p>
+<pre><code class="language-bash"># Optional alternatives (not needed if you use qwen3.5:9b):
+ollama pull llama3.1:8b   # ~4.7 GB — proven, but 128K context and less multilingual
+ollama pull phi3           # ~2.3 GB — very compact, for systems with less memory
+</code></pre>
+<p>Check which models are available after downloading:</p>
+<pre><code class="language-bash">ollama list
+</code></pre>
+<h2 id="6c-start-ollama"><a class="header" href="#6c-start-ollama">6c. Start Ollama</a></h2>
+<pre><code class="language-bash">ollama serve
+</code></pre>
+<p>Leave this running in a separate Terminal window, or configure it as a background service so it is always available:</p>
+<pre><code class="language-bash"># Start automatically at system startup (recommended):
+brew services start ollama
+</code></pre>
+<p>Check whether Ollama is active and which models are available:</p>
+<pre><code class="language-bash">ollama list
+</code></pre>
+<h2 id="6d-how-ollama-is-used-in-the-workflow"><a class="header" href="#6d-how-ollama-is-used-in-the-workflow">6d. How Ollama is used in the workflow</a></h2>
+<p>Qwen3.5:9b is the default engine for all generative tasks. Claude Code calls Ollama via its bash tool whenever it needs to generate a summary, write a literature note, or create flashcards. No explicit configuration is needed per task — the CLAUDE.md in your vault already sets this as the default.</p>
+<p><strong>Option 1: Verify per task (if needed)</strong></p>
+<p>To confirm that a specific task runs locally, you can instruct Claude Code explicitly:</p>
+<pre><code>Use Ollama (qwen3.5:9b) to create a summary of this transcript.
+Call the model via: ollama run qwen3.5:9b
+</code></pre>
+<p>Claude Code runs the command locally via the bash tool and processes the output without making an Anthropic API call for that step.</p>
+<p><strong>Option 2: Default rule in CLAUDE.md</strong></p>
+<p>The starter <code>CLAUDE.md</code> from step 7d already contains the following section — no further action needed. It instructs Claude Code to use Ollama by default for all processing tasks:</p>
+<pre><code class="language-markdown">## Local processing via Ollama
+
+By default, all processing runs locally via Qwen3.5:9b. Use this for:
+- Literature notes based on papers or transcripts
+- Thematic syntheses
+- Flashcard generation
+
+Call Ollama via the bash tool:
+`ollama run qwen3.5:9b &lt; inbox/[filename].txt`
+
+**Maximum quality mode:** if the user adds `--hd` or explicitly asks for "maximum quality" or "use Sonnet", switch to Claude Sonnet 4.6 via the Anthropic API. Always announce this first and wait for confirmation before making the API call. Never automatically fall back to Sonnet if Qwen is unreachable — report that Ollama is not active and ask what the user wants.
+</code></pre>
+<p><strong>Option 3: Test whether Ollama is reachable</strong></p>
+<p>Verify from Claude Code that Ollama is active and processes a test prompt:</p>
+<pre><code class="language-bash">ollama run qwen3.5:9b "Give a three-sentence summary about substitution care."
+</code></pre>
+<p>If this returns a response, Ollama is ready for use from Claude Code.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../installation/claude-code.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../installation/obsidian.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../installation/claude-code.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../installation/obsidian.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </div>
+    </body>
+</html>

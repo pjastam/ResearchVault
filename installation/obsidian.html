@@ -1,0 +1,333 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Step 7: Obsidian - Local Research Workflow</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="A local, privacy-first research workflow for academic researchers, built on Claude Code, Zotero, Obsidian, and Ollama.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('light')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../introduction.html">Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Installation</li><li class="chapter-item expanded "><a href="../installation/homebrew.html"><strong aria-hidden="true">1.</strong> Step 1: Homebrew</a></li><li class="chapter-item expanded "><a href="../installation/zotero.html"><strong aria-hidden="true">2.</strong> Step 2: Zotero</a></li><li class="chapter-item expanded "><a href="../installation/python.html"><strong aria-hidden="true">3.</strong> Step 3: Python environment</a></li><li class="chapter-item expanded "><a href="../installation/zotero-mcp.html"><strong aria-hidden="true">4.</strong> Step 4: Zotero MCP</a></li><li class="chapter-item expanded "><a href="../installation/claude-code.html"><strong aria-hidden="true">5.</strong> Step 5: Claude Code</a></li><li class="chapter-item expanded "><a href="../installation/ollama.html"><strong aria-hidden="true">6.</strong> Step 6: Ollama</a></li><li class="chapter-item expanded "><a href="../installation/obsidian.html" class="active"><strong aria-hidden="true">7.</strong> Step 7: Obsidian</a></li><li class="chapter-item expanded "><a href="../installation/connect.html"><strong aria-hidden="true">8.</strong> Step 8: Connect everything</a></li><li class="chapter-item expanded "><a href="../installation/first-test.html"><strong aria-hidden="true">9.</strong> Step 9: First test</a></li><li class="chapter-item expanded affix "><li class="part-title">Extensions</li><li class="chapter-item expanded "><a href="../extensions/yt-dlp.html"><strong aria-hidden="true">10.</strong> Step 10: yt-dlp & semantic search</a></li><li class="chapter-item expanded "><a href="../extensions/podcasts.html"><strong aria-hidden="true">11.</strong> Step 11: Podcast integration</a></li><li class="chapter-item expanded "><a href="../extensions/rss.html"><strong aria-hidden="true">12.</strong> Step 12: RSS integration</a></li><li class="chapter-item expanded "><a href="../extensions/spaced-repetition.html"><strong aria-hidden="true">13.</strong> Step 13: Spaced repetition</a></li><li class="chapter-item expanded "><a href="../extensions/filter-layer.html"><strong aria-hidden="true">14.</strong> Step 14: Filter layer per source</a></li><li class="chapter-item expanded affix "><li class="part-title">Reference</li><li class="chapter-item expanded "><a href="../reference/daily-workflow.html"><strong aria-hidden="true">15.</strong> Activating the skill & daily workflow</a></li><li class="chapter-item expanded "><a href="../reference/troubleshooting.html"><strong aria-hidden="true">16.</strong> Troubleshooting</a></li><li class="chapter-item expanded "><a href="../reference/privacy.html"><strong aria-hidden="true">17.</strong> Privacy overview</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Local Research Workflow</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/pjastam/ResearchVault" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/pjastam/ResearchVault/edit/main/book/src/src/installation/obsidian.md" title="Suggest an edit" aria-label="Suggest an edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="step-7-install-obsidian-and-create-vault"><a class="header" href="#step-7-install-obsidian-and-create-vault">Step 7: Install Obsidian and create vault</a></h1>
+<h2 id="7a-download-obsidian"><a class="header" href="#7a-download-obsidian">7a. Download Obsidian</a></h2>
+<p>Download Obsidian via <a href="https://obsidian.md">obsidian.md</a>. Install the application in the usual way.</p>
+<h2 id="7b-create-a-vault"><a class="header" href="#7b-create-a-vault">7b. Create a vault</a></h2>
+<ol>
+<li>Open Obsidian</li>
+<li>Choose <strong>"Create new vault"</strong></li>
+<li>Give the vault a name, e.g. <code>ResearchVault</code></li>
+<li>Choose a location you will remember, e.g. <code>~/Documents/ResearchVault</code></li>
+<li>Click <strong>"Create"</strong></li>
+</ol>
+<h2 id="7c-create-folder-structure"><a class="header" href="#7c-create-folder-structure">7c. Create folder structure</a></h2>
+<p>Create the following folders in your vault (right-click in the left panel → "New folder"):</p>
+<pre><code>ResearchVault/
+├── literature/          ← summaries of Zotero papers, YouTube and podcasts
+│   └── annotations/     ← extracted PDF annotations
+├── syntheses/           ← thematic cross-connections
+├── projects/            ← per project or collaboration
+├── daily/               ← daily notes
+├── flashcards/          ← spaced repetition cards (optional, separate from literature/)
+└── inbox/               ← raw input, yet to be processed
+</code></pre>
+<h2 id="7d-create-claudemd"><a class="header" href="#7d-create-claudemd">7d. Create CLAUDE.md</a></h2>
+<p>Create a file <code>CLAUDE.md</code> in the <strong>root of your vault</strong> (not in a subfolder). This is Claude Code's memory. Paste the following starter text and adjust to your preference:</p>
+<pre><code class="language-markdown"># CLAUDE.md — ResearchVault Workflow
+
+## Obsidian conventions
+- All files are Markdown (.md)
+- Use [[double brackets]] for internal links between notes
+- Use #tags for thematic categorization
+- File names: use hyphens, no spaces (e.g. `author-2024-keyword.md`)
+
+## Vault structure
+- `literature/` — one note per paper or source from Zotero
+- `syntheses/` — thematic syntheses of multiple sources
+- `projects/` — project-specific documentation
+- `daily/` — daily notes and log
+- `inbox/` — raw input yet to be processed
+
+## Literature notes (from Zotero)
+Each literature note contains:
+- Bibliographic details (author, year, journal)
+- Core question and main argument
+- Key findings (3–5 points)
+- Methodological notes
+- Quotes relevant to my research
+- Links to related notes in the vault
+
+## Language
+- Answer in English unless asked otherwise
+- Write literature notes in English, quotes in the original language
+
+## Zotero workflow
+- Use Zotero MCP to retrieve papers by title or keywords
+- Save literature notes as `literature/[author-year-keyword].md`
+- Always add a #tag for the topic of the paper
+
+## YouTube transcripts (yt-dlp)
+- Transcripts are stored in `inbox/` as `.vtt` files
+- Process a transcript into a note in `literature/` with the following structure:
+  - Title, speaker, channel, date, URL
+  - Summary (3–5 sentences)
+  - Key points with timestamps
+  - Relevant quotes (with timestamp)
+  - Links to related notes in the vault
+- File name for transcript notes: `[speaker-year-keyword].md` with #tag `#video`
+- Delete raw `.vtt` files from `inbox/` after the note has been created
+
+## Zotero database maintenance
+- The semantic search database must be updated periodically after adding new papers
+- Remind the user to update the database if more than a week has passed since the last update, or if searches are missing recent additions
+- Use the command `update-zotero` (alias) or `zotero-mcp update-db --fulltext` for a full update
+- Check the status with `zotero-status` or `zotero-mcp db-status`
+
+## Podcast transcripts (whisper.cpp + yt-dlp)
+- Audio is downloaded via yt-dlp and stored in `inbox/` as `.mp3`
+- Transcription runs locally via whisper.cpp (fully offline)
+- Whisper detects the language automatically; only pass `--language` explicitly if automatic detection is incorrect
+- Process a transcript into a note in `literature/` with the following structure:
+  - Title, speaker(s), program/channel, date, URL or source reference
+  - Summary (3–5 sentences)
+  - Key points with timestamps
+  - Relevant quotes (with timestamp, in the original language)
+  - Links to related notes in the vault
+- File name for podcast notes: `[speaker-year-keyword].md` with #tag `#podcast`
+- For long podcasts (&gt; 45 min): first create a layered summary (overview → per segment)
+- Delete raw `.mp3` and `.txt` files from `inbox/` after the note has been created
+
+## RSS feeds
+- All RSS feeds (academic and non-academic) are followed via NetNewsWire
+- Academic articles of interest: add them to Zotero via the browser extension or iOS app → they end up in `_inbox`
+- Non-academic articles: add via Zotero Connector, or pass the URL with `inbox [URL]` for direct storage as Markdown in `inbox/`
+- File name for RSS items without a Zotero record: `[source-year-keyword].md` with #tag `#web` or `#policy`
+
+## Spaced repetition (Obsidian plugin)
+- Flashcards are created after each literature note or synthesis
+- Format: question and answer separated by `?` on a new line, enclosed by `#flashcard` tag
+- Create a maximum of 5 cards per source — choose the most relevant concepts
+- Daily review via Obsidian Spaced Repetition plugin (sidebar → Review cards)
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../installation/ollama.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../installation/connect.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../installation/ollama.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../installation/connect.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </div>
+    </body>
+</html>

@@ -1,0 +1,277 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Step 12: RSS integration - Local Research Workflow</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="A local, privacy-first research workflow for academic researchers, built on Claude Code, Zotero, Obsidian, and Ollama.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('light')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../introduction.html">Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Installation</li><li class="chapter-item expanded "><a href="../installation/homebrew.html"><strong aria-hidden="true">1.</strong> Step 1: Homebrew</a></li><li class="chapter-item expanded "><a href="../installation/zotero.html"><strong aria-hidden="true">2.</strong> Step 2: Zotero</a></li><li class="chapter-item expanded "><a href="../installation/python.html"><strong aria-hidden="true">3.</strong> Step 3: Python environment</a></li><li class="chapter-item expanded "><a href="../installation/zotero-mcp.html"><strong aria-hidden="true">4.</strong> Step 4: Zotero MCP</a></li><li class="chapter-item expanded "><a href="../installation/claude-code.html"><strong aria-hidden="true">5.</strong> Step 5: Claude Code</a></li><li class="chapter-item expanded "><a href="../installation/ollama.html"><strong aria-hidden="true">6.</strong> Step 6: Ollama</a></li><li class="chapter-item expanded "><a href="../installation/obsidian.html"><strong aria-hidden="true">7.</strong> Step 7: Obsidian</a></li><li class="chapter-item expanded "><a href="../installation/connect.html"><strong aria-hidden="true">8.</strong> Step 8: Connect everything</a></li><li class="chapter-item expanded "><a href="../installation/first-test.html"><strong aria-hidden="true">9.</strong> Step 9: First test</a></li><li class="chapter-item expanded affix "><li class="part-title">Extensions</li><li class="chapter-item expanded "><a href="../extensions/yt-dlp.html"><strong aria-hidden="true">10.</strong> Step 10: yt-dlp & semantic search</a></li><li class="chapter-item expanded "><a href="../extensions/podcasts.html"><strong aria-hidden="true">11.</strong> Step 11: Podcast integration</a></li><li class="chapter-item expanded "><a href="../extensions/rss.html" class="active"><strong aria-hidden="true">12.</strong> Step 12: RSS integration</a></li><li class="chapter-item expanded "><a href="../extensions/spaced-repetition.html"><strong aria-hidden="true">13.</strong> Step 13: Spaced repetition</a></li><li class="chapter-item expanded "><a href="../extensions/filter-layer.html"><strong aria-hidden="true">14.</strong> Step 14: Filter layer per source</a></li><li class="chapter-item expanded affix "><li class="part-title">Reference</li><li class="chapter-item expanded "><a href="../reference/daily-workflow.html"><strong aria-hidden="true">15.</strong> Activating the skill & daily workflow</a></li><li class="chapter-item expanded "><a href="../reference/troubleshooting.html"><strong aria-hidden="true">16.</strong> Troubleshooting</a></li><li class="chapter-item expanded "><a href="../reference/privacy.html"><strong aria-hidden="true">17.</strong> Privacy overview</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Local Research Workflow</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/pjastam/ResearchVault" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/pjastam/ResearchVault/edit/main/book/src/src/extensions/rss.md" title="Suggest an edit" aria-label="Suggest an edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="step-12-rss-integration"><a class="header" href="#step-12-rss-integration">Step 12: RSS integration</a></h1>
+<p>In the 3-phase model, RSS readers are dump layers for phase 1: you subscribe to feeds without immediately judging whether each item is relevant. Only in phase 2 do you decide what goes into the vault.</p>
+<h2 id="12a-rss-feeds-via-netnewswire"><a class="header" href="#12a-rss-feeds-via-netnewswire">12a. RSS feeds via NetNewsWire</a></h2>
+<p>NetNewsWire is a free, open-source RSS reader for macOS and iOS, with iCloud sync between both devices. It is the central dump layer for all RSS feeds — both academic and non-academic. This is especially true if you primarily work on iOS: the Zotero iOS app has no built-in RSS functionality, making NetNewsWire the most practical choice for all feeds.</p>
+<p><strong>Install:</strong></p>
+<pre><code class="language-bash">brew install --cask netnewswire
+</code></pre>
+<p>Or download via <a href="https://netnewswire.com">netnewswire.com</a>.</p>
+<p><strong>Recommended feeds:</strong></p>
+<ul>
+<li>Journal RSS (e.g. BMJ, NEJM, TSG)</li>
+<li>PubMed searches as RSS feed</li>
+<li>Policy sites and government newsletters</li>
+<li>Trade blogs and opinion pieces on health policy (e.g. Zorgvisie, Skipr)</li>
+<li>Substack publications by relevant authors (each has an RSS feed via <code>[name].substack.com/feed</code>)</li>
+</ul>
+<p><strong>Useful RSS URLs:</strong></p>
+<pre><code># PubMed search as RSS (replace the search term):
+https://pubmed.ncbi.nlm.nih.gov/rss/search/?term=[searchterm]&amp;format=abstract
+
+# Journal RSS (example BMJ):
+https://www.bmj.com/rss/ahead-of-print.xml
+
+# Google Scholar alerts (set up via email and forward, or via RSS-bridge)
+</code></pre>
+<blockquote>
+<p><strong>Phase 1 → phase 2:</strong> Items in NetNewsWire have not yet been saved — they only exist in your feed reader. This is intentional: you browse through them and scan headlines and intros without immediately archiving anything. Only what is truly relevant gets forwarded to the vault. That is the filter moment.</p>
+</blockquote>
+<p><strong>From NetNewsWire to the vault (phase 2 → phase 3):</strong></p>
+<p>Interesting articles are saved via two routes:</p>
+<ul>
+<li><strong>Via Zotero browser extension or iOS app:</strong> open the article, click the Zotero icon → item is saved with metadata to Zotero <code>_inbox</code>. Use this route for academic articles where you want to retain BibTeX metadata and annotation capabilities.</li>
+<li><strong>Direct to <code>inbox/</code>:</strong> pass the URL to Claude Code with the instruction <code>inbox [URL]</code> → Claude Code fetches the content and saves it as a Markdown file in <code>inbox/</code>, without Zotero. Use this route for non-academic articles, news items, and policy documents.</li>
+</ul>
+<blockquote>
+<p><strong>Privacy note:</strong> NetNewsWire stores feed data locally. No reading habits are sent to external servers.</p>
+</blockquote>
+<h2 id="12b-academic-feeds-from-netnewswire-to-zotero"><a class="header" href="#12b-academic-feeds-from-netnewswire-to-zotero">12b. Academic feeds: from NetNewsWire to Zotero</a></h2>
+<p>For academic articles from NetNewsWire, the recommended route is to always add them to Zotero first before having them processed. This way you have BibTeX metadata and annotation capabilities available:</p>
+<ol>
+<li>Open the article from NetNewsWire in your browser</li>
+<li>Click the Zotero icon in your browser (or use the Zotero iOS app) → item is saved to <code>_inbox</code></li>
+<li>Process from <code>_inbox</code> via type 0 → type 1 in the skill</li>
+</ol>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../extensions/podcasts.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../extensions/spaced-repetition.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../extensions/podcasts.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../extensions/spaced-repetition.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </div>
+    </body>
+</html>
