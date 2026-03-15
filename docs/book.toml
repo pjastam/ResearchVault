@@ -1,6 +1,6 @@
 [book]
 title = "Local Research Workflow"
-description = "A privacy-first research workflow for academic researchers, built on local AI, Zotero, and Obsidian."
+description = "A privacy-first workflow for processing documents, videos, podcasts, and RSS feeds with local AI."
 language = "en"
 src = "src"
 
