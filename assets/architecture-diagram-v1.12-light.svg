@@ -55,7 +55,7 @@
 
   <!-- ── HEADER ── -->
   <rect x="290" y="12" width="240" height="22" rx="4" fill="rgba(74,158,255,0.1)" stroke="rgba(74,158,255,0.3)" stroke-width="0.5"/>
-  <text x="410" y="27" text-anchor="middle" font-size="9" font-weight="700" fill="#0550ae" letter-spacing="0.15em" font-family="'JetBrains Mono','Fira Code','Courier New',monospace">LOCAL RESEARCH WORKFLOW v1.8</text>
+  <text x="410" y="27" text-anchor="middle" font-size="9" font-weight="700" fill="#0550ae" letter-spacing="0.15em" font-family="'JetBrains Mono','Fira Code','Courier New',monospace">LOCAL RESEARCH WORKFLOW v1.12</text>
   <text x="410" y="50" text-anchor="middle" font-size="10" fill="#57606a" font-family="'JetBrains Mono','Fira Code','Courier New',monospace">Mac mini M4 · 24 GB · macOS Sequoia · privacy-first · 3-phase model</text>
 
   <!-- ── VERTICAL SPINE ── -->
@@ -226,5 +226,5 @@
   <text x="626" y="822" class="t-priv-warn" font-family="'JetBrains Mono','Fira Code','Courier New',monospace">⚠ --hd → Anthropic</text>
 
   <!-- Footer -->
-  <text x="410" y="856" text-anchor="middle" font-size="9" fill="#8c959f" font-family="'JetBrains Mono','Fira Code','Courier New',monospace">v1.8 · capture → filter → process · Mac mini M4 2024 · Qwen3.5:9b default · Sonnet 4.6 with --hd</text>
+  <text x="410" y="856" text-anchor="middle" font-size="9" fill="#8c959f" font-family="'JetBrains Mono','Fira Code','Courier New',monospace">v1.12 · capture → filter → process · Mac mini M4 2024 · Qwen3.5:9b default · Sonnet 4.6 with --hd</text>
 </svg>
