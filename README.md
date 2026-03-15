@@ -80,7 +80,7 @@ ResearchVault/
 
 ## Getting started
 
-See the [installation guide](installation-guide-local-research-workflow-v1.11.md) for full step-by-step instructions covering all tools, configuration, and the first test run. The guide is also published as a book at **[pjastam.github.io/ResearchVault](https://pjastam.github.io/ResearchVault/)**.
+Full step-by-step instructions covering all tools, configuration, and the first test run are published interactively at **[pjastam.github.io/ResearchVault](https://pjastam.github.io/ResearchVault/)**. A single-file download is also available: [installation-guide-v1.12.md](docs/installation-guide-v1.12.md).
 
 To configure Claude Code's permission settings for this vault, run the setup script from your vault directory:
 
@@ -99,6 +99,7 @@ The script auto-detects your home path and asks for your Zotero library ID (foun
 - Transcription (whisper.cpp) and local model inference (Ollama) run fully offline
 - In standard mode, only orchestration instructions reach the Anthropic API; source content stays local
 - With `--hd`, the prompt and source content are sent to the Anthropic API (Claude Sonnet 4.6)
+- For a fully local orchestration alternative, see [Step 15: Future perspective — local orchestrator](docs/installation-guide-v1.12.md#step-15-future-perspective--local-orchestrator)
 
 ---
 

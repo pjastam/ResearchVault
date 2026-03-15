@@ -21,6 +21,7 @@
 - [Step 12: RSS integration](extensions/rss.md)
 - [Step 13: Spaced repetition](extensions/spaced-repetition.md)
 - [Step 14: Filter layer per source](extensions/filter-layer.md)
+- [Step 15: Future perspective — local orchestrator](extensions/future-orchestrator.md)
 
 # Reference
 

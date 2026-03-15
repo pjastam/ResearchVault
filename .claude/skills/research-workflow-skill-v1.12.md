@@ -107,6 +107,18 @@ Standaard verloopt de volledige workflow lokaal via Qwen3.5:9b. Geen data verlaa
 
 ---
 
+### 7. Toekomstperspectief: lokale orkestrator
+
+De huidige workflow gebruikt Claude Code als orkestrator — de laag die fasen bewaakt, intake-vragen stelt, vault-conventies hanteert en de iteratieve Go/No-go dialoog voert. Dit is de enige component in de stack die niet volledig lokaal draait; prompts gaan naar de Anthropic API.
+
+Voor wie dit ook lokaal wil oplossen, zijn er kandidaten in opkomst: **Open WebUI + MCPO** (een browser-gebaseerde chat-interface die via een proxy MCP-servers aanspreekt, inclusief zotero-mcp) en **ollmcp** (een terminal-interface die Ollama verbindt met meerdere MCP-servers tegelijk, met human-in-the-loop controls). Beide kunnen Qwen3.5:9b als orkestrator inzetten en zotero-mcp als tool aanroepen.
+
+De reden dat dit nu nog geen volwaardig alternatief is: de orkestratie-laag die Claude Code levert — fasebewaking, vault-bewustzijn, structuur van de output, iteratieve dialoog — moet bij een lokale orkestrator volledig als systeem-prompt worden meegegeven. De kwaliteit van instructie-volging bij complexe meertraps-workflows ligt bij lokale modellen merkbaar lager dan bij Claude Sonnet. Het is realiseerbaar, maar vraagt fors extra werk om de skill-logica opnieuw op te bouwen in een ander formaat.
+
+Dit is ook de reden waarom Claude Code zich hier structureel onderscheidt: niet in ruwe generatiekwaliteit (daarvoor is Qwen3.5:9b al sterk genoeg voor de meeste taken), maar in de betrouwbaarheid van de orkestratie over meerdere fasen en tools heen. Of en wanneer lokale modellen dit niveau bereiken is een open vraag — het is de moeite waard om dit landschap te blijven volgen.
+
+---
+
 ## Workflow-menu
 
 Als de gebruiker de skill activeert zonder specifieke vraag, presenteer dan dit menu:
@@ -321,5 +333,5 @@ Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laa
 
 ---
 
-*Skill versie 1.10 — maart 2026*  
-*Wijzigingen t.o.v. v1.9: fase 1 intro bijgewerkt — bronnen correct benoemd (Browser/NetNewsWire/Overcast/YouTube/Overig) met `_inbox` als centrale verzamelbucket; type 3 bijgewerkt — dump-laag beschrijving verwijst nu naar Zotero `_inbox` via iOS share sheet (geen youtube-watchlist.md meer), stap 1 herschreven, stap 7 verwijst naar Zotero `_inbox` item i.p.v. watchlist-URL; type 4 bijgewerkt — dump-laag beschrijving verwijst nu naar Zotero `_inbox` via Overcast iOS share sheet (geen sterrelijst meer)*
+*Skill versie 1.12 — maart 2026*  
+*Wijzigingen t.o.v. v1.10: gedragsregel 7 toegevoegd — toekomstperspectief lokale orkestrator (Open WebUI + MCPO, ollmcp) met afweging waarom Claude Code zich als orkestrator structureel onderscheidt*
