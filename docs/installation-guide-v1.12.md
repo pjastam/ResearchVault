@@ -1102,4 +1102,3 @@ This is also precisely why Claude Code structurally distinguishes itself as an o
 
 *Installation guide version 1.12 — March 2026*
 *Tested on Mac mini M4 (2024), 24 GB, macOS Sequoia*
-*Changes from v1.11: step 15 added — future perspective local orchestrator (Open WebUI + MCPO and ollmcp as candidates, with an honest assessment of why Claude Code as orchestrator is still the better choice for now)*

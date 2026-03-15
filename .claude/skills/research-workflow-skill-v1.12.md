@@ -333,5 +333,4 @@ Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laa
 
 ---
 
-*Skill versie 1.12 — maart 2026*  
-*Wijzigingen t.o.v. v1.10: gedragsregel 7 toegevoegd — toekomstperspectief lokale orkestrator (Open WebUI + MCPO, ollmcp) met afweging waarom Claude Code zich als orkestrator structureel onderscheidt*
+*Skill versie 1.12 — maart 2026*

@@ -75,4 +75,4 @@ Elke literatuurnotitie bevat:
 - Dagelijkse review via Obsidian Spaced Repetition plugin (zijbalk → Kaarten beoordelen)
 
 ## Actieve skills
-- Lees en volg `.claude/skills/research-workflow-skill-v1.10.md` bij elke research-sessie.
+- Lees en volg `.claude/skills/research-workflow-skill-v1.12.md` bij elke research-sessie.
