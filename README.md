@@ -106,6 +106,22 @@ The script auto-detects your home path and asks for your Zotero library ID (foun
 
 ---
 
+## Frequently asked questions
+
+1. Does content go to the cloud?
+
+In the default mode: no. Claude Code orchestrates the workflow, but the actual generative work — summaries, literature notes, flashcards — is done by Qwen3.5:9b running locally via Ollama. Source content is piped directly to Ollama via bash (ollama run qwen3.5:9b < file.txt), so it never enters Claude Code's context and never reaches Anthropic's servers. Only when you explicitly add --hd does source content go to the Anthropic API — and Claude Code asks for confirmation first.                                                    
+
+2. Do you need a paid Claude subscription?
+
+Partially yes — Claude Code needs an Anthropic account (paid subscription or API credits) for its orchestration role. But the AI that actually reads and processes your research is Ollama + Qwen3.5:9b, which is completely free and open source. So the heavy lifting costs nothing.
+
+3. "No data leaks" — is that accurate?
+
+Yes, substantially. In default mode no vault content, paper, transcript, or note leaves your local machine. The privacy claim holds up in this sense.
+
+---
+
 ## License
 
 MIT — feel free to adapt this workflow for your own research setup.
