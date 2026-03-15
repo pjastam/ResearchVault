@@ -17,8 +17,8 @@ Every source — paper, podcast, video, RSS article — passes through three exp
 The separation between phases 1 and 3 keeps the vault clean: only sources you have consciously approved end up there.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/architecture-diagram-v1.8-dark.svg">
-  <img src="assets/architecture-diagram-v1.8-light.svg" alt="Architecture diagram">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/architecture-diagram-v1.12-dark.svg">
+  <img src="assets/architecture-diagram-v1.12-light.svg" alt="Architecture diagram">
 </picture>
 
 ---
