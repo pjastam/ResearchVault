@@ -1,6 +1,6 @@
 [book]
 title = "Local Research Workflow"
-description = "A local, privacy-first research workflow for academic researchers, built on Claude Code, Zotero, Obsidian, and Ollama."
+description = "A privacy-first research workflow for academic researchers, built on local AI, Zotero, and Obsidian."
 language = "en"
 src = "src"
 

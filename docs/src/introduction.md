@@ -1,6 +1,6 @@
 # Local Research Workflow
 
-A local, privacy-first research workflow for academic researchers, built on **Claude Code**, **Zotero**, **Obsidian**, and **Ollama**. Designed for a Mac with Apple Silicon; no cloud storage for your research data.
+A privacy-first research workflow for academic researchers, built on local AI, **Zotero**, and **Obsidian**. Designed for a Mac with Apple Silicon; no cloud storage for your research data.
 
 **Estimated installation time:** 60–120 minutes
 **Requirements:** macOS Sequoia or later, internet connection for downloads, an Anthropic account (for Claude Code)
