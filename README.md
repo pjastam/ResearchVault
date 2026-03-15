@@ -102,7 +102,7 @@ The script auto-detects your home path and asks for your Zotero library ID (foun
 - Transcription (whisper.cpp) and local model inference (Ollama) run fully offline
 - In standard mode, only orchestration instructions reach the Anthropic API; source content stays local
 - With `--hd`, the prompt and source content are sent to the Anthropic API (Claude Sonnet 4.6)
-- For a fully local orchestration alternative, see [Step 15: Future perspective — local orchestrator](docs/installation-guide-v1.12.md#step-15-future-perspective--local-orchestrator)
+- For a fully local orchestration alternative, see [Step 15: Future perspective — local orchestrator](https://pjastam.github.io/ResearchVault/extensions/future-orchestrator.html)
 
 ---
 
