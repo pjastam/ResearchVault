@@ -14,13 +14,30 @@
 - `inbox/` — ruwe input die nog verwerkt moet worden
 
 ## Literatuurnotities (uit Zotero)
-Elke literatuurnotitie bevat:
-- Bibliografische gegevens (auteur, jaar, tijdschrift)
-- Kernvraag en hoofdargument
-- Kernbevindingen (3–5 punten)
-- Methodologische notities
-- Citaten die relevant zijn voor mijn onderzoek
-- Links naar gerelateerde notes in de vault
+
+Elke literatuurnotitie begint met de volgende YAML frontmatter:
+```yaml
+---
+title: "Volledige titel van het werk"
+authors: ["Achternaam, Voornaam", ...]
+year: JJJJ
+journal: "Naam tijdschrift of uitgever"
+citation_key: auteur2024kernwoord
+zotero: "zotero://select/library/1/items/ITEMKEY"
+tags: [thema1, thema2]
+---
+```
+
+Vervang `ITEMKEY` door de werkelijke Zotero item key, op te halen via Zotero MCP:
+`zotero-mcp get-item-key <titel of DOI>` of via het `key`-veld in de MCP-respons.
+
+Na de frontmatter bevat elke notitie:
+
+* Kernvraag en hoofdargument
+* Kernbevindingen (3–5 punten)
+* Methodologische notities
+* Citaten die relevant zijn voor mijn onderzoek (in de originele taal)
+* Links naar gerelateerde notities in de vault ([[dubbele haken]])
 
 ## Taal
 - Antwoord in het Nederlands tenzij anders gevraagd
