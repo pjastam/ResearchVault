@@ -11,7 +11,7 @@ Every source — paper, podcast, video, RSS article — passes through three exp
 | Phase | Goal | How |
 |---|---|---|
 | **1 — Cast wide** | Capture everything, no filtering yet | All sources flow into a single Zotero `_inbox` collection via browser extension, iOS app, or RSS reader |
-| **2 — Filter** | You decide what enters the vault | Qwen3.5:9b (local) generates a 2–3 sentence summary per inbox item; you give a **Go** or **No-go** |
+| **2 — Filter** | You decide what enters the vault | `index-score.py` ranks inbox items by semantic similarity to your existing library; Qwen3.5:9b (local) generates a 2–3 sentence summary per item; you give a **Go** or **No-go** |
 | **3 — Process** | Full processing of approved items | Claude Code writes a structured literature note to the Obsidian vault, including key findings, methodology notes, relevant quotes, and flashcards for spaced repetition |
 
 The separation between phases 1 and 3 keeps the vault clean: only sources you have consciously approved end up there.
@@ -51,7 +51,8 @@ ResearchVault/
 ├── inbox/            # Raw input awaiting processing
 ├── CLAUDE.md         # Workflow instructions for Claude Code
 └── .claude/
-    └── skills/       # Research workflow skill loaded each session
+    ├── index-score.py  # Relevance scoring for _inbox items (semantic similarity)
+    └── skills/         # Research workflow skill loaded each session
 ```
 
 ---
@@ -69,10 +70,15 @@ ResearchVault/
    /research
    ```
    or just type: `start research workflow`
-4. Claude Code retrieves all items from your Zotero `_inbox` and presents each one with a short summary and relevance assessment — the summary is generated locally by Qwen3.5:9b. You respond **Go** or **No-go** per item.
-5. For each **Go**: Claude Code moves the item to the correct Zotero collection and writes a structured literature note in `literature/`.
-6. For each **No-go**: Claude Code removes the item from `_inbox` (after your confirmation).
-7. At the end of the session, Claude Code shows a summary: X approved, Y removed. If new papers were added, update the semantic search database. Use the quick version for metadata only, or the recommended full version for much better search results (5–20 min on Apple Silicon):
+4. Optionally, run `index-score.py` first to prioritize your review:
+   ```bash
+   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/index-score.py
+   ```
+   This ranks all `_inbox` items by semantic similarity to your existing library (using the ChromaDB embeddings from zotero-mcp), so you know which items to focus on.
+5. Claude Code retrieves all items from your Zotero `_inbox` and presents each one with a short summary and relevance assessment — the summary is generated locally by Qwen3.5:9b. You respond **Go** or **No-go** per item.
+6. For each **Go**: Claude Code moves the item to the correct Zotero collection and writes a structured literature note in `literature/`.
+7. For each **No-go**: Claude Code removes the item from `_inbox` (after your confirmation).
+8. At the end of the session, Claude Code shows a summary: X approved, Y removed. If new papers were added, update the semantic search database. Use the quick version for metadata only, or the recommended full version for much better search results (5–20 min on Apple Silicon):
    ```bash
    zotero-mcp update-db            # quick (metadata only)
    zotero-mcp update-db --fulltext # recommended (includes full text)
