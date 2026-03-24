@@ -946,6 +946,25 @@ Items with unknown tags (e.g. your own project tags or type indicators) are ther
 
 **No-go is always final:** a rejected item is deleted from `_inbox` and receives no note in the vault. Claude Code always asks for confirmation before deletion.
 
+### Reading status in Obsidian
+
+Every literature note gets a `status` field in its YAML frontmatter:
+- `status: unread` — default for all new notes
+- `status: read` — set automatically when the Zotero item had a `✅` tag (meaning you had already read it before approving)
+
+After reading a note in Obsidian, change `status: unread` to `status: read` manually.
+
+To see all unread notes at a glance, create a note with this [Dataview](https://blacksmithgu.github.io/obsidian-dataview/) query:
+
+```dataview
+TABLE authors, year, journal, tags
+FROM "literature"
+WHERE status = "unread"
+SORT year DESC, file.name ASC
+```
+
+> **Note:** frontmatter tags must be written without `#` (e.g. `tags: [beleid, zorg]`). Obsidian adds the `#` in the UI automatically. Using `#` inside a YAML array breaks frontmatter parsing.
+
 Before starting your review, run `index-score.py` to get a ranked list sorted by relevance:
 
 ```bash
