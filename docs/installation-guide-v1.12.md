@@ -15,7 +15,7 @@ The workflow is built around three explicit phases — every source passes throu
 | Phase                        | Goal                                        | Approach                                                                                                                                                                                  |
 | --------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **1 — Cast wide**        | Low threshold, no filtering                | Each source has its own dump layer: Browser (Zotero Connector/iOS), NetNewsWire (RSS), Overcast (podcasts), YouTube (videos), Other (iOS share sheet) — everything flows together into Zotero `_inbox` |
-| **2 — Filter**            | You decide what enters the vault             | Qwen3.5:9b (local) generates a 2–3 sentence summary per inbox item; you give a **Go** or **No-go**                                                                                                                              |
+| **2 — Filter**            | You decide what enters the vault             | `index-score.py` ranks inbox items by semantic similarity to your library; Qwen3.5:9b (local) generates a summary for mid-range items; you give a **Go** or **No-go**                                                          |
 | **3 — Process** | Full processing of approved items | Claude Code writes a structured literature note to the Obsidian vault, including key findings, methodology notes, relevant quotes, and flashcards for spaced repetition                                                                                                                                               |
 
 The distinction between phase 1 and phase 3 prevents your vault from being polluted with material that seemed interesting at the moment of capture but turns out to be irrelevant on reflection.
@@ -928,7 +928,7 @@ This is the core of the 3-phase model: phase 2, the filter moment, is set up dif
 | Phase | What |
 |------|-----|
 | Dump layer | Zotero `_inbox` collection — central collection bucket for all sources |
-| Filter moment | Read abstract in Zotero, or have Claude Code summarize via Qwen3.5:9b (locally) |
+| Filter moment | Run `index-score.py` to rank items by relevance; read abstract in Zotero, or have Claude Code summarize via Qwen3.5:9b (locally) |
 | Go | Move item to the relevant collection in your library |
 | No-go | Delete item from `_inbox` — no note is created |
 
@@ -946,7 +946,15 @@ Items with unknown tags (e.g. your own project tags or type indicators) are ther
 
 **No-go is always final:** a rejected item is deleted from `_inbox` and receives no note in the vault. Claude Code always asks for confirmation before deletion.
 
-Claude Code can help you with the evaluation — ask for a summary of items in `_inbox`:
+Before starting your review, run `index-score.py` to get a ranked list sorted by relevance:
+
+```bash
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/index-score.py
+```
+
+This ranks all `_inbox` items by semantic similarity to your existing library (using ChromaDB embeddings from zotero-mcp). Scores drive the treatment per item: 🟢 ≥70 skips the summary, 🟡 40–69 gets a Qwen summary, 🔴 <40 triggers an immediate No-go suggestion.
+
+Claude Code can also help you with the evaluation — ask for a summary of items in `_inbox`:
 
 ```
 Give me an overview of the items in my Zotero _inbox collection with a 2–3 sentence

@@ -14,7 +14,7 @@ Every source — paper, podcast, video, RSS article — passes through three exp
 | Phase | Goal | How |
 |---|---|---|
 | **1 — Cast wide** | Capture everything, no filtering yet | All sources flow into a single Zotero `_inbox` collection via browser extension, iOS app, or RSS reader |
-| **2 — Filter** | You decide what enters the vault | Qwen3.5:9b (local) generates a 2–3 sentence summary per inbox item; you give a **Go** or **No-go** |
+| **2 — Filter** | You decide what enters the vault | `index-score.py` ranks inbox items by semantic similarity to your library; Qwen3.5:9b (local) generates a summary for mid-range items; you give a **Go** or **No-go** |
 | **3 — Process** | Full processing of approved items | Claude Code writes a structured literature note to the Obsidian vault, including key findings, methodology notes, relevant quotes, and flashcards for spaced repetition |
 
 The separation between phases 1 and 3 keeps the vault clean: only sources you have consciously approved end up there.
