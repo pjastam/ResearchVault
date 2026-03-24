@@ -815,7 +815,7 @@ Use the Obsidian Spaced Repetition format with ? as separator.
 <h2 id="papers-zotero"><a class="header" href="#papers-zotero">Papers (Zotero)</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Phase</th><th>What</th></tr></thead><tbody>
 <tr><td>Dump layer</td><td>Zotero <code>_inbox</code> collection — central collection bucket for all sources</td></tr>
-<tr><td>Filter moment</td><td>Read abstract in Zotero, or have Claude Code summarize via Qwen3.5:9b (locally)</td></tr>
+<tr><td>Filter moment</td><td>Run <code>index-score.py</code> to rank items by relevance; read abstract in Zotero, or have Claude Code summarize via Qwen3.5:9b (locally)</td></tr>
 <tr><td>Go</td><td>Move item to the relevant collection in your library</td></tr>
 <tr><td>No-go</td><td>Delete item from <code>_inbox</code> — no note is created</td></tr>
 </tbody></table>
@@ -830,6 +830,12 @@ Use the Obsidian Spaced Repetition format with ? as separator.
 </div>
 <p>Items with unknown tags (e.g. your own project tags or type indicators) are therefore treated as <code>/unread</code>: Claude Code generates a summary and asks for a Go/No-go decision.</p>
 <p><strong>No-go is always final:</strong> a rejected item is deleted from <code>_inbox</code> and receives no note in the vault. Claude Code always asks for confirmation before deletion.</p>
+<h3 id="relevance-scoring-with-index-scorepy"><a class="header" href="#relevance-scoring-with-index-scorepy">Relevance scoring with index-score.py</a></h3>
+<p>Before starting the Go/No-go review, you can run <code>index-score.py</code> to get a ranked list of inbox items sorted by semantic similarity to your existing library:</p>
+<pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/index-score.py
+</code></pre>
+<p>The script uses ChromaDB embeddings (all-MiniLM-L6-v2, same model as zotero-mcp) to compute a relevance score (0–100) per item. Items with PDF annotations in Zotero weigh more heavily in the preference profile. Output labels: 🟢 strong match (≥70) · 🟡 possibly relevant (40–69) · 🔴 weak match (&lt;40).</p>
+<h3 id="summary-requests"><a class="header" href="#summary-requests">Summary requests</a></h3>
 <p>Claude Code can help you with the evaluation — ask for a summary of items in <code>_inbox</code>:</p>
 <pre><code>Give me an overview of the items in my Zotero _inbox collection with a 2–3 sentence
 summary per item and a relevance assessment for my research on [topic].
@@ -916,6 +922,10 @@ claude
 <pre><code>/research
 </code></pre>
 or just type: <code>start research workflow</code></li>
+<li>Optionally, run <code>index-score.py</code> first to prioritize your review:
+<pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/index-score.py
+</code></pre>
+This ranks all <code>_inbox</code> items by semantic similarity to your existing library (using the ChromaDB embeddings from zotero-mcp), so you know which items to focus on.</li>
 <li>Claude Code retrieves all items from your Zotero <code>_inbox</code> and presents each one with a short summary and relevance assessment — the summary is generated locally by Qwen3.5:9b. You respond <strong>Go</strong> or <strong>No-go</strong> per item.</li>
 <li>For each <strong>Go</strong>: Claude Code moves the item to the correct Zotero collection and writes a structured literature note in <code>literature/</code>.</li>
 <li>For each <strong>No-go</strong>: Claude Code removes the item from <code>_inbox</code> (after your confirmation).</li>

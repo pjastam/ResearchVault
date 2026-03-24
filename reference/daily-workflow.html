@@ -215,6 +215,10 @@ claude
 <pre><code>/research
 </code></pre>
 or just type: <code>start research workflow</code></li>
+<li>Optionally, run <code>index-score.py</code> first to prioritize your review:
+<pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/index-score.py
+</code></pre>
+This ranks all <code>_inbox</code> items by semantic similarity to your existing library (using the ChromaDB embeddings from zotero-mcp), so you know which items to focus on.</li>
 <li>Claude Code retrieves all items from your Zotero <code>_inbox</code> and presents each one with a short summary and relevance assessment — the summary is generated locally by Qwen3.5:9b. You respond <strong>Go</strong> or <strong>No-go</strong> per item.</li>
 <li>For each <strong>Go</strong>: Claude Code moves the item to the correct Zotero collection and writes a structured literature note in <code>literature/</code>.</li>
 <li>For each <strong>No-go</strong>: Claude Code removes the item from <code>_inbox</code> (after your confirmation).</li>
