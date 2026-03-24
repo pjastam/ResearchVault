@@ -24,7 +24,7 @@ year: JJJJ
 journal: "Naam tijdschrift of uitgever"
 citation_key: auteur2024kernwoord
 zotero: "zotero://select/library/1/items/ITEMKEY"
-tags: [thema1, thema2]
+tags: [thema1, thema2]  # geen # voor tags — Obsidian voegt dat zelf toe
 status: unread
 ---
 ```
