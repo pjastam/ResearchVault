@@ -7,7 +7,7 @@ This is the core of the 3-phase model: phase 2, the filter moment, is set up dif
 | Phase | What |
 |------|-----|
 | Dump layer | Zotero `_inbox` collection — central collection bucket for all sources |
-| Filter moment | Read abstract in Zotero, or have Claude Code summarize via Qwen3.5:9b (locally) |
+| Filter moment | Run `index-score.py` to rank items by relevance; read abstract in Zotero, or have Claude Code summarize via Qwen3.5:9b (locally) |
 | Go | Move item to the relevant collection in your library |
 | No-go | Delete item from `_inbox` — no note is created |
 
@@ -24,6 +24,18 @@ Claude Code adjusts its evaluation based on the Zotero tag of the item:
 Items with unknown tags (e.g. your own project tags or type indicators) are therefore treated as `/unread`: Claude Code generates a summary and asks for a Go/No-go decision.
 
 **No-go is always final:** a rejected item is deleted from `_inbox` and receives no note in the vault. Claude Code always asks for confirmation before deletion.
+
+### Relevance scoring with index-score.py
+
+Before starting the Go/No-go review, you can run `index-score.py` to get a ranked list of inbox items sorted by semantic similarity to your existing library:
+
+```bash
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/index-score.py
+```
+
+The script uses ChromaDB embeddings (all-MiniLM-L6-v2, same model as zotero-mcp) to compute a relevance score (0–100) per item. Items with PDF annotations in Zotero weigh more heavily in the preference profile. Output labels: 🟢 strong match (≥70) · 🟡 possibly relevant (40–69) · 🔴 weak match (<40).
+
+### Summary requests
 
 Claude Code can help you with the evaluation — ask for a summary of items in `_inbox`:
 

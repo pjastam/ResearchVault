@@ -47,10 +47,15 @@ You do not need to know exactly what you are looking for — the skill is design
    /research
    ```
    or just type: `start research workflow`
-4. Claude Code retrieves all items from your Zotero `_inbox` and presents each one with a short summary and relevance assessment — the summary is generated locally by Qwen3.5:9b. You respond **Go** or **No-go** per item.
-5. For each **Go**: Claude Code moves the item to the correct Zotero collection and writes a structured literature note in `literature/`.
-6. For each **No-go**: Claude Code removes the item from `_inbox` (after your confirmation).
-7. At the end of the session, Claude Code shows a summary: X approved, Y removed. If new papers were added, update the semantic search database. Use the quick version for metadata only, or the recommended full version for much better search results (5–20 min on Apple Silicon):
+4. Optionally, run `index-score.py` first to prioritize your review:
+   ```bash
+   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/index-score.py
+   ```
+   This ranks all `_inbox` items by semantic similarity to your existing library (using the ChromaDB embeddings from zotero-mcp), so you know which items to focus on.
+5. Claude Code retrieves all items from your Zotero `_inbox` and presents each one with a short summary and relevance assessment — the summary is generated locally by Qwen3.5:9b. You respond **Go** or **No-go** per item.
+6. For each **Go**: Claude Code moves the item to the correct Zotero collection and writes a structured literature note in `literature/`.
+7. For each **No-go**: Claude Code removes the item from `_inbox` (after your confirmation).
+8. At the end of the session, Claude Code shows a summary: X approved, Y removed. If new papers were added, update the semantic search database. Use the quick version for metadata only, or the recommended full version for much better search results (5–20 min on Apple Silicon):
    ```bash
    zotero-mcp update-db            # quick (metadata only)
    zotero-mcp update-db --fulltext # recommended (includes full text)
