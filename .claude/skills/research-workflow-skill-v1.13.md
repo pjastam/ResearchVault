@@ -178,7 +178,9 @@ Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laa
      echo "[abstract + metadata]" | ollama run qwen3.5:9b
      ```
    - Vraag: **Go** (verwerken naar literatuurnotitie) of **No-go**?
-6. **Go-items:** verplaats naar de juiste collectie en verwerk direct (of stel dat voor als volgende stap)
+6. **Go-items:** verplaats naar de juiste collectie en verwerk direct (of stel dat voor als volgende stap). Stel bij het aanmaken van de literatuurnotitie de `status` in de frontmatter in:
+   - `status: read` als het item de tag `✅` had in Zotero
+   - `status: unread` in alle andere gevallen
 7. **No-go-items:** vraag altijd om bevestiging vóór verwijdering, verwijder daarna uit `_inbox`. Een no-go betekent altijd: geen notitie aanmaken én verwijderen uit `_inbox` — er is geen tussenoptie.
 8. Sluit af met een overzicht: "X items goedgekeurd, Y items verwijderd."
 
@@ -197,7 +199,7 @@ Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laa
    ollama run qwen3.5:9b < inbox/[auteur-jaar]-bron.txt > literature/[auteur-jaar-kernwoord].md
    ```
 6. Verwijder het tijdelijke bronbestand uit `inbox/` na afronding
-7. Voeg daarna toe: frontmatter, `[[interne links]]` naar gerelateerde notes, en `#tags`
+7. Voeg daarna toe: frontmatter (inclusief `status: unread`, tenzij het item de tag `✅` had — dan `status: read`), `[[interne links]]` naar gerelateerde notes, en `#tags`
 8. Vraag: "Nog een paper, of wil je nu iets anders?"
 
 > **Contextlimiet:** qwen3.5:9b heeft een contextvenster van 256K tokens. Bij standaard papers is er geen limiet; ook zeer lange papers kunnen volledig worden verwerkt.

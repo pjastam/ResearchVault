@@ -25,8 +25,11 @@ journal: "Naam tijdschrift of uitgever"
 citation_key: auteur2024kernwoord
 zotero: "zotero://select/library/1/items/ITEMKEY"
 tags: [thema1, thema2]
+status: unread
 ---
 ```
+
+`status` geeft aan of het artikel al gelezen is: `unread` (standaard) of `read`. Uitzondering: als het Zotero-item de tag `✅` had, gebruik dan `status: read`.
 
 Vervang `ITEMKEY` door de werkelijke Zotero item key, op te halen via Zotero MCP:
 `zotero-mcp get-item-key <titel of DOI>` of via het `key`-veld in de MCP-respons.
