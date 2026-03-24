@@ -48,6 +48,13 @@ Na de frontmatter bevat elke notitie:
 - Sla literatuurnotities op als `literature/[auteur-jaar-kernwoord].md`
 - Voeg altijd een #tag toe voor het thema van de paper
 
+## _inbox prioritering (index-score.py)
+- Gebruik `.claude/index-score.py` om items in de Zotero `_inbox` te scoren op relevantie vóór de fase 2-review
+- Het script vergelijkt de embeddings van inbox-items met het gewogen gemiddelde van je bestaande bibliotheek (via ChromaDB, model: all-MiniLM-L6-v2)
+- Items met PDF-annotaties in Zotero wegen zwaarder mee in het voorkeursprofiel (gewicht 3 vs. 1)
+- Uitvoeren: `~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/index-score.py`
+- Output: gesorteerde lijst met scores 0–100, labels 🟢 (≥70) · 🟡 (40–69) · 🔴 (<40)
+
 ## YouTube-transcripten (yt-dlp)
 - Transcripten worden opgeslagen in `inbox/` als `.vtt`-bestanden
 - Verwerk een transcript naar een note in `literature/` met de volgende structuur:
