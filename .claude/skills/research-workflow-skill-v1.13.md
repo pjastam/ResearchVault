@@ -155,24 +155,32 @@ Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laa
 **Taglogica:** items in `_inbox` kunnen één van de volgende situaties hebben:
 - **Tag `✅`** → al goedgekeurd; sla de Go/No-go vraag over en verwerk direct
 - **Tag `📖`** → al gelezen; geef alleen een Go/No-go prompt zonder samenvatting
-- **Tag `/unread` of geen tag** → genereer een samenvatting van 2–3 zinnen + Go/No-go
-- **Elke andere tag** → behandel hetzelfde als `/unread`: genereer een samenvatting + Go/No-go
+- **Tag `/unread` of geen tag** → behandel score-afhankelijk (zie scorelogica hieronder)
+- **Elke andere tag** → behandel hetzelfde als `/unread`
+
+**Scorelogica:** voor items zonder `✅` of `📖` tag bepaalt de relevantiescore de behandeling:
+- **Score ≥70 (🟢)** → sla samenvatting over; toon titel + score; vraag direct Go/No-go
+- **Score 40–69 (🟡)** → genereer samenvatting van 2–3 zinnen via Qwen3.5:9b + Go/No-go
+- **Score <40 (🔴)** → stel meteen No-go voor ("Score: X — weinig match met je bibliotheek. No-go?"); gebruiker kan alsnog Go kiezen
 
 **Stappenplan:**
 
-1. Haal via Zotero MCP alle items op uit de `_inbox` collectie
-2. Toon een genummerde lijst: auteur, jaar, titel, aanwezige tag(s)
-3. Vraag: "Wil je ze één voor één beoordelen, of zal ik per item direct een samenvatting geven?"
-4. Per item, afhankelijk van de tag (zie taglogica hierboven):
+1. Draai `index-score.py` om de relevantiescore per inbox-item te berekenen:
+   ```bash
+   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/index-score.py
+   ```
+2. Haal via Zotero MCP alle items op uit de `_inbox` collectie
+3. Toon een genummerde lijst gesorteerd op score: score-label, score, auteur, jaar, titel, tag(s)
+4. Vraag: "Wil je ze één voor één beoordelen, of zal ik per item direct een samenvatting geven?"
+5. Per item, afhankelijk van tag én score (zie taglogica + scorelogica hierboven):
    - Genereer indien nodig een samenvatting lokaal via Qwen3.5:9b op basis van abstract en metadata:
      ```
      echo "[abstract + metadata]" | ollama run qwen3.5:9b
      ```
-   - Geef een relevantie-indicatie: past dit bij het lopende onderzoek in de vault?
    - Vraag: **Go** (verwerken naar literatuurnotitie) of **No-go**?
-5. **Go-items:** verplaats naar de juiste collectie en verwerk direct (of stel dat voor als volgende stap)
-6. **No-go-items:** vraag altijd om bevestiging vóór verwijdering, verwijder daarna uit `_inbox`. Een no-go betekent altijd: geen notitie aanmaken én verwijderen uit `_inbox` — er is geen tussenoptie.
-7. Sluit af met een overzicht: "X items goedgekeurd, Y items verwijderd."
+6. **Go-items:** verplaats naar de juiste collectie en verwerk direct (of stel dat voor als volgende stap)
+7. **No-go-items:** vraag altijd om bevestiging vóór verwijdering, verwijder daarna uit `_inbox`. Een no-go betekent altijd: geen notitie aanmaken én verwijderen uit `_inbox` — er is geen tussenoptie.
+8. Sluit af met een overzicht: "X items goedgekeurd, Y items verwijderd."
 
 > **Let op:** Vraag nooit meer dan één Go/No-go tegelijk — geef de gebruiker de ruimte per item te beslissen.
 
@@ -333,4 +341,4 @@ Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laa
 
 ---
 
-*Skill versie 1.12 — maart 2026*
+*Skill versie 1.13 — maart 2026*
