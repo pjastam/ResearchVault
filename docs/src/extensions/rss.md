@@ -84,7 +84,30 @@ Interesting articles are saved via two routes:
 
 > **Privacy note:** NetNewsWire stores feed data locally. No reading habits are sent to external servers.
 
-## 12c. Academic feeds: from NetNewsWire to Zotero
+## 12c. Feedback signals: training the scoring
+
+The HTML reader (`http://localhost:8765/filtered.html`) captures three types of user behaviour that feed into the learning loop:
+
+| # | Behaviour | Signal strength | Recorded as |
+|---|-----------|-----------------|-------------|
+| 1 | Item clicked + added to Zotero | Strong positive | `added_to_zotero: true` |
+| 2 | Item clicked, not added to Zotero | Weak negative (seen but not interesting enough) | `added_to_zotero: false` after 3 days |
+| 3 | Item not clicked, no 👎 pressed | Ambiguous — not seen, or implicitly ignored | `added_to_zotero: false` after 3 days — indistinguishable from type 2 |
+| 4 | 👎 pressed without clicking | **Strong explicit negative** (headline was enough to reject) | `skipped: true` immediately |
+| 5 | Item clicked, then 👎 pressed | **Strongest negative signal** (read and rejected) | `skipped: true` + `added_to_zotero: false` |
+
+> **Type 3 remains ambiguous** even with the 👎 button. Items you never looked at receive the same label as items you chose not to add. Only types 4 and 5 are unambiguous rejections. `phase0-learn.py` reports all three categories separately so you can track signal quality over time.
+
+**How to use the 👎 button:**
+- When a headline is clearly off-topic, press 👎 directly — no need to open the article.
+- The item is immediately faded and struck through in the reader.
+- The rejection is sent to the server and queued in `skip_queue.jsonl`; `phase0-learn.py` processes it the next morning.
+
+**Future use of explicit negatives:** once enough `skipped: true` items have accumulated, they can be used to build a negative profile that penalises similarity to rejected content: `score = sim(item, positive_profile) − λ × sim(item, negative_profile)`. The learning loop will advise when enough data is available.
+
+---
+
+## 12d. Academic feeds: from NetNewsWire to Zotero
 
 For academic articles from NetNewsWire, the recommended route is to always add them to Zotero first before having them processed. This way you have BibTeX metadata and annotation capabilities available:
 

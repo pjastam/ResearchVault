@@ -29,6 +29,7 @@ from pathlib import Path
 
 SCRIPT_DIR      = Path(__file__).parent
 LOG_FILE        = SCRIPT_DIR / "score_log.jsonl"
+SKIP_QUEUE      = SCRIPT_DIR / "skip_queue.jsonl"
 ZOTERO_SQLITE   = Path.home() / "Zotero" / "zotero.sqlite"
 INBOX_ID        = 333
 LABEL_AFTER_DAYS = 3   # items ouder dan N dagen zonder match krijgen added_to_zotero: false
@@ -75,6 +76,31 @@ def save_log(path: Path, entries: list[dict]) -> None:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 
+def process_skip_queue(entries: list[dict]) -> int:
+    """
+    Verwerkt skip_queue.jsonl: zoekt elk URL op in entries en zet skipped=True.
+    Leegt de queue daarna (items zijn verwerkt).
+    """
+    if not SKIP_QUEUE.exists():
+        return 0
+    queue = []
+    for line in SKIP_QUEUE.read_text(encoding="utf-8").splitlines():
+        try:
+            queue.append(json.loads(line))
+        except json.JSONDecodeError:
+            pass
+    if not queue:
+        return 0
+    skip_urls = {e["url"] for e in queue if "url" in e}
+    count = 0
+    for entry in entries:
+        if entry.get("url") in skip_urls and not entry.get("skipped"):
+            entry["skipped"] = True
+            count += 1
+    SKIP_QUEUE.write_text("", encoding="utf-8")  # queue leegmaken na verwerking
+    return count
+
+
 # ── Hoofdprogramma ────────────────────────────────────────────────────────────
 
 def main():
@@ -85,8 +111,18 @@ def main():
         print("⚠️  score_log.jsonl niet gevonden. Voer eerst phase0-score.py uit.")
         return
 
+    # Logboek laden + skip-queue verwerken
+    entries = load_log(LOG_FILE)
+    print(f"\n[1/4] Skip-queue verwerken...")
+    newly_skipped = process_skip_queue(entries)
+    if newly_skipped:
+        save_log(LOG_FILE, entries)
+        print(f"     👎 {newly_skipped} item(s) als 'skipped' gemarkeerd.")
+    else:
+        print(f"     Geen nieuwe skip-signalen.")
+
     # Zotero-URLs ophalen
-    print("\n[1/3] Zotero-URLs ophalen...")
+    print("[2/4] Zotero-URLs ophalen...")
     tmp_db = make_sqlite_copy(ZOTERO_SQLITE)
     conn   = sqlite3.connect(tmp_db)
     try:
@@ -96,9 +132,8 @@ def main():
         os.unlink(tmp_db)
     print(f"     {len(zotero_urls)} URL(s) gevonden in Zotero.")
 
-    # Logboek laden en labelen
-    print("[2/3] Logboek bijwerken...")
-    entries  = load_log(LOG_FILE)
+    # Logboek labelen (Zotero-matching)
+    print("[3/4] Logboek bijwerken...")
     now      = datetime.now(timezone.utc)
     cutoff   = now - timedelta(days=LABEL_AFTER_DAYS)
 
@@ -128,16 +163,18 @@ def main():
     print(f"     ❌ niet toegevoegd (>{LABEL_AFTER_DAYS}d): {newly_false} nieuw gelabeld")
 
     # Drempeladvies
-    print("[3/3] Drempeladvies berekenen...")
+    print("[4/4] Drempeladvies berekenen...")
     positives = [e["score"] for e in entries if e.get("added_to_zotero") is True]
+    skipped   = [e["score"] for e in entries if e.get("skipped") is True]
     negatives = [e["score"] for e in entries if e.get("added_to_zotero") is False]
     unlabeled = [e for e in entries if e.get("added_to_zotero") is None]
 
     print(f"\n{'=' * 52}")
     print(f"Gelabelde dataset:")
-    print(f"  ✅ positieven (toegevoegd aan Zotero): {len(positives)}")
-    print(f"  ❌ negatieven (niet toegevoegd):       {len(negatives)}")
-    print(f"  ⏳ nog niet gelabeld:                  {len(unlabeled)}")
+    print(f"  ✅ positieven (toegevoegd aan Zotero):    {len(positives)}")
+    print(f"  👎 expliciet afgewezen (skipped):         {len(skipped)}")
+    print(f"  ❌ zwak negatief (niet toegevoegd, timeout): {len(negatives)}")
+    print(f"  ⏳ nog niet gelabeld:                     {len(unlabeled)}")
 
     if len(positives) < MIN_POSITIVES:
         print(f"\n⏳ Nog niet genoeg data voor een betrouwbaar drempeladvies.")

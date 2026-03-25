@@ -105,3 +105,17 @@ Fetch the show notes from [URL] and give a 3-sentence summary.
 | Go (academic) | Item already in Zotero `_inbox` → process via type 0 → type 1 in the skill |
 | Go (non-academic) | Save via Zotero Connector, or pass `inbox [URL]` to Claude Code |
 | No-go | Mark item as read or delete from NetNewsWire; remove from `_inbox` if already saved |
+
+### Feedback signals in the HTML reader
+
+The HTML reader captures five distinct behaviour types that feed into the learning loop (`phase0-learn.py`):
+
+| # | Behaviour | Signal | Recorded as |
+|---|-----------|--------|-------------|
+| 1 | Headline clicked + added to Zotero | Strong positive | `added_to_zotero: true` |
+| 2 | Headline clicked, not added to Zotero | Weak negative (seen, not interesting enough) | `added_to_zotero: false` after 3 days |
+| 3 | Not clicked, no 👎 | Ambiguous — not seen, or implicitly ignored | `added_to_zotero: false` after 3 days (indistinguishable from type 2) |
+| 4 | 👎 pressed without clicking | Strong explicit negative (headline was enough to reject) | `skipped: true` immediately |
+| 5 | Headline clicked, then 👎 pressed | Strongest negative signal (read and rejected) | `skipped: true` + `added_to_zotero: false` |
+
+Only types 4 and 5 are unambiguous rejections. Type 3 remains ambiguous even with the 👎 button. See [Step 12c](rss.md#12c-feedback-signals-training-the-scoring) for details on how these signals are used to calibrate scoring thresholds.
