@@ -1,6 +1,6 @@
 # Step 14: Set up filter layer per source
 
-This is the core of the 3-phase model: phase 2, the filter moment, is set up differently for each source. Below is a per-source overview of the dump layer, the filter moment, and how you indicate what may enter the vault.
+This is the core of the 4-phase model: each source has its own pre-filter (phase 0, where applicable) and filter moment (phase 2). Below is a per-source overview of all phases and how you indicate what may enter the vault.
 
 ## Papers (Zotero)
 
@@ -99,8 +99,9 @@ Fetch the show notes from [URL] and give a 3-sentence summary.
 
 | Phase | What |
 |------|-----|
-| Dump layer (academic and non-academic) | NetNewsWire — unread items |
-| Filter moment | Scan headline and intro |
-| Go (academic) | Open article → save to Zotero via browser extension or iOS app → ends up in `_inbox` |
+| Phase 0 — Pre-filter | `phase0-score.py` scores all feed items daily; produces filtered Atom feed + HTML reader sorted by relevance at `http://localhost:8765/filtered.html` |
+| Phase 1 — Dump layer | Browse the filtered feed in the HTML reader or NetNewsWire; interesting items forwarded to Zotero `_inbox` via browser extension or iOS app |
+| Phase 2 — Filter moment | Scan headline and intro of items in `_inbox` |
+| Go (academic) | Item already in Zotero `_inbox` → process via type 0 → type 1 in the skill |
 | Go (non-academic) | Save via Zotero Connector, or pass `inbox [URL]` to Claude Code |
-| No-go | Mark item as read or delete from NetNewsWire |
+| No-go | Mark item as read or delete from NetNewsWire; remove from `_inbox` if already saved |

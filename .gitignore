@@ -24,4 +24,8 @@ inbox/*.txt
 inbox/*.md
 !inbox/.gitkeep
 
+# Phase 0 — gegenereerde output en persoonlijke leesgeschiedenis
+.claude/phase0-serve/
+.claude/score_log.jsonl
+
 # Laat lege mappen zichtbaar via .gitkeep (zie per map)

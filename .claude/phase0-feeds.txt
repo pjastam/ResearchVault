@@ -1,0 +1,9 @@
+# Phase 0 — RSS-feed lijst
+# Één URL per regel. Regels die beginnen met # worden overgeslagen.
+# Voeg hier je RSS-feeds toe, bijv.:
+#
+# https://arxiv.org/rss/cs.AI
+# https://feeds.feedburner.com/example
+https://www.skipr.nl/feed/
+http://onlinelibrary.wiley.com/rss/journal/10.1002/(ISSN)1099-1050
+https://www.tweakers.net/feeds/nieuws.xml
