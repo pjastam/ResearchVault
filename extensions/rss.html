@@ -242,7 +242,28 @@ launchctl load ~/Library/LaunchAgents/nl.researchvault.phase0-learn.plist
 <blockquote>
 <p><strong>Privacy note:</strong> NetNewsWire stores feed data locally. No reading habits are sent to external servers.</p>
 </blockquote>
-<h2 id="12c-academic-feeds-from-netnewswire-to-zotero"><a class="header" href="#12c-academic-feeds-from-netnewswire-to-zotero">12c. Academic feeds: from NetNewsWire to Zotero</a></h2>
+<h2 id="12c-feedback-signals-training-the-scoring"><a class="header" href="#12c-feedback-signals-training-the-scoring">12c. Feedback signals: training the scoring</a></h2>
+<p>The HTML reader (<code>http://localhost:8765/filtered.html</code>) captures three types of user behaviour that feed into the learning loop:</p>
+<div class="table-wrapper"><table><thead><tr><th>#</th><th>Behaviour</th><th>Signal strength</th><th>Recorded as</th></tr></thead><tbody>
+<tr><td>1</td><td>Item clicked + added to Zotero</td><td>Strong positive</td><td><code>added_to_zotero: true</code></td></tr>
+<tr><td>2</td><td>Item clicked, not added to Zotero</td><td>Weak negative (seen but not interesting enough)</td><td><code>added_to_zotero: false</code> after 3 days</td></tr>
+<tr><td>3</td><td>Item not clicked, no 👎 pressed</td><td>Ambiguous — not seen, or implicitly ignored</td><td><code>added_to_zotero: false</code> after 3 days — indistinguishable from type 2</td></tr>
+<tr><td>4</td><td>👎 pressed without clicking</td><td><strong>Strong explicit negative</strong> (headline was enough to reject)</td><td><code>skipped: true</code> immediately</td></tr>
+<tr><td>5</td><td>Item clicked, then 👎 pressed</td><td><strong>Strongest negative signal</strong> (read and rejected)</td><td><code>skipped: true</code> + <code>added_to_zotero: false</code></td></tr>
+</tbody></table>
+</div>
+<blockquote>
+<p><strong>Type 3 remains ambiguous</strong> even with the 👎 button. Items you never looked at receive the same label as items you chose not to add. Only types 4 and 5 are unambiguous rejections. <code>phase0-learn.py</code> reports all three categories separately so you can track signal quality over time.</p>
+</blockquote>
+<p><strong>How to use the 👎 button:</strong></p>
+<ul>
+<li>When a headline is clearly off-topic, press 👎 directly — no need to open the article.</li>
+<li>The item is immediately faded and struck through in the reader.</li>
+<li>The rejection is sent to the server and queued in <code>skip_queue.jsonl</code>; <code>phase0-learn.py</code> processes it the next morning.</li>
+</ul>
+<p><strong>Future use of explicit negatives:</strong> once enough <code>skipped: true</code> items have accumulated, they can be used to build a negative profile that penalises similarity to rejected content: <code>score = sim(item, positive_profile) − λ × sim(item, negative_profile)</code>. The learning loop will advise when enough data is available.</p>
+<hr />
+<h2 id="12d-academic-feeds-from-netnewswire-to-zotero"><a class="header" href="#12d-academic-feeds-from-netnewswire-to-zotero">12d. Academic feeds: from NetNewsWire to Zotero</a></h2>
 <p>For academic articles from NetNewsWire, the recommended route is to always add them to Zotero first before having them processed. This way you have BibTeX metadata and annotation capabilities available:</p>
 <ol>
 <li>Open the article from NetNewsWire in your browser</li>
