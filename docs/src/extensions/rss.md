@@ -1,10 +1,54 @@
-# Step 12: RSS integration
+# Step 12: RSS integration + Phase 0 filtering
 
-In the 3-phase model, RSS readers are dump layers for phase 1: you subscribe to feeds without immediately judging whether each item is relevant. Only in phase 2 do you decide what goes into the vault.
+In the 4-phase model, RSS feeds are pre-filtered automatically before you see them (phase 0), so that your feed reader only shows items that are likely relevant to your research. You then browse this curated selection and send interesting items to Zotero `_inbox` (phase 1). Only in phase 2 do you decide what goes into the vault.
 
-## 12a. RSS feeds via NetNewsWire
+## 12a. Phase 0 — Automatic relevance filtering
 
-NetNewsWire is a free, open-source RSS reader for macOS and iOS, with iCloud sync between both devices. It is the central dump layer for all RSS feeds — both academic and non-academic. This is especially true if you primarily work on iOS: the Zotero iOS app has no built-in RSS functionality, making NetNewsWire the most practical choice for all feeds.
+`phase0-score.py` runs daily via launchd and produces a filtered, scored Atom feed and HTML reader from your RSS subscriptions. It uses the same ChromaDB preference profile as `index-score.py` — items are scored by semantic similarity to your existing library.
+
+**Install dependencies** (if not already present from step 10):
+
+```bash
+~/.local/share/uv/tools/zotero-mcp-server/bin/pip install feedparser sentence-transformers
+```
+
+**Configure your feeds** — add one URL per line to `.claude/phase0-feeds.txt`:
+
+```
+https://arxiv.org/rss/econ.GN
+https://www.skipr.nl/feed/
+http://onlinelibrary.wiley.com/rss/journal/10.1002/(ISSN)1099-1050
+```
+
+**Load the launchd agents** (run once after installation):
+
+```bash
+launchctl load ~/Library/LaunchAgents/nl.researchvault.phase0-server.plist
+launchctl load ~/Library/LaunchAgents/nl.researchvault.phase0-score.plist
+launchctl load ~/Library/LaunchAgents/nl.researchvault.phase0-learn.plist
+```
+
+This starts a local HTTP server on port 8765 and schedules the daily score run at 06:00.
+
+**Run manually** (first time, or on demand):
+
+```bash
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/phase0-score.py
+```
+
+**Access the filtered feed:**
+- HTML reader (Mac/iPhone/iPad): `http://localhost:8765/filtered.html`
+- Atom feed (NetNewsWire): `http://localhost:8765/filtered.xml`
+
+> **Serve directory:** the HTTP server serves files from `~/.local/share/phase0-serve/`, not from `~/Documents/`, because macOS TCC prevents system Python from accessing the Documents folder when launched via launchd.
+
+**Learning loop** — `phase0-learn.py` runs daily at 06:15 and matches recently added Zotero items (by URL) against the score log. After ≥30 positives it prints a threshold recommendation. Once the threshold is stable, activate score filtering in `phase0-score.py` by adjusting `THRESHOLD_GREEN` and `THRESHOLD_YELLOW`.
+
+> **Privacy note:** `phase0-score.py` runs entirely locally. Feed URLs are fetched directly from the source; no feed content is sent to any cloud service.
+
+## 12b. RSS feeds via NetNewsWire
+
+NetNewsWire is a free, open-source RSS reader for macOS and iOS, with iCloud sync between both devices. Rather than subscribing to individual feeds, you subscribe to the single filtered feed produced by Phase 0. This way your reading list only contains items that are likely relevant, sorted by relevance score.
 
 **Install:**
 
@@ -14,28 +58,24 @@ brew install --cask netnewswire
 
 Or download via [netnewswire.com](https://netnewswire.com).
 
-**Recommended feeds:**
-- Journal RSS (e.g. BMJ, NEJM, TSG)
-- PubMed searches as RSS feed
+**Subscribe to the filtered feed** — add this single URL in NetNewsWire:
+
+```
+http://localhost:8765/filtered.xml
+```
+
+Titles are prefixed with score and label (`🟢 54 | Title…`). To sort by relevance, click the **Date** column header → **Newest First**. Phase 0 encodes the score as a synthetic publication date so that higher-scoring items appear at the top.
+
+**Add your source feeds** to `.claude/phase0-feeds.txt` instead of directly to NetNewsWire. Useful sources:
+- Journal RSS (e.g. BMJ, NEJM, Wiley Health Economics)
+- PubMed searches: `https://pubmed.ncbi.nlm.nih.gov/rss/search/?term=[searchterm]&format=abstract`
 - Policy sites and government newsletters
-- Trade blogs and opinion pieces on health policy (e.g. Zorgvisie, Skipr)
-- Substack publications by relevant authors (each has an RSS feed via `[name].substack.com/feed`)
+- Trade blogs (e.g. Zorgvisie, Skipr)
+- Substack: `[name].substack.com/feed`
 
-**Useful RSS URLs:**
+> **Phase 0 → phase 1:** Items in the filtered feed have not yet been saved — they only exist in your feed reader. You browse through them and scan the scored headlines. Only what is truly relevant gets forwarded to Zotero. That is the phase 1 moment.
 
-```
-# PubMed search as RSS (replace the search term):
-https://pubmed.ncbi.nlm.nih.gov/rss/search/?term=[searchterm]&format=abstract
-
-# Journal RSS (example BMJ):
-https://www.bmj.com/rss/ahead-of-print.xml
-
-# Google Scholar alerts (set up via email and forward, or via RSS-bridge)
-```
-
-> **Phase 1 → phase 2:** Items in NetNewsWire have not yet been saved — they only exist in your feed reader. This is intentional: you browse through them and scan headlines and intros without immediately archiving anything. Only what is truly relevant gets forwarded to the vault. That is the filter moment.
-
-**From NetNewsWire to the vault (phase 2 → phase 3):**
+**From NetNewsWire to the vault (phase 1 → phase 2 → phase 3):**
 
 Interesting articles are saved via two routes:
 
@@ -44,7 +84,7 @@ Interesting articles are saved via two routes:
 
 > **Privacy note:** NetNewsWire stores feed data locally. No reading habits are sent to external servers.
 
-## 12b. Academic feeds: from NetNewsWire to Zotero
+## 12c. Academic feeds: from NetNewsWire to Zotero
 
 For academic articles from NetNewsWire, the recommended route is to always add them to Zotero first before having them processed. This way you have BibTeX metadata and annotation capabilities available:
 

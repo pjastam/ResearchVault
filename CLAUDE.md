@@ -91,8 +91,39 @@ Na de frontmatter bevat elke notitie:
 - Bij lange podcasts (> 45 min): maak eerst een gelaagde samenvatting (hoofdlijn → per segment)
 - Ruwe `.mp3` en `.txt`-bestanden verwijder je uit `inbox/` nadat de note is aangemaakt
 
+## Phase 0 — RSS-filtering (phase0-score.py)
+
+Phase 0 filtert RSS-feeds automatisch op relevantie vóórdat je ze handmatig doorscant. Het draait dagelijks via launchd en produceert een gefilterde feed en HTML-pagina.
+
+**Bestanden:**
+- `.claude/phase0-feeds.txt` — lijst van feed-URLs (één per regel, `#` = commentaar)
+- `.claude/phase0-score.py` — haalt feeds op, scoort items, schrijft `filtered.xml` en `filtered.html`
+- `.claude/phase0-learn.py` — leerloop: matcht Zotero-toevoegingen aan log, geeft drempeladvies
+- `.claude/score_log.jsonl` — groeiend logboek (URL, score, bron, timestamp, added_to_zotero)
+- `~/.local/share/phase0-serve/` — serveermap (buiten Documents vanwege macOS TCC)
+
+**URLs (lokale HTTP-server op poort 8765):**
+- `http://localhost:8765/filtered.html` — HTML-lezer met score- en bronweergave (Mac/iPhone/iPad)
+- `http://localhost:8765/filtered.xml` — Atom-feed voor NetNewsWire
+
+**Scores en labels:** 🟢 ≥50 · 🟡 40–49 · 🔴 <40 (drempels worden bijgesteld via phase0-learn.py)
+
+**Handmatig uitvoeren:**
+```bash
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/phase0-score.py
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/phase0-learn.py
+```
+
+**Leerloop:** phase0-learn.py matcht recent aan Zotero toegevoegde items (via URL) aan het score-logboek. Na ≥30 positieven geeft het een drempeladvies (10e percentiel van de positieve scores). Pas dan de `THRESHOLD_GREEN` en `THRESHOLD_YELLOW` in `phase0-score.py` aan en activeer een score-filter.
+
+**launchd-agents** (laden bij inloggen):
+- `nl.researchvault.phase0-server` — HTTP-server permanent actief
+- `nl.researchvault.phase0-score` — score-run dagelijks om 06:00
+- `nl.researchvault.phase0-learn` — leerloop dagelijks om 06:15
+
 ## RSS-feeds
-- Alle RSS-feeds (academisch én niet-academisch) worden gevolgd via NetNewsWire
+- RSS-feeds worden gefilterd via Phase 0; de HTML-lezer (`http://localhost:8765/filtered.html`) of de Atom-feed in NetNewsWire toont items gesorteerd op relevantiescore
+- Feeds toevoegen: zet de feed-URL op een nieuwe regel in `.claude/phase0-feeds.txt`
 - Academische artikelen die interessant zijn: voeg ze toe aan Zotero via de browser-extensie of iOS-app → komen in `_inbox` terecht
 - Niet-academische artikelen: voeg toe via Zotero Connector, of geef de URL door met `inbox [URL]` voor directe opslag als Markdown in `inbox/`
 - Bestandsnaam voor RSS-items zonder Zotero-record: `[bron-jaar-kernwoord].md` met #tag `#web` of `#beleid`
@@ -104,4 +135,4 @@ Na de frontmatter bevat elke notitie:
 - Dagelijkse review via Obsidian Spaced Repetition plugin (zijbalk → Kaarten beoordelen)
 
 ## Actieve skills
-- Lees en volg `.claude/skills/research-workflow-skill-v1.13.md` bij elke research-sessie.
+- Lees en volg `.claude/skills/research-workflow-skill-v1.14.md` bij elke research-sessie.

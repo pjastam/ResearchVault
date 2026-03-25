@@ -1,15 +1,16 @@
 # Skill: Research Workflow Begeleider
-**Bestandsnaam:** `research-workflow-skill.md`  
-**Locatie in vault:** `ResearchVault/.claude/skills/research-workflow-skill.md`  
+**Bestandsnaam:** `research-workflow-skill-v1.14.md`
+**Locatie in vault:** `ResearchVault/.claude/skills/research-workflow-skill-v1.14.md`
 **Activeren:** typ `/research` of "start research workflow" in Claude Code
 
 ---
 
 ## Doel van deze skill
 
-Deze skill maakt Claude Code tot een actieve, vragenderwijs werkende research-assistent. De workflow volgt een **3-fasen model**:
+Deze skill maakt Claude Code tot een actieve, vragenderwijs werkende research-assistent. De workflow volgt een **4-fasen model**:
 
-- **Fase 1 — Breed vangen:** materiaal stroomt via de eigen dump-laag van elke bron samen in Zotero `_inbox` als centrale verzamelbucket — Browser (Connector/iOS), NetNewsWire (RSS), Overcast (podcasts), YouTube (video's) en overige apps (iOS share sheet). Lage drempel, geen filtering.
+- **Fase 0 — Automatisch filteren:** `phase0-score.py` haalt dagelijks alle RSS-feeds op uit `phase0-feeds.txt`, scoort elk item op relevantie aan de hand van het ChromaDB-voorkeursprofiel, en schrijft een gefilterde Atom-feed (`filtered.xml`) en HTML-lezer (`filtered.html`) naar `~/.local/share/phase0-serve/`. Draait automatisch via launchd om 06:00.
+- **Fase 1 — Breed vangen:** de gebruiker scant de gefilterde feed (HTML-lezer of NetNewsWire) en stuurt interessante items door naar Zotero `_inbox` als centrale verzamelbucket — via browser-extensie, iOS-app of Zotero Connector. Lage drempel, geen verdere filtering.
 - **Fase 2 — Filteren:** Claude Code genereert een samenvatting of beoordeling; de gebruiker geeft Go of No-go. Alleen goedgekeurde items gaan verder.
 - **Fase 3 — Verwerken & opslaan:** volledige verwerking naar de Obsidian vault.
 
@@ -126,6 +127,9 @@ Als de gebruiker de skill activeert zonder specifieke vraag, presenteer dan dit 
 ```
 Wat wil je vandaag doen?
 
+── FASE 0 · RSS-FILTERING ─────────────────────────────────
+[F] Phase 0 beheren — feeds toevoegen, score-run starten, drempeladvies
+
 ── FASE 2 · FILTEREN ──────────────────────────────────────
 [0] Zotero _inbox beoordelen — Go/No-go per paper
 
@@ -147,6 +151,28 @@ Wacht op de keuze van de gebruiker en stel dan gerichte vervolgvragen.
 ---
 
 ## Stappenplan per workflow-type
+
+### Type F: Phase 0 beheren
+
+Phase 0 draait automatisch via launchd (06:00 dagelijks). Beheer is alleen nodig bij configuratiewijzigingen of als de gebruiker handmatig wil ingrijpen.
+
+**Feeds toevoegen:**
+- Voeg de feed-URL toe aan `.claude/phase0-feeds.txt` (één per regel)
+- Draai het score-script handmatig om de nieuwe feed direct te verwerken
+
+**Handmatig uitvoeren:**
+```bash
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/phase0-score.py
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/phase0-learn.py
+```
+
+**Drempeladvies opvragen:**
+- Draai `phase0-learn.py` — het toont de scoreverdeling van toegevoegde vs. overgeslagen items
+- Pas na ≥30 positieven `THRESHOLD_GREEN` en `THRESHOLD_YELLOW` aan in `phase0-score.py`
+
+**HTML-lezer:** `http://localhost:8765/filtered.html` (ook bereikbaar op iPhone/iPad via het LAN-IP van de Mac mini)
+
+---
 
 ### Type 0: Zotero `_inbox` beoordelen (fase 2 — filteren)
 
@@ -215,9 +241,9 @@ Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laa
 
 ### Type 3: YouTube-transcript ophalen en verwerken
 
-> **Fase 1** (dump) is al gedaan: de URL staat in Zotero `_inbox`, opgeslagen via de iOS share sheet vanuit de YouTube-app.  
-> **Fase 2** (filter): vraag of de gebruiker de video al beoordeeld heeft, of genereer een beoordeling op basis van metadata.  
-> **Fase 3** (verwerken): transcript ophalen en verwerken naar de vault.  
+> **Fase 1** (dump) is al gedaan: de URL staat in Zotero `_inbox`, opgeslagen via de iOS share sheet vanuit de YouTube-app.
+> **Fase 2** (filter): vraag of de gebruiker de video al beoordeeld heeft, of genereer een beoordeling op basis van metadata.
+> **Fase 3** (verwerken): transcript ophalen en verwerken naar de vault.
 > **Let op:** `transcript [URL]` slaat de Zotero `_inbox` stap over — de video gaat direct naar Obsidian. De gebruiker heeft de video al gefilterd door hem aan te reiken.
 
 1. Haal de URL op uit het `_inbox` item in Zotero, of vraag de gebruiker hem te plakken
@@ -233,9 +259,9 @@ Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laa
 
 ### Type 4: Podcast ophalen en verwerken
 
-> **Fase 1** (dump) is al gedaan: de URL staat in Zotero `_inbox`, opgeslagen via de iOS share sheet vanuit Overcast.  
-> **Fase 2** (filter): de gebruiker heeft de eerste 5–10 minuten beluisterd, of vraagt Claude Code om shownotities op te halen als hulp bij de beslissing.  
-> **Fase 3** (verwerken): audio downloaden, transcriberen via whisper.cpp, verwerken naar vault.  
+> **Fase 1** (dump) is al gedaan: de URL staat in Zotero `_inbox`, opgeslagen via de iOS share sheet vanuit Overcast.
+> **Fase 2** (filter): de gebruiker heeft de eerste 5–10 minuten beluisterd, of vraagt Claude Code om shownotities op te halen als hulp bij de beslissing.
+> **Fase 3** (verwerken): audio downloaden, transcriberen via whisper.cpp, verwerken naar vault.
 > **Let op:** `podcast [URL]` slaat de Zotero `_inbox` stap over — de podcast gaat direct naar Obsidian. De gebruiker heeft de aflevering al gefilterd door hem aan te reiken.
 
 1. Vraag naar de URL — of: "Wil je dat ik de shownotities ophaal zodat je kunt beslissen?"
@@ -255,8 +281,9 @@ Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laa
 
 ### Type 5: RSS-items verwerken
 
-> **Fase 1** (dump): NetNewsWire — zowel voor academische als niet-academische feeds.  
-> **Fase 2** (filter): de gebruiker heeft kopteksten gescand; alleen interessante items komen hier.  
+> **Fase 0** (automatisch filteren): `phase0-score.py` heeft de feeds al gescoord en gesorteerd. De HTML-lezer (`http://localhost:8765/filtered.html`) of de Atom-feed in NetNewsWire toont items op relevantie.
+> **Fase 1** (dump): de gebruiker heeft de gefilterde feed doorgescan en interessante items naar Zotero `_inbox` gestuurd via browser-extensie of iOS-app.
+> **Fase 2** (filter): de gebruiker heeft kopteksten gescand; alleen interessante items komen hier.
 > **Fase 3** (verwerken): opslaan in Zotero of verwerken naar de vault.
 
 1. Vraag: wil je het item toevoegen aan Zotero (voor BibTeX, annotaties en opname in de semantische database), of direct opslaan als notitie in `inbox/`?
@@ -321,6 +348,9 @@ Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laa
 
 | Zin van gebruiker | Actie |
 |---|---|
+| "phase0" of "voeg feed toe" | Start type F: beheer Phase 0 feeds of instellingen |
+| "score feeds" of "run phase0" | Draai `phase0-score.py` handmatig |
+| "drempeladvies" | Draai `phase0-learn.py` en toon drempeladvies |
 | "beoordeel inbox" of "filter inbox" | Start type 0: haal `_inbox` op uit Zotero, geef per item een Go/No-go beoordeling (samenvatting via Qwen3.5:9b, volledig lokaal) |
 | "beoordeel inbox --hd" | Start type 0 met Claude Sonnet 4.6 voor de samenvattingen (na bevestiging) |
 | "verwerk recente papers" | Start type 1 (lokaal via Qwen3.5:9b) |
@@ -343,4 +373,4 @@ Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laa
 
 ---
 
-*Skill versie 1.13 — maart 2026*
+*Skill versie 1.14 — maart 2026*
