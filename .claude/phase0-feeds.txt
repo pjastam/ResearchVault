@@ -96,8 +96,63 @@ https://onlinelibrary.wiley.com/feed/14680009/most-recent
 https://esb.nu/sectie/artikel/feed/
 https://www.mejudice.nl/artikelen?rss=generate
 
-# ── YouTube ───────────────────────────────────────────────────────────────────
-# Wordt aangevuld zodra je je YouTube-abonnementen hebt geëxporteerd (stap 4).
 
 # ── Podcasts ──────────────────────────────────────────────────────────────────
-# Wordt aangevuld zodra je je Overcast-abonnementen hebt geëxporteerd (stap 5).
+# Geïmporteerd uit Overcast Podcast Subscriptions.opml
+
+# ── AI & Machine Learning ─────────────────────────────────────────────────────
+https://api.substack.com/feed/podcast/2351791.rss  # AI Report
+
+# ── Health & Care ─────────────────────────────────────────────────────────────
+https://app.springcast.fm/podcast-xml/18870  # Voorzorg
+https://www.omnycontent.com/d/playlist/8257a063-6be9-42fa-b892-acd4013b1255/c298c0cf-15f9-498d-8cd3-adc100b53291/7dc27dbe-2529-41b3-a76a-adc100b5b53f/podcast.rss  # Beter | BNR
+https://anchor.fm/s/1061d9fa0/podcast/rss  # Van Zorg Verzekerd
+
+# ── Privacy & Security ────────────────────────────────────────────────────────
+https://feeds.megaphone.fm/LDBBV1329330265  # Ik weet je wachtwoord
+
+# ── Tech (Hardware, Infra & Tools) ────────────────────────────────────────────
+https://www.omnycontent.com/d/playlist/8257a063-6be9-42fa-b892-acd4013b1255/9c0b71c9-0452-4cb8-8ddb-ace80081c6c4/eabc12c9-c4c9-4b44-9ea8-ace80081c6dc/podcast.rss  # De Technoloog | BNR
+https://www.omnycontent.com/d/playlist/8257a063-6be9-42fa-b892-acd4013b1255/a53c5750-331e-4cba-a1a9-ade1011df90b/43a0a1a4-9506-471f-adf1-ade1011e46bf/podcast.rss  # Tech Update | BNR
+https://www.omnycontent.com/d/playlist/8257a063-6be9-42fa-b892-acd4013b1255/4783529f-c040-4eae-add9-ade100d0fd38/db7cdc14-332e-4c30-b676-ade100d12d02/podcast.rss  # De Grote Tech Show | BNR
+https://feeds.redcircle.com/f8fe71b6-911e-4abb-8fdc-cebda631a2da  # Home Assistant Podcast
+
+# ── Science & Nature ──────────────────────────────────────────────────────────
+https://podcasts.files.bbci.co.uk/b006qykl.rss  # In Our Time (BBC)
+https://www.omnycontent.com/d/playlist/8257a063-6be9-42fa-b892-acd4013b1255/1627ff64-d61d-40e0-8016-ade2009f4a0e/16eee865-2a46-46b3-94c1-ade2009f7d4a/podcast.rss  # Space Cowboys | BNR
+https://feeds.captivate.fm/de-groene-nerds/  # De Groene Nerds
+
+# ── Education & Universities ──────────────────────────────────────────────────
+https://www.omnycontent.com/d/playlist/61ee9ca4-a1b2-4660-9651-b2b70035edf5/e3cbd078-9414-4691-b0f1-b2fe0110b4c7/f2f192d9-787a-4383-8c1a-b2fe0110b4d3/podcast.rss  # De Universiteit van Nederland Podcast
+
+# ── History ───────────────────────────────────────────────────────────────────
+https://podcast.npo.nl/feed/ovt.xml  # OVT (NPO Radio 1)
+
+# ── Society, Philosophy & Politics ────────────────────────────────────────────
+https://podcast.npo.nl/feed/spijkers-met-koppen.xml  # Spijkers met Koppen
+https://app.springcast.fm/podcast-xml/19301  # Droom en Daad
+https://feeds.acast.com/public/shows/61f01a5fdeb8ad00140b46c3  # Weer een dag
+
+# ── YouTube ───────────────────────────────────────────────────────────────────
+# Geïmporteerd uit abonnementen.csv (Google Takeout)
+
+# ── YouTube ───────────────────────────────────────────────────────────────────
+# Geïmporteerd uit abonnementen.csv (Google Takeout)
+
+# ── AI ────────────────────────────────────────────────────────────────────────
+https://www.youtube.com/feeds/videos.xml?channel_id=UCrDwWp7EBBv4NwvScIpBDOA  # Anthropic
+https://www.youtube.com/feeds/videos.xml?channel_id=UC5-pBdfdA3KUo-vq72l-umA  # Mistral AI
+
+# ── Econometrics ──────────────────────────────────────────────────────────────
+https://www.youtube.com/feeds/videos.xml?channel_id=UCNJK6_DZvcMqNSzQdEkzvzA  # Richard McElreath
+
+# ── Academia & AI ─────────────────────────────────────────────────────────────
+https://www.youtube.com/feeds/videos.xml?channel_id=UCFqXmQ56-Gp1rIKa-GoAJvQ  # Andy Stapleton
+
+# ── Productivity & PKM ────────────────────────────────────────────────────────
+https://www.youtube.com/feeds/videos.xml?channel_id=UC68KSmHePPePCjW4v57VPQg  # Python Programmer
+https://www.youtube.com/feeds/videos.xml?channel_id=UC85D7ERwhke7wVqskV_DZUA  # Linking Your Thinking with Nick Milo
+
+# ── Society, Philosophy & Politics ────────────────────────────────────────────
+https://www.youtube.com/feeds/videos.xml?channel_id=UC2m77KGMIKZCD0Kw35-4shQ  # Yuval Noah Harari
+https://www.youtube.com/feeds/videos.xml?channel_id=UCPPfK7Nq_yQR84rn1wcTXBg  # Anders Puck Nielsen
