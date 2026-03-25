@@ -75,7 +75,12 @@ def load_feeds(path: Path) -> list[str]:
     urls = []
     for line in path.read_text().splitlines():
         line = line.strip()
-        if line and not line.startswith("#"):
+        if not line or line.startswith("#"):
+            continue
+        # Strip inline commentaar (spatie + # + tekst)
+        if " #" in line:
+            line = line[:line.index(" #")].strip()
+        if line:
             urls.append(line)
     return urls
 
