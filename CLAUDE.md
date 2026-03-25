@@ -96,16 +96,17 @@ Na de frontmatter bevat elke notitie:
 Phase 0 filtert RSS-feeds automatisch op relevantie vóórdat je ze handmatig doorscant. Het draait dagelijks via launchd en produceert een gefilterde feed en HTML-pagina.
 
 **Bestanden:**
-- `.claude/phase0-feeds.txt` — lijst van feed-URLs (één per regel, `#` = commentaar)
-- `.claude/phase0-score.py` — haalt feeds op, scoort items, schrijft `filtered.xml` en `filtered.html`
+- `.claude/phase0-feeds.txt` — lijst van feed-URLs (één per regel, `#` = commentaar); bevat webartikel-, YouTube- en podcast-feeds ingedeeld per categorie met `# ── Naam ────` headers
+- `.claude/phase0-score.py` — haalt feeds op, scoort items, detecteert brontype, schrijft `filtered.xml` en `filtered.html`
+- `.claude/phase0_core.py` — gedeelde functies: `cosine_similarity`, `compute_weighted_profile`, `score_label`, `detect_source_type`; constanten: `THRESHOLD_GREEN`, `THRESHOLD_YELLOW`, `WEIGHT_DEFAULT`, `WEIGHT_ANNOTATIONS`
 - `.claude/phase0-server.py` — lokale HTTP-server (poort 8765); handelt ook `POST /skip` af
 - `.claude/phase0-learn.py` — leerloop: verwerkt skip-queue, matcht Zotero-toevoegingen, geeft drempeladvies
-- `.claude/score_log.jsonl` — groeiend logboek (URL, score, bron, timestamp, added_to_zotero, skipped)
+- `.claude/score_log.jsonl` — groeiend logboek (URL, score, bron, source_type, timestamp, added_to_zotero, skipped)
 - `.claude/skip_queue.jsonl` — wachtrij van expliciet afgewezen items (👎); dagelijks verwerkt door phase0-learn.py
 - `~/.local/share/phase0-serve/` — serveermap (buiten Documents vanwege macOS TCC)
 
 **URLs (lokale HTTP-server op poort 8765):**
-- `http://localhost:8765/filtered.html` — HTML-lezer met score- en bronweergave (Mac/iPhone/iPad)
+- `http://localhost:8765/filtered.html` — HTML-lezer met score- en bronweergave + type-filterknoppen **Alles / 📄 / ▶️ / 🎙️** (Mac/iPhone/iPad)
 - `http://localhost:8765/filtered.xml` — Atom-feed voor NetNewsWire
 
 **Scores en labels:** 🟢 ≥50 · 🟡 40–49 · 🔴 <40 (drempels worden bijgesteld via phase0-learn.py)

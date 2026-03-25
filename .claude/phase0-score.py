@@ -38,6 +38,17 @@ import feedparser
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
+from phase0_core import (
+    THRESHOLD_GREEN,
+    THRESHOLD_YELLOW,
+    WEIGHT_DEFAULT,
+    WEIGHT_ANNOTATIONS,
+    cosine_similarity,
+    compute_weighted_profile,
+    score_label,
+    detect_source_type,
+)
+
 # ── Configuratie ──────────────────────────────────────────────────────────────
 
 SCRIPT_DIR    = Path(__file__).parent
@@ -47,12 +58,6 @@ LOG_FILE      = SCRIPT_DIR / "score_log.jsonl"
 CHROMA_PATH   = Path.home() / ".config" / "zotero-mcp" / "chroma_db"
 ZOTERO_SQLITE = Path.home() / "Zotero" / "zotero.sqlite"
 INBOX_ID      = 333
-
-WEIGHT_DEFAULT     = 1
-WEIGHT_ANNOTATIONS = 3
-
-THRESHOLD_GREEN  = 50
-THRESHOLD_YELLOW = 40
 
 FEED_TIMEOUT = 15  # seconden per feed
 
@@ -122,34 +127,6 @@ def get_embeddings_for_keys(collection, keys: list[str]) -> dict[str, np.ndarray
     }
 
 
-def compute_weighted_profile(
-    embeddings: dict[str, np.ndarray],
-    weights: dict[str, float],
-) -> np.ndarray:
-    vectors, w = [], []
-    for key, emb in embeddings.items():
-        vectors.append(emb)
-        w.append(weights.get(key, WEIGHT_DEFAULT))
-    matrix = np.stack(vectors)
-    weights_arr = np.array(w, dtype=np.float32).reshape(-1, 1)
-    profile = (matrix * weights_arr).sum(axis=0) / weights_arr.sum()
-    norm = np.linalg.norm(profile)
-    return profile / norm if norm > 0 else profile
-
-
-def cosine_similarity(vec: np.ndarray, profile: np.ndarray) -> float:
-    norm = np.linalg.norm(vec)
-    if norm == 0:
-        return 0.0
-    return float(np.dot(vec / norm, profile))
-
-
-def score_label(score: int) -> str:
-    if score >= THRESHOLD_GREEN:
-        return "🟢"
-    elif score >= THRESHOLD_YELLOW:
-        return "🟡"
-    return "🔴"
 
 
 def load_existing_log(path: Path) -> set[str]:
@@ -242,6 +219,7 @@ def generate_html(items: list[dict], generated_at: datetime) -> str:
             "score":  item["score"],
             "label":  score_label(item["score"]),
             "source": item["feed_name"],
+            "type":   item["source_type"],
             "desc":   item.get("description", "")[:200],
         }
         for item in items
@@ -303,6 +281,15 @@ def generate_html(items: list[dict], generated_at: datetime) -> str:
     padding: .3rem .7rem; font-size: .8rem; cursor: pointer;
   }}
   .tabs button.active {{
+    background: var(--text); color: var(--bg); border-color: var(--text);
+  }}
+  .type-filter {{ display: flex; gap: .25rem; }}
+  .type-filter button {{
+    border: 1px solid var(--border); border-radius: 6px;
+    background: var(--bg); color: var(--text);
+    padding: .3rem .7rem; font-size: .8rem; cursor: pointer;
+  }}
+  .type-filter button.active {{
     background: var(--text); color: var(--bg); border-color: var(--text);
   }}
   .toggle-read {{
@@ -367,6 +354,12 @@ def generate_html(items: list[dict], generated_at: datetime) -> str:
   <span class="stats">
     🟢 {green} &nbsp;🟡 {yellow} &nbsp;🔴 {red} &nbsp;·&nbsp; {date_str}
   </span>
+  <div class="type-filter">
+    <button class="active" onclick="setType('all', this)">Alles</button>
+    <button onclick="setType('web', this)">📄</button>
+    <button onclick="setType('youtube', this)">▶️</button>
+    <button onclick="setType('podcast', this)">🎙️</button>
+  </div>
   <div class="tabs">
     <button class="active" onclick="switchView('score', this)">Op score</button>
     <button onclick="switchView('source', this)">Op bron</button>
@@ -407,6 +400,19 @@ function skipItem(url, title, el) {{
     headers: {{"Content-Type": "application/json"}},
     body: JSON.stringify({{url, title, timestamp: new Date().toISOString()}})
   }}).catch(() => {{}});
+}}
+
+let currentType = "all";
+function setType(type, btn) {{
+  currentType = type;
+  document.querySelectorAll(".type-filter button").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  renderScore();
+  renderSource();
+}}
+
+function visibleItems() {{
+  return currentType === "all" ? ITEMS : ITEMS.filter(i => i.type === currentType);
 }}
 
 function badgeClass(score) {{
@@ -462,7 +468,7 @@ function renderScore() {{
   el.innerHTML = "";
   const read    = getRead();
   const skipped = getSkipped();
-  ITEMS.forEach(item => el.appendChild(makeItem(item, read, skipped)));
+  visibleItems().forEach(item => el.appendChild(makeItem(item, read, skipped)));
 }}
 
 function renderSource() {{
@@ -471,7 +477,7 @@ function renderSource() {{
   const read    = getRead();
   const skipped = getSkipped();
   const groups  = {{}};
-  ITEMS.forEach(item => {{
+  visibleItems().forEach(item => {{
     if (!groups[item.source]) groups[item.source] = [];
     groups[item.source].push(item);
   }});
@@ -593,6 +599,7 @@ def main():
                 except Exception:
                     pass
 
+            source_type = detect_source_type(feed_url, entry)
             score_text = title
             if description:
                 score_text += " " + description[:1000]
@@ -604,6 +611,7 @@ def main():
                 "feed_name":   feed_name,
                 "feed_url":    feed_url,
                 "published":   published,
+                "source_type": source_type,
                 "score_text":  score_text,
             })
 
@@ -625,12 +633,13 @@ def main():
         # Log alleen nieuwe items (op basis van URL)
         if item["url"] and item["url"] not in existing_urls:
             new_log_entries.append({
-                "url":            item["url"],
-                "title":          item["title"],
-                "score":          score,
-                "feed_name":      item["feed_name"],
-                "timestamp":      now.isoformat(),
-                "text_length":    len(item["score_text"]),
+                "url":             item["url"],
+                "title":           item["title"],
+                "score":           score,
+                "feed_name":       item["feed_name"],
+                "source_type":     item["source_type"],
+                "timestamp":       now.isoformat(),
+                "text_length":     len(item["score_text"]),
                 "added_to_zotero": None,
             })
 

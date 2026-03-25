@@ -9,7 +9,7 @@
 
 Deze skill maakt Claude Code tot een actieve, vragenderwijs werkende research-assistent. De workflow volgt een **4-fasen model**:
 
-- **Fase 0 — Automatisch filteren:** `phase0-score.py` haalt dagelijks alle RSS-feeds op uit `phase0-feeds.txt`, scoort elk item op relevantie aan de hand van het ChromaDB-voorkeursprofiel, en schrijft een gefilterde Atom-feed (`filtered.xml`) en HTML-lezer (`filtered.html`) naar `~/.local/share/phase0-serve/`. Draait automatisch via launchd om 06:00.
+- **Fase 0 — Automatisch filteren:** `phase0-score.py` haalt dagelijks alle RSS-feeds op uit `phase0-feeds.txt` (webartikel-, YouTube- en podcast-feeds per categorie), scoort elk item op relevantie aan de hand van het ChromaDB-voorkeursprofiel, detecteert het brontype (`web` / `youtube` / `podcast`), en schrijft een gefilterde Atom-feed (`filtered.xml`) en HTML-lezer (`filtered.html`) met type-filterknoppen (📄 ▶️ 🎙️) naar `~/.local/share/phase0-serve/`. De scorelogica is gedeeld via `phase0_core.py`. Draait automatisch via launchd om 06:00.
 - **Fase 1 — Breed vangen:** de gebruiker scant de gefilterde feed (HTML-lezer of NetNewsWire) en stuurt interessante items door naar Zotero `_inbox` als centrale verzamelbucket — via browser-extensie, iOS-app of Zotero Connector. Lage drempel, geen verdere filtering.
 - **Fase 2 — Filteren:** Claude Code genereert een samenvatting of beoordeling; de gebruiker geeft Go of No-go. Alleen goedgekeurde items gaan verder.
 - **Fase 3 — Verwerken & opslaan:** volledige verwerking naar de Obsidian vault.

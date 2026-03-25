@@ -27,5 +27,13 @@ inbox/*.md
 # Phase 0 — gegenereerde output en persoonlijke leesgeschiedenis
 .claude/phase0-serve/
 .claude/score_log.jsonl
+.claude/skip_queue.jsonl
+
+# Python cache
+**/__pycache__/
+**/*.pyc
+
+# OPML-exports (persoonlijke abonnementsdata, al verwerkt in phase0-feeds.txt)
+*.opml
 
 # Laat lege mappen zichtbaar via .gitkeep (zie per map)

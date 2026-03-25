@@ -1,24 +1,25 @@
 # Installation Guide: Local Research Workflow
 ## Claude Code + Zotero MCP + Obsidian + Ollama on macOS (M4)
 
-**Goal:** Set up a fully local, privacy-friendly research workflow on a Mac mini M4 (2024), where Zotero, Claude Code, Obsidian, and Ollama work together without relying on external cloud services for your data. The workflow follows a **3-phase model**: capture broadly → filter → process.
+**Goal:** Set up a fully local, privacy-friendly research workflow on a Mac mini M4 (2024), where Zotero, Claude Code, Obsidian, and Ollama work together without relying on external cloud services for your data. The workflow follows a **4-phase model**: pre-filter → capture broadly → filter → process.
 
 **Estimated installation time:** 60–120 minutes
 **Requirements:** macOS Sequoia or later, internet connection for downloads, an Anthropic account (for Claude Code)
 
 ---
 
-## The 3-phase model
+## The 4-phase model
 
-The workflow is built around three explicit phases — every source passes through all three:
+The workflow is built around four explicit phases — every source passes through all four:
 
-| Phase                        | Goal                                        | Approach                                                                                                                                                                                  |
-| --------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **1 — Cast wide**        | Low threshold, no filtering                | Each source has its own dump layer: Browser (Zotero Connector/iOS), NetNewsWire (RSS), Overcast (podcasts), YouTube (videos), Other (iOS share sheet) — everything flows together into Zotero `_inbox` |
-| **2 — Filter**            | You decide what enters the vault             | `index-score.py` ranks inbox items by semantic similarity to your library; Qwen3.5:9b (local) generates a summary for mid-range items; you give a **Go** or **No-go**                                                          |
-| **3 — Process** | Full processing of approved items | Claude Code writes a structured literature note to the Obsidian vault, including key findings, methodology notes, relevant quotes, and flashcards for spaced repetition                                                                                                                                               |
+| Phase | Goal | Approach |
+|---|---|---|
+| **0 — Pre-filter** | Automatically score and rank RSS feeds before you see them | `phase0-score.py` runs daily via launchd, scores web articles, YouTube videos, and podcasts by semantic similarity to your library, and produces a sorted HTML reader at `http://localhost:8765/filtered.html` with type filter buttons (📄 ▶️ 🎙️) |
+| **1 — Cast wide** | Low threshold, no filtering | Interesting items from the filtered feed flow into Zotero `_inbox` via browser extension or iOS app; podcasts and videos are added via the iOS share sheet |
+| **2 — Filter** | You decide what enters the vault | `index-score.py` ranks inbox items by semantic similarity to your library; Qwen3.5:9b (local) generates a summary for mid-range items; you give a **Go** or **No-go** |
+| **3 — Process** | Full processing of approved items | Claude Code writes a structured literature note to the Obsidian vault, including key findings, methodology notes, relevant quotes, and flashcards for spaced repetition |
 
-The distinction between phase 1 and phase 3 prevents your vault from being polluted with material that seemed interesting at the moment of capture but turns out to be irrelevant on reflection.
+The separation between phases 0 and 3 keeps both your feed reader and your vault clean: only sources you have consciously approved end up in the vault, and your feed reader only shows items that are likely relevant.
 
 ---
 
