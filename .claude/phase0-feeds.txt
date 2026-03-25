@@ -1,9 +1,103 @@
 # Phase 0 — RSS-feed lijst
 # Één URL per regel. Regels die beginnen met # worden overgeslagen.
-# Voeg hier je RSS-feeds toe, bijv.:
 #
-# https://arxiv.org/rss/cs.AI
-# https://feeds.feedburner.com/example
-https://www.skipr.nl/feed/
-http://onlinelibrary.wiley.com/rss/journal/10.1002/(ISSN)1099-1050
+# Niet opgenomen (technisch ongeldig voor feedparser):
+#   - Inoreader keyword monitoring feeds (keyword-monitoring-*)
+#   - Inoreader email-to-RSS feeds (*@ino.to, thebatch57@ino.to)
+#
+# YouTube-kanalen en podcast-feeds worden later toegevoegd (stap 4 en 5).
+
+# ── 1-DevOps ──────────────────────────────────────────────────────────────────
+https://www.andrewheiss.com/atom.xml
+https://github.blog/feed/
+https://www.inoreader.com/blog/feed
+https://proton.me/blog/feed
+https://code.visualstudio.com/feed.xml
+
+# ── 1-Professie ───────────────────────────────────────────────────────────────
+http://feeds.hbr.org/harvardbusiness/
+
+# ── 1-R ───────────────────────────────────────────────────────────────────────
+https://www.pietstam.nl/posts-r.xml
+https://posit.co/feed
+https://rweekly.org/feed.xml
+https://feeds.feedburner.com/RBloggers
+https://journal.r-project.org/articles.xml
+
+# ── 1-Tech news ───────────────────────────────────────────────────────────────
+https://www.aireport.email/feed
+https://www.hcc.nl/?destination=node%2F1971%23comment-form&format=feed&type=rss
+https://feeds.nos.nl/nosnieuwstech
+https://openai.com/blog/rss/
+https://causalinf.substack.com/feed
 https://www.tweakers.net/feeds/nieuws.xml
+
+# ── 2-Privacy ─────────────────────────────────────────────────────────────────
+https://www.bof.nl/feed/
+https://www.eff.org/rss/updates.xml
+https://www.theguardian.com/technology/hacking/rss
+https://piratenpartij.nl/feed/
+
+# ── 3-Health news international ───────────────────────────────────────────────
+https://www.ajmc.com/rss
+http://www.allhealth.org/rss.asp
+https://www.rand.org/pubs/new.xml
+http://feeds.commonwealthfund.org/thecommonwealthfundpublications&x=1
+https://feeds.feedburner.com/who/euro/rss/en
+
+# ── 3-Health news NL ──────────────────────────────────────────────────────────
+https://www.zorgvisie.nl/feed/?post_type=blog
+https://equalis.nl/feed/atom/
+https://feeds.nza.nl/nieuws.rss
+https://feeds.rijksoverheid.nl/onderwerpen/zorgverzekering/documenten.rss
+https://feeds.rijksoverheid.nl/ministeries/ministerie-van-volksgezondheid-welzijn-en-sport/kamerstukken.rss
+https://www.skipr.nl/feed/
+https://feeds.zorginstituutnederland.nl/nieuws.rss
+https://www.zorgvisie.nl/feed/
+
+# ── 4-Scholars ────────────────────────────────────────────────────────────────
+https://pure.eur.nl/en/persons/dani%C3%ABlle-cattel/publications/?format=rss
+https://research.vu.nl/en/persons/duco-bannink/publications/?format=rss
+https://pure.eur.nl/en/persons/erik-schut/publications/?format=rss
+https://research.vu.nl/en/persons/france-rose-marie-portrait/publications/?format=rss
+https://pure.eur.nl/en/persons/marco-varkevisser/publications/?format=rss
+https://research.vu.nl/en/persons/marieke-van-wieringen/publications/?format=rss
+https://research.vu.nl/en/persons/niek-stadhouders/publications/?format=rss
+https://research.vu.nl/en/persons/piet-stam/publications/?format=rss
+https://pure.eur.nl/en/persons/richard-van-kleef/publications/?format=rss
+https://pure.eur.nl/en/persons/rudy-douven/publications/?format=rss
+https://research.vu.nl/en/persons/sierk-ybema/publications/?format=rss
+https://pure.eur.nl/en/persons/wynand-van-de-ven/publications/?format=rss
+https://research.vu.nl/en/persons/xander-koolman/publications/?format=rss
+https://research.vu.nl/en/persons/yvonne-alkemade-krabbe/publications/?format=rss
+
+# ── 4-Science international pubs ─────────────────────────────────────────────
+https://pubs.aeaweb.org/rss/etoc/aer
+https://www.healthaffairs.org/action/showFeed?type=etoc&feed=rss&jc=hlthaff
+https://healtheconomicsreview.biomedcentral.com/articles/most-recent/rss.xml
+https://pubs.aeaweb.org/rss/etoc/jel
+https://pubs.aeaweb.org/rss/etoc/jep
+https://link.springer.com/search.rss?facet-content-type=Article&facet-journal-id=10198&channel-name=The+European+Journal+of+Health+Economics
+https://link.springer.com/search.rss?facet-content-type=Article&facet-journal-id=10389&channel-name=Journal+of+Public+Health
+https://link.springer.com/search.rss?facet-content-type=Article&facet-journal-id=10754&sortOrder=newestFirst
+https://link.springer.com/search.rss?facet-content-type=Article&facet-journal-id=40273&channel-name=PharmacoEconomics
+http://journals.lww.com/lww-medicalcare/_layouts/OAKS.Journals/feed.aspx?FeedType=CurrentIssue
+https://www.rand.org/topics/health-and-health-care.xml
+https://rss.sciencedirect.com/publication/science/01688510
+https://rss.sciencedirect.com/publication/science/03044076
+https://rss.sciencedirect.com/publication/science/01676296
+https://rss.sciencedirect.com/publication/science/02779536
+https://onlinelibrary.wiley.com/feed/14680262/most-recent
+http://onlinelibrary.wiley.com/rss/journal/10.1002/(ISSN)1099-1050
+http://onlinelibrary.wiley.com/rss/journal/10.1111/(ISSN)1475-6773
+https://onlinelibrary.wiley.com/feed/14680009/most-recent
+
+# ── 4-Science national pubs ───────────────────────────────────────────────────
+https://esb.nu/sectie/artikel/feed/
+https://www.mejudice.nl/artikelen?rss=generate
+
+# ── YouTube ───────────────────────────────────────────────────────────────────
+# Wordt aangevuld zodra je je YouTube-abonnementen hebt geëxporteerd (stap 4).
+
+# ── Podcasts ──────────────────────────────────────────────────────────────────
+# Wordt aangevuld zodra je je Overcast-abonnementen hebt geëxporteerd (stap 5).
