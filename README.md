@@ -54,9 +54,11 @@ ResearchVault/
 └── .claude/
     ├── index-score.py      # Relevance scoring for _inbox items (phase 2)
     ├── phase0-score.py     # RSS feed scoring and filtered feed generation (phase 0)
-    ├── phase0-learn.py     # Learning loop for threshold calibration
+    ├── phase0-server.py    # Local HTTP server (port 8765) + POST /skip endpoint
+    ├── phase0-learn.py     # Learning loop: processes skip queue + threshold calibration
     ├── phase0-feeds.txt    # List of RSS feed URLs for phase 0
-    ├── score_log.jsonl     # Running log of scored feed items
+    ├── score_log.jsonl     # Running log of scored feed items (incl. skipped flag)
+    ├── skip_queue.jsonl    # Queue of explicitly rejected items (👎); processed daily
     └── skills/             # Research workflow skill loaded each session
 ```
 

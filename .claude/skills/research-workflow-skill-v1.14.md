@@ -166,8 +166,10 @@ Phase 0 draait automatisch via launchd (06:00 dagelijks). Beheer is alleen nodig
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/phase0-learn.py
 ```
 
+**👎-knop:** elk item in de HTML-lezer heeft een 👎-knop voor expliciete afwijzing zonder het artikel te openen. Klikken op de headline markeert als gelezen en opent het artikel. Beide signalen worden opgeslagen in `score_log.jsonl` resp. `skip_queue.jsonl`.
+
 **Drempeladvies opvragen:**
-- Draai `phase0-learn.py` — het toont de scoreverdeling van toegevoegde vs. overgeslagen items
+- Draai `phase0-learn.py` — het verwerkt eerst de skip-queue, toont daarna ✅ positieven · 👎 expliciet afgewezen · ❌ zwak negatief
 - Pas na ≥30 positieven `THRESHOLD_GREEN` en `THRESHOLD_YELLOW` aan in `phase0-score.py`
 
 **HTML-lezer:** `http://localhost:8765/filtered.html` (ook bereikbaar op iPhone/iPad via het LAN-IP van de Mac mini)

@@ -98,8 +98,10 @@ Phase 0 filtert RSS-feeds automatisch op relevantie vóórdat je ze handmatig do
 **Bestanden:**
 - `.claude/phase0-feeds.txt` — lijst van feed-URLs (één per regel, `#` = commentaar)
 - `.claude/phase0-score.py` — haalt feeds op, scoort items, schrijft `filtered.xml` en `filtered.html`
-- `.claude/phase0-learn.py` — leerloop: matcht Zotero-toevoegingen aan log, geeft drempeladvies
-- `.claude/score_log.jsonl` — groeiend logboek (URL, score, bron, timestamp, added_to_zotero)
+- `.claude/phase0-server.py` — lokale HTTP-server (poort 8765); handelt ook `POST /skip` af
+- `.claude/phase0-learn.py` — leerloop: verwerkt skip-queue, matcht Zotero-toevoegingen, geeft drempeladvies
+- `.claude/score_log.jsonl` — groeiend logboek (URL, score, bron, timestamp, added_to_zotero, skipped)
+- `.claude/skip_queue.jsonl` — wachtrij van expliciet afgewezen items (👎); dagelijks verwerkt door phase0-learn.py
 - `~/.local/share/phase0-serve/` — serveermap (buiten Documents vanwege macOS TCC)
 
 **URLs (lokale HTTP-server op poort 8765):**
@@ -114,7 +116,9 @@ Phase 0 filtert RSS-feeds automatisch op relevantie vóórdat je ze handmatig do
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/phase0-learn.py
 ```
 
-**Leerloop:** phase0-learn.py matcht recent aan Zotero toegevoegde items (via URL) aan het score-logboek. Na ≥30 positieven geeft het een drempeladvies (10e percentiel van de positieve scores). Pas dan de `THRESHOLD_GREEN` en `THRESHOLD_YELLOW` in `phase0-score.py` aan en activeer een score-filter.
+**👎-knop:** elk item in de HTML-lezer heeft een 👎-knop. Klikken markeert het item als `skipped: true` in het logboek (via de server) en visueel als doorgestreept. Dit is een sterk expliciet negatief signaal, onderscheiden van "niet aangeklikt" (ambigu). Klikken op de headline markeert het item als gelezen en opent het artikel.
+
+**Leerloop:** phase0-learn.py verwerkt eerst de skip-queue (👎-signalen), matcht daarna recent aan Zotero toegevoegde items aan het logboek, en onderscheidt drie categorieën: ✅ positieven · 👎 expliciet afgewezen · ❌ zwak negatief (niet toegevoegd na timeout). Na ≥30 positieven geeft het een drempeladvies. Pas dan `THRESHOLD_GREEN` en `THRESHOLD_YELLOW` in `phase0-score.py` aan.
 
 **launchd-agents** (laden bij inloggen):
 - `nl.researchvault.phase0-server` — HTTP-server permanent actief
