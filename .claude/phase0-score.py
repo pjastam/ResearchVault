@@ -326,6 +326,18 @@ def generate_html(items: list[dict], generated_at: datetime) -> str:
   .item:hover {{ background: var(--border); }}
   .item.read {{ opacity: var(--read-op); }}
   .item.read.hidden {{ display: none; }}
+  .item.skipped {{ opacity: var(--read-op); }}
+  .item.skipped .item-title {{ text-decoration: line-through; }}
+  .item.skipped.hidden {{ display: none; }}
+  .skip-btn {{
+    flex-shrink: 0; background: none; border: none;
+    cursor: pointer; font-size: .85rem;
+    padding: .25rem .4rem; border-radius: 5px;
+    opacity: 0.2; line-height: 1;
+    transition: opacity .15s;
+  }}
+  .skip-btn:hover {{ opacity: 0.9; background: var(--border); }}
+  .item.skipped .skip-btn {{ display: none; }}
   .badge {{
     flex-shrink: 0; min-width: 2.4rem;
     font-size: .75rem; font-weight: 700;
@@ -359,7 +371,7 @@ def generate_html(items: list[dict], generated_at: datetime) -> str:
     <button class="active" onclick="switchView('score', this)">Op score</button>
     <button onclick="switchView('source', this)">Op bron</button>
   </div>
-  <button class="toggle-read" onclick="toggleRead()">verberg gelezen</button>
+  <button class="toggle-read" onclick="toggleRead()">verberg gelezen / overgeslagen</button>
 </header>
 
 <div id="view-score" class="view active"></div>
@@ -377,6 +389,25 @@ function markRead(url) {{
   const s = getRead(); s.add(url);
   localStorage.setItem(READ_KEY, JSON.stringify([...s]));
 }}
+const SKIP_KEY = "phase0_skipped";
+function getSkipped() {{
+  try {{ return new Set(JSON.parse(localStorage.getItem(SKIP_KEY) || "[]")); }}
+  catch {{ return new Set(); }}
+}}
+function markSkippedLocal(url) {{
+  const s = getSkipped(); s.add(url);
+  localStorage.setItem(SKIP_KEY, JSON.stringify([...s]));
+}}
+function skipItem(url, title, el) {{
+  markSkippedLocal(url);
+  el.classList.add("skipped");
+  if (hideRead) el.classList.add("hidden");
+  fetch("/skip", {{
+    method: "POST",
+    headers: {{"Content-Type": "application/json"}},
+    body: JSON.stringify({{url, title, timestamp: new Date().toISOString()}})
+  }}).catch(() => {{}});
+}}
 
 function badgeClass(score) {{
   if (score >= {THRESHOLD_GREEN}) return "green";
@@ -384,23 +415,40 @@ function badgeClass(score) {{
   return "red";
 }}
 
-function makeItem(item, read) {{
+function makeItem(item, read, skipped) {{
+  const isRead    = read.has(item.url);
+  const isSkipped = skipped.has(item.url);
   const div = document.createElement("div");
-  div.className = "item" + (read.has(item.url) ? " read" : "");
+  div.className = "item" + (isRead ? " read" : "") + (isSkipped ? " skipped" : "");
   div.dataset.url = item.url;
   div.innerHTML = `
     <span class="badge ${{badgeClass(item.score)}}">${{item.score}}</span>
     <div class="item-body">
       <div class="item-title">
-        <a href="${{item.url}}" target="_blank" rel="noopener"
-           onclick="event.stopPropagation()">${{escHtml(item.title)}}</a>
+        <a href="${{item.url}}" target="_blank" rel="noopener">${{escHtml(item.title)}}</a>
       </div>
       <div class="item-meta">${{escHtml(item.source)}}</div>
     </div>`;
-  div.addEventListener("click", () => {{
+  div.querySelector("a").addEventListener("click", (e) => {{
+    e.stopPropagation();
     div.classList.add("read");
     markRead(item.url);
-    window.open(item.url, "_blank", "noopener");
+  }});
+  const btn = document.createElement("button");
+  btn.className = "skip-btn";
+  btn.title = "Niet interessant";
+  btn.textContent = "👎";
+  btn.addEventListener("click", (e) => {{
+    e.stopPropagation();
+    skipItem(item.url, item.title, div);
+  }});
+  div.appendChild(btn);
+  div.addEventListener("click", () => {{
+    if (!div.classList.contains("skipped")) {{
+      div.classList.add("read");
+      markRead(item.url);
+      window.open(item.url, "_blank", "noopener");
+    }}
   }});
   return div;
 }}
@@ -412,15 +460,17 @@ function escHtml(s) {{
 function renderScore() {{
   const el = document.getElementById("view-score");
   el.innerHTML = "";
-  const read = getRead();
-  ITEMS.forEach(item => el.appendChild(makeItem(item, read)));
+  const read    = getRead();
+  const skipped = getSkipped();
+  ITEMS.forEach(item => el.appendChild(makeItem(item, read, skipped)));
 }}
 
 function renderSource() {{
   const el = document.getElementById("view-source");
   el.innerHTML = "";
-  const read = getRead();
-  const groups = {{}};
+  const read    = getRead();
+  const skipped = getSkipped();
+  const groups  = {{}};
   ITEMS.forEach(item => {{
     if (!groups[item.source]) groups[item.source] = [];
     groups[item.source].push(item);
@@ -432,7 +482,7 @@ function renderSource() {{
     h.className = "source-heading";
     h.textContent = src + " (" + items.length + ")";
     grp.appendChild(h);
-    items.forEach(item => grp.appendChild(makeItem(item, read)));
+    items.forEach(item => grp.appendChild(makeItem(item, read, skipped)));
     el.appendChild(grp);
   }});
 }}
@@ -447,11 +497,11 @@ function switchView(name, btn) {{
 let hideRead = false;
 function toggleRead() {{
   hideRead = !hideRead;
-  document.querySelectorAll(".item.read").forEach(el => {{
+  document.querySelectorAll(".item.read, .item.skipped").forEach(el => {{
     el.classList.toggle("hidden", hideRead);
   }});
   document.querySelector(".toggle-read").textContent =
-    hideRead ? "toon gelezen" : "verberg gelezen";
+    hideRead ? "toon alles" : "verberg gelezen / overgeslagen";
 }}
 
 renderScore();
