@@ -89,7 +89,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction.html">Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Installation</li><li class="chapter-item expanded "><a href="installation/homebrew.html"><strong aria-hidden="true">1.</strong> Step 1: Homebrew</a></li><li class="chapter-item expanded "><a href="installation/zotero.html"><strong aria-hidden="true">2.</strong> Step 2: Zotero</a></li><li class="chapter-item expanded "><a href="installation/python.html"><strong aria-hidden="true">3.</strong> Step 3: Python environment</a></li><li class="chapter-item expanded "><a href="installation/zotero-mcp.html"><strong aria-hidden="true">4.</strong> Step 4: Zotero MCP</a></li><li class="chapter-item expanded "><a href="installation/claude-code.html"><strong aria-hidden="true">5.</strong> Step 5: Claude Code</a></li><li class="chapter-item expanded "><a href="installation/ollama.html"><strong aria-hidden="true">6.</strong> Step 6: Ollama</a></li><li class="chapter-item expanded "><a href="installation/obsidian.html"><strong aria-hidden="true">7.</strong> Step 7: Obsidian</a></li><li class="chapter-item expanded "><a href="installation/connect.html"><strong aria-hidden="true">8.</strong> Step 8: Connect everything</a></li><li class="chapter-item expanded "><a href="installation/first-test.html"><strong aria-hidden="true">9.</strong> Step 9: First test</a></li><li class="chapter-item expanded affix "><li class="part-title">Extensions</li><li class="chapter-item expanded "><a href="extensions/yt-dlp.html"><strong aria-hidden="true">10.</strong> Step 10: yt-dlp & semantic search</a></li><li class="chapter-item expanded "><a href="extensions/podcasts.html"><strong aria-hidden="true">11.</strong> Step 11: Podcast integration</a></li><li class="chapter-item expanded "><a href="extensions/rss.html"><strong aria-hidden="true">12.</strong> Step 12: RSS integration</a></li><li class="chapter-item expanded "><a href="extensions/spaced-repetition.html"><strong aria-hidden="true">13.</strong> Step 13: Spaced repetition</a></li><li class="chapter-item expanded "><a href="extensions/filter-layer.html"><strong aria-hidden="true">14.</strong> Step 14: Filter layer per source</a></li><li class="chapter-item expanded "><a href="extensions/future-orchestrator.html"><strong aria-hidden="true">15.</strong> Step 15: Future perspective — local orchestrator</a></li><li class="chapter-item expanded affix "><li class="part-title">Reference</li><li class="chapter-item expanded "><a href="reference/daily-workflow.html"><strong aria-hidden="true">16.</strong> Activating the skill & daily workflow</a></li><li class="chapter-item expanded "><a href="reference/troubleshooting.html"><strong aria-hidden="true">17.</strong> Troubleshooting</a></li><li class="chapter-item expanded "><a href="reference/privacy.html"><strong aria-hidden="true">18.</strong> Privacy overview</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction.html">Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Installation</li><li class="chapter-item expanded "><a href="installation/homebrew.html"><strong aria-hidden="true">1.</strong> Step 1: Homebrew</a></li><li class="chapter-item expanded "><a href="installation/zotero.html"><strong aria-hidden="true">2.</strong> Step 2: Zotero</a></li><li class="chapter-item expanded "><a href="installation/python.html"><strong aria-hidden="true">3.</strong> Step 3: Python environment</a></li><li class="chapter-item expanded "><a href="installation/zotero-mcp.html"><strong aria-hidden="true">4.</strong> Step 4: Zotero MCP</a></li><li class="chapter-item expanded "><a href="installation/claude-code.html"><strong aria-hidden="true">5.</strong> Step 5: Claude Code</a></li><li class="chapter-item expanded "><a href="installation/ollama.html"><strong aria-hidden="true">6.</strong> Step 6: Ollama</a></li><li class="chapter-item expanded "><a href="installation/obsidian.html"><strong aria-hidden="true">7.</strong> Step 7: Obsidian</a></li><li class="chapter-item expanded "><a href="installation/connect.html"><strong aria-hidden="true">8.</strong> Step 8: Connect everything</a></li><li class="chapter-item expanded "><a href="installation/first-test.html"><strong aria-hidden="true">9.</strong> Step 9: First test</a></li><li class="chapter-item expanded affix "><li class="part-title">Extensions</li><li class="chapter-item expanded "><a href="extensions/yt-dlp.html"><strong aria-hidden="true">10.</strong> Step 10: yt-dlp & semantic search</a></li><li class="chapter-item expanded "><a href="extensions/podcasts.html"><strong aria-hidden="true">11.</strong> Step 11: Podcast integration</a></li><li class="chapter-item expanded "><a href="extensions/rss.html"><strong aria-hidden="true">12.</strong> Step 12: RSS integration + Phase 0 filtering</a></li><li class="chapter-item expanded "><a href="extensions/spaced-repetition.html"><strong aria-hidden="true">13.</strong> Step 13: Spaced repetition</a></li><li class="chapter-item expanded "><a href="extensions/filter-layer.html"><strong aria-hidden="true">14.</strong> Step 14: Filter layer per source</a></li><li class="chapter-item expanded "><a href="extensions/future-orchestrator.html"><strong aria-hidden="true">15.</strong> Step 15: Future perspective — local orchestrator</a></li><li class="chapter-item expanded affix "><li class="part-title">Reference</li><li class="chapter-item expanded "><a href="reference/daily-workflow.html"><strong aria-hidden="true">16.</strong> Activating the skill & daily workflow</a></li><li class="chapter-item expanded "><a href="reference/troubleshooting.html"><strong aria-hidden="true">17.</strong> Troubleshooting</a></li><li class="chapter-item expanded "><a href="reference/privacy.html"><strong aria-hidden="true">18.</strong> Privacy overview</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -182,15 +182,16 @@
 <p><strong>Estimated installation time:</strong> 60–120 minutes
 <strong>Requirements:</strong> macOS Sequoia or later, internet connection for downloads, an Anthropic account (for Claude Code)</p>
 <hr />
-<h2 id="the-3-phase-model"><a class="header" href="#the-3-phase-model">The 3-phase model</a></h2>
-<p>Every source — paper, podcast, video, RSS article — passes through three explicit phases:</p>
+<h2 id="the-4-phase-model"><a class="header" href="#the-4-phase-model">The 4-phase model</a></h2>
+<p>Every source — paper, podcast, video, RSS article — passes through four explicit phases:</p>
 <div class="table-wrapper"><table><thead><tr><th>Phase</th><th>Goal</th><th>How</th></tr></thead><tbody>
-<tr><td><strong>1 — Cast wide</strong></td><td>Capture everything, no filtering yet</td><td>All sources flow into a single Zotero <code>_inbox</code> collection via browser extension, iOS app, or RSS reader</td></tr>
+<tr><td><strong>0 — Pre-filter</strong></td><td>Automatically score and rank RSS feeds before you see them</td><td><code>phase0-score.py</code> runs daily via launchd, scores each feed item by semantic similarity to your library, and produces a sorted Atom feed and HTML reader at <code>http://localhost:8765/filtered.html</code></td></tr>
+<tr><td><strong>1 — Cast wide</strong></td><td>Capture everything that passes the pre-filter</td><td>Interesting items from the filtered feed flow into Zotero <code>_inbox</code> via browser extension or iOS app</td></tr>
 <tr><td><strong>2 — Filter</strong></td><td>You decide what enters the vault</td><td><code>index-score.py</code> ranks inbox items by semantic similarity to your library; Qwen3.5:9b (local) generates a summary for mid-range items; you give a <strong>Go</strong> or <strong>No-go</strong></td></tr>
 <tr><td><strong>3 — Process</strong></td><td>Full processing of approved items</td><td>Claude Code writes a structured literature note to the Obsidian vault, including key findings, methodology notes, relevant quotes, and flashcards for spaced repetition</td></tr>
 </tbody></table>
 </div>
-<p>The separation between phases 1 and 3 keeps the vault clean: only sources you have consciously approved end up there.</p>
+<p>The separation between phases 0 and 3 keeps both your feed reader and your vault clean: only sources you have consciously approved end up in the vault.</p>
 <hr />
 <h2 id="tools-required"><a class="header" href="#tools-required">Tools required</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Tool</th><th>Role</th><th>Local / Cloud</th></tr></thead><tbody>
@@ -219,7 +220,7 @@
 <li>Run first test</li>
 <li>Optional extensions (yt-dlp, semantic search, automatic updates)</li>
 <li>Podcast integration (whisper.cpp)</li>
-<li>RSS integration (Zotero feeds + NetNewsWire)</li>
+<li>RSS integration + Phase 0 filtering (NetNewsWire + phase0-score.py)</li>
 <li>Spaced repetition (Obsidian plugin)</li>
 <li>Set up filter layer per source</li>
 </ol>
@@ -725,35 +726,61 @@ note in literature/ with summary, key points, and timestamped quotes.
 <pre><code>podcast https://[url-to-episode]
 </code></pre>
 <p>Claude Code downloads the audio, automatically determines the language based on metadata, runs whisper.cpp, and processes the transcript into a literature note — see also the skill (step "activate skill"). The Zotero <code>_inbox</code> step is skipped: the podcast goes directly to Obsidian. This is intended for episodes you have already evaluated and approved.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="step-12-rss-integration"><a class="header" href="#step-12-rss-integration">Step 12: RSS integration</a></h1>
-<p>In the 3-phase model, RSS readers are dump layers for phase 1: you subscribe to feeds without immediately judging whether each item is relevant. Only in phase 2 do you decide what goes into the vault.</p>
-<h2 id="12a-rss-feeds-via-netnewswire"><a class="header" href="#12a-rss-feeds-via-netnewswire">12a. RSS feeds via NetNewsWire</a></h2>
-<p>NetNewsWire is a free, open-source RSS reader for macOS and iOS, with iCloud sync between both devices. It is the central dump layer for all RSS feeds — both academic and non-academic. This is especially true if you primarily work on iOS: the Zotero iOS app has no built-in RSS functionality, making NetNewsWire the most practical choice for all feeds.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="step-12-rss-integration--phase-0-filtering"><a class="header" href="#step-12-rss-integration--phase-0-filtering">Step 12: RSS integration + Phase 0 filtering</a></h1>
+<p>In the 4-phase model, RSS feeds are pre-filtered automatically before you see them (phase 0), so that your feed reader only shows items that are likely relevant to your research. You then browse this curated selection and send interesting items to Zotero <code>_inbox</code> (phase 1). Only in phase 2 do you decide what goes into the vault.</p>
+<h2 id="12a-phase-0--automatic-relevance-filtering"><a class="header" href="#12a-phase-0--automatic-relevance-filtering">12a. Phase 0 — Automatic relevance filtering</a></h2>
+<p><code>phase0-score.py</code> runs daily via launchd and produces a filtered, scored Atom feed and HTML reader from your RSS subscriptions. It uses the same ChromaDB preference profile as <code>index-score.py</code> — items are scored by semantic similarity to your existing library.</p>
+<p><strong>Install dependencies</strong> (if not already present from step 10):</p>
+<pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/pip install feedparser sentence-transformers
+</code></pre>
+<p><strong>Configure your feeds</strong> — add one URL per line to <code>.claude/phase0-feeds.txt</code>:</p>
+<pre><code>https://arxiv.org/rss/econ.GN
+https://www.skipr.nl/feed/
+http://onlinelibrary.wiley.com/rss/journal/10.1002/(ISSN)1099-1050
+</code></pre>
+<p><strong>Load the launchd agents</strong> (run once after installation):</p>
+<pre><code class="language-bash">launchctl load ~/Library/LaunchAgents/nl.researchvault.phase0-server.plist
+launchctl load ~/Library/LaunchAgents/nl.researchvault.phase0-score.plist
+launchctl load ~/Library/LaunchAgents/nl.researchvault.phase0-learn.plist
+</code></pre>
+<p>This starts a local HTTP server on port 8765 and schedules the daily score run at 06:00.</p>
+<p><strong>Run manually</strong> (first time, or on demand):</p>
+<pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/phase0-score.py
+</code></pre>
+<p><strong>Access the filtered feed:</strong></p>
+<ul>
+<li>HTML reader (Mac/iPhone/iPad): <code>http://localhost:8765/filtered.html</code></li>
+<li>Atom feed (NetNewsWire): <code>http://localhost:8765/filtered.xml</code></li>
+</ul>
+<blockquote>
+<p><strong>Serve directory:</strong> the HTTP server serves files from <code>~/.local/share/phase0-serve/</code>, not from <code>~/Documents/</code>, because macOS TCC prevents system Python from accessing the Documents folder when launched via launchd.</p>
+</blockquote>
+<p><strong>Learning loop</strong> — <code>phase0-learn.py</code> runs daily at 06:15 and matches recently added Zotero items (by URL) against the score log. After ≥30 positives it prints a threshold recommendation. Once the threshold is stable, activate score filtering in <code>phase0-score.py</code> by adjusting <code>THRESHOLD_GREEN</code> and <code>THRESHOLD_YELLOW</code>.</p>
+<blockquote>
+<p><strong>Privacy note:</strong> <code>phase0-score.py</code> runs entirely locally. Feed URLs are fetched directly from the source; no feed content is sent to any cloud service.</p>
+</blockquote>
+<h2 id="12b-rss-feeds-via-netnewswire"><a class="header" href="#12b-rss-feeds-via-netnewswire">12b. RSS feeds via NetNewsWire</a></h2>
+<p>NetNewsWire is a free, open-source RSS reader for macOS and iOS, with iCloud sync between both devices. Rather than subscribing to individual feeds, you subscribe to the single filtered feed produced by Phase 0. This way your reading list only contains items that are likely relevant, sorted by relevance score.</p>
 <p><strong>Install:</strong></p>
 <pre><code class="language-bash">brew install --cask netnewswire
 </code></pre>
 <p>Or download via <a href="https://netnewswire.com">netnewswire.com</a>.</p>
-<p><strong>Recommended feeds:</strong></p>
-<ul>
-<li>Journal RSS (e.g. BMJ, NEJM, TSG)</li>
-<li>PubMed searches as RSS feed</li>
-<li>Policy sites and government newsletters</li>
-<li>Trade blogs and opinion pieces on health policy (e.g. Zorgvisie, Skipr)</li>
-<li>Substack publications by relevant authors (each has an RSS feed via <code>[name].substack.com/feed</code>)</li>
-</ul>
-<p><strong>Useful RSS URLs:</strong></p>
-<pre><code># PubMed search as RSS (replace the search term):
-https://pubmed.ncbi.nlm.nih.gov/rss/search/?term=[searchterm]&amp;format=abstract
-
-# Journal RSS (example BMJ):
-https://www.bmj.com/rss/ahead-of-print.xml
-
-# Google Scholar alerts (set up via email and forward, or via RSS-bridge)
+<p><strong>Subscribe to the filtered feed</strong> — add this single URL in NetNewsWire:</p>
+<pre><code>http://localhost:8765/filtered.xml
 </code></pre>
+<p>Titles are prefixed with score and label (<code>🟢 54 | Title…</code>). To sort by relevance, click the <strong>Date</strong> column header → <strong>Newest First</strong>. Phase 0 encodes the score as a synthetic publication date so that higher-scoring items appear at the top.</p>
+<p><strong>Add your source feeds</strong> to <code>.claude/phase0-feeds.txt</code> instead of directly to NetNewsWire. Useful sources:</p>
+<ul>
+<li>Journal RSS (e.g. BMJ, NEJM, Wiley Health Economics)</li>
+<li>PubMed searches: <code>https://pubmed.ncbi.nlm.nih.gov/rss/search/?term=[searchterm]&amp;format=abstract</code></li>
+<li>Policy sites and government newsletters</li>
+<li>Trade blogs (e.g. Zorgvisie, Skipr)</li>
+<li>Substack: <code>[name].substack.com/feed</code></li>
+</ul>
 <blockquote>
-<p><strong>Phase 1 → phase 2:</strong> Items in NetNewsWire have not yet been saved — they only exist in your feed reader. This is intentional: you browse through them and scan headlines and intros without immediately archiving anything. Only what is truly relevant gets forwarded to the vault. That is the filter moment.</p>
+<p><strong>Phase 0 → phase 1:</strong> Items in the filtered feed have not yet been saved — they only exist in your feed reader. You browse through them and scan the scored headlines. Only what is truly relevant gets forwarded to Zotero. That is the phase 1 moment.</p>
 </blockquote>
-<p><strong>From NetNewsWire to the vault (phase 2 → phase 3):</strong></p>
+<p><strong>From NetNewsWire to the vault (phase 1 → phase 2 → phase 3):</strong></p>
 <p>Interesting articles are saved via two routes:</p>
 <ul>
 <li><strong>Via Zotero browser extension or iOS app:</strong> open the article, click the Zotero icon → item is saved with metadata to Zotero <code>_inbox</code>. Use this route for academic articles where you want to retain BibTeX metadata and annotation capabilities.</li>
@@ -762,7 +789,7 @@ https://www.bmj.com/rss/ahead-of-print.xml
 <blockquote>
 <p><strong>Privacy note:</strong> NetNewsWire stores feed data locally. No reading habits are sent to external servers.</p>
 </blockquote>
-<h2 id="12b-academic-feeds-from-netnewswire-to-zotero"><a class="header" href="#12b-academic-feeds-from-netnewswire-to-zotero">12b. Academic feeds: from NetNewsWire to Zotero</a></h2>
+<h2 id="12c-academic-feeds-from-netnewswire-to-zotero"><a class="header" href="#12c-academic-feeds-from-netnewswire-to-zotero">12c. Academic feeds: from NetNewsWire to Zotero</a></h2>
 <p>For academic articles from NetNewsWire, the recommended route is to always add them to Zotero first before having them processed. This way you have BibTeX metadata and annotation capabilities available:</p>
 <ol>
 <li>Open the article from NetNewsWire in your browser</li>
@@ -811,7 +838,7 @@ Use the Obsidian Spaced Repetition format with ? as separator.
 <p><strong>Privacy note:</strong> All cards and review data are stored as local files in your vault. No cloud sync is required.</p>
 </blockquote>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="step-14-set-up-filter-layer-per-source"><a class="header" href="#step-14-set-up-filter-layer-per-source">Step 14: Set up filter layer per source</a></h1>
-<p>This is the core of the 3-phase model: phase 2, the filter moment, is set up differently for each source. Below is a per-source overview of the dump layer, the filter moment, and how you indicate what may enter the vault.</p>
+<p>This is the core of the 4-phase model: each source has its own pre-filter (phase 0, where applicable) and filter moment (phase 2). Below is a per-source overview of all phases and how you indicate what may enter the vault.</p>
 <h2 id="papers-zotero"><a class="header" href="#papers-zotero">Papers (Zotero)</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Phase</th><th>What</th></tr></thead><tbody>
 <tr><td>Dump layer</td><td>Zotero <code>_inbox</code> collection — central collection bucket for all sources</td></tr>
@@ -881,11 +908,12 @@ summary per item and a relevance assessment for my research on [topic].
 <hr />
 <h2 id="rss-feeds"><a class="header" href="#rss-feeds">RSS feeds</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Phase</th><th>What</th></tr></thead><tbody>
-<tr><td>Dump layer (academic and non-academic)</td><td>NetNewsWire — unread items</td></tr>
-<tr><td>Filter moment</td><td>Scan headline and intro</td></tr>
-<tr><td>Go (academic)</td><td>Open article → save to Zotero via browser extension or iOS app → ends up in <code>_inbox</code></td></tr>
+<tr><td>Phase 0 — Pre-filter</td><td><code>phase0-score.py</code> scores all feed items daily; produces filtered Atom feed + HTML reader sorted by relevance at <code>http://localhost:8765/filtered.html</code></td></tr>
+<tr><td>Phase 1 — Dump layer</td><td>Browse the filtered feed in the HTML reader or NetNewsWire; interesting items forwarded to Zotero <code>_inbox</code> via browser extension or iOS app</td></tr>
+<tr><td>Phase 2 — Filter moment</td><td>Scan headline and intro of items in <code>_inbox</code></td></tr>
+<tr><td>Go (academic)</td><td>Item already in Zotero <code>_inbox</code> → process via type 0 → type 1 in the skill</td></tr>
 <tr><td>Go (non-academic)</td><td>Save via Zotero Connector, or pass <code>inbox [URL]</code> to Claude Code</td></tr>
-<tr><td>No-go</td><td>Mark item as read or delete from NetNewsWire</td></tr>
+<tr><td>No-go</td><td>Mark item as read or delete from NetNewsWire; remove from <code>_inbox</code> if already saved</td></tr>
 </tbody></table>
 </div><div style="break-before: page; page-break-before: always;"></div><h1 id="step-15-future-perspective--local-orchestrator"><a class="header" href="#step-15-future-perspective--local-orchestrator">Step 15: Future perspective — local orchestrator</a></h1>
 <p>The only component in this stack that does not run fully locally is Claude Code as orchestrator. All generation tasks (summaries, literature notes, syntheses, flashcards) already run via Qwen3.5:9b on Ollama — fully local, fully private. What goes through the Anthropic API are the prompts with which Claude Code steers the workflow: the intake, the phase monitoring, the vault conventions, the iterative Go/No-go dialogue.</p>
@@ -918,8 +946,9 @@ cp research-workflow-skill.md ~/Documents/ResearchVault/.claude/skills/
 <p>From that point on, the skill is active as soon as you open Claude Code in your vault. You can start the workflow by typing: <code>/research</code> or simply "start research workflow".</p>
 <hr />
 <h2 id="daily-workflow-after-installation"><a class="header" href="#daily-workflow-after-installation">Daily workflow after installation</a></h2>
-<p>Once everything is set up, the daily workflow is straightforward:</p>
+<p>Once everything is set up, the daily workflow is straightforward. Phase 0 runs automatically — no action required.</p>
 <ol>
+<li><strong>Browse the filtered feed</strong> at <code>http://localhost:8765/filtered.html</code> (or in NetNewsWire via <code>http://localhost:8765/filtered.xml</code>). Items are sorted by relevance score. Send interesting ones to Zotero <code>_inbox</code> via the browser extension or iOS app.</li>
 <li><strong>Start Zotero</strong> (so the local API is active)</li>
 <li><strong>Open Terminal in your vault:</strong> <code>cd ~/Documents/ResearchVault &amp;&amp; claude</code></li>
 <li><strong>Activate the skill:</strong> type <code>/research</code> or "start research workflow"</li>
@@ -928,6 +957,7 @@ cp research-workflow-skill.md ~/Documents/ResearchVault/.claude/skills/
 <p>You do not need to know exactly what you are looking for — the skill is designed to help you with that.</p>
 <h3 id="full-session-flow"><a class="header" href="#full-session-flow">Full session flow</a></h3>
 <ol>
+<li>Browse the filtered feed and forward interesting items to Zotero <code>_inbox</code></li>
 <li>Start Zotero</li>
 <li>Open Terminal, navigate to your vault, and start Claude Code:
 <pre><code class="language-bash">cd ~/Documents/ResearchVault
