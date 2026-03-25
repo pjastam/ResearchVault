@@ -219,13 +219,14 @@ def generate_html(items: list[dict], generated_at: datetime) -> str:
     # Gegevens als JSON voor JavaScript — alleen wat de UI nodig heeft
     data = _json.dumps([
         {
-            "url":    item["url"],
-            "title":  item["title"],
-            "score":  item["score"],
-            "label":  score_label(item["score"]),
-            "source": item["feed_name"],
-            "type":   item["source_type"],
-            "desc":   item.get("description", "")[:200],
+            "url":       item["url"],
+            "title":     item["title"],
+            "score":     item["score"],
+            "label":     score_label(item["score"]),
+            "source":    item["feed_name"],
+            "type":      item["source_type"],
+            "desc":      item.get("description", "")[:200],
+            "published": item.get("published", ""),
         }
         for item in items
     ], ensure_ascii=False)
@@ -361,19 +362,21 @@ def generate_html(items: list[dict], generated_at: datetime) -> str:
   </span>
   <div class="type-filter">
     <button class="active" onclick="setType('all', this)">Alles</button>
-    <button onclick="setType('web', this)">📄</button>
-    <button onclick="setType('youtube', this)">▶️</button>
-    <button onclick="setType('podcast', this)">🎙️</button>
+    <button onclick="setType('web', this)" title="RSS">📄</button>
+    <button onclick="setType('youtube', this)" title="YouTube">▶️</button>
+    <button onclick="setType('podcast', this)" title="Podcast">🎙️</button>
   </div>
   <div class="tabs">
     <button class="active" onclick="switchView('score', this)">Op score</button>
     <button onclick="switchView('source', this)">Op bron</button>
+    <button onclick="switchView('date', this)">Op datum</button>
   </div>
   <button class="toggle-read" onclick="toggleRead()">verberg gelezen / overgeslagen</button>
 </header>
 
 <div id="view-score" class="view active"></div>
 <div id="view-source" class="view"></div>
+<div id="view-date" class="view"></div>
 
 <script>
 const ITEMS = {data};
@@ -414,10 +417,18 @@ function setType(type, btn) {{
   btn.classList.add("active");
   renderScore();
   renderSource();
+  renderDate();
 }}
 
 function visibleItems() {{
   return currentType === "all" ? ITEMS : ITEMS.filter(i => i.type === currentType);
+}}
+
+function fmtDate(iso) {{
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d)) return "";
+  return d.toLocaleDateString("nl-NL", {{ day: "numeric", month: "short", year: "numeric" }});
 }}
 
 function badgeClass(score) {{
@@ -438,7 +449,7 @@ function makeItem(item, read, skipped) {{
       <div class="item-title">
         <a href="${{item.url}}" target="_blank" rel="noopener">${{escHtml(item.title)}}</a>
       </div>
-      <div class="item-meta">${{escHtml(item.source)}}</div>
+      <div class="item-meta">${{escHtml(item.source)}}${{item.published ? " · " + fmtDate(item.published) : ""}}</div>
     </div>`;
   div.querySelector("a").addEventListener("click", (e) => {{
     e.stopPropagation();
@@ -498,6 +509,19 @@ function renderSource() {{
   }});
 }}
 
+function renderDate() {{
+  const el = document.getElementById("view-date");
+  el.innerHTML = "";
+  const read    = getRead();
+  const skipped = getSkipped();
+  const sorted  = [...visibleItems()].sort((a, b) => {{
+    if (!a.published) return 1;
+    if (!b.published) return -1;
+    return b.published.localeCompare(a.published);
+  }});
+  sorted.forEach(item => el.appendChild(makeItem(item, read, skipped)));
+}}
+
 function switchView(name, btn) {{
   document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
   document.querySelectorAll(".tabs button").forEach(b => b.classList.remove("active"));
@@ -517,6 +541,7 @@ function toggleRead() {{
 
 renderScore();
 renderSource();
+renderDate();
 </script>
 </body>
 </html>
