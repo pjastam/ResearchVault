@@ -244,13 +244,13 @@ summary per item and a relevance assessment for my research on [topic].
 <tr><td>No-go</td><td>Delete item from <code>_inbox</code></td></tr>
 </tbody></table>
 </div>
-<p>For podcasts the filter moment is intentionally manual — audio is harder to evaluate quickly than an abstract. You can ask Claude Code to fetch the show notes of an episode for additional help with the decision:</p>
+<p>For podcasts with rich show notes (≥ 200 characters), clicking the headline in the HTML reader opens a generated article at <code>/article/podcast/{episode_id}</code> — the same layout as YouTube articles, with tag buttons and abstract injection via COinS. For episodes with thin show notes the headline links directly to the source. You can also ask Claude Code to fetch show notes manually:</p>
 <pre><code>Fetch the show notes from [URL] and give a 3-sentence summary.
 </code></pre>
 <hr />
 <h2 id="rss-feeds"><a class="header" href="#rss-feeds">RSS feeds</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Phase</th><th>What</th></tr></thead><tbody>
-<tr><td>Phase 0 — Pre-filter</td><td><code>phase0-score.py</code> scores all feed items daily; YouTube items are scored using transcript text fetched via <code>youtube_transcript_api</code>; produces filtered Atom feed + HTML reader sorted by relevance at <code>http://localhost:8765/filtered.html</code>; clicking a YouTube headline opens a generated article (<code>/article/{video_id}</code>) with Zotero tag buttons</td></tr>
+<tr><td>Phase 0 — Pre-filter</td><td><code>phase0-score.py</code> scores all feed items daily; YouTube items are scored using transcript text fetched via <code>youtube_transcript_api</code>; podcast items with show notes ≥ 200 chars have their show notes cached; produces filtered Atom feed + HTML reader sorted by relevance at <code>http://localhost:8765/filtered.html</code>; clicking a YouTube headline opens a generated article (<code>/article/{video_id}</code>) with Zotero tag buttons; clicking a podcast headline (with sufficient show notes) opens a similar article (<code>/article/podcast/{episode_id}</code>); both article types inject the full text into the Zotero Abstract field via <code>rft.description</code> in COinS</td></tr>
 <tr><td>Phase 1 — Dump layer</td><td>Browse the filtered feed in the HTML reader or NetNewsWire; interesting items forwarded to Zotero <code>_inbox</code> via browser extension or iOS app</td></tr>
 <tr><td>Phase 2 — Filter moment</td><td>Scan headline and intro of items in <code>_inbox</code></td></tr>
 <tr><td>Go (academic)</td><td>Item already in Zotero <code>_inbox</code> → process via type 0 → type 1 in the skill</td></tr>
