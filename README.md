@@ -10,7 +10,7 @@ Every source — paper, podcast, video, RSS article — passes through four expl
 
 | Phase | Goal | How |
 |---|---|---|
-| **0 — Pre-filter** | Automatically score and rank RSS feeds before you see them | `phase0-score.py` runs daily via launchd, scores each feed item (web articles, YouTube videos, podcasts) by semantic similarity to your library — YouTube scores are enriched with transcript text fetched via `youtube_transcript_api` — and produces a sorted Atom feed and HTML reader at `http://localhost:8765/filtered.html` with type filter buttons (📄 ▶️ 🎙️); clicking a YouTube headline opens a generated reading article at `/article/{video_id}` (async, via local `qwen2.5:7b`) with tag buttons for the Zotero Connector |
+| **0 — Pre-filter** | Automatically score and rank RSS feeds before you see them | `phase0-score.py` runs daily via launchd, scores each feed item (web articles, YouTube videos, podcasts) by semantic similarity to your library — YouTube scores are enriched with transcript text fetched via `youtube_transcript_api` — and produces a sorted Atom feed and HTML reader at `http://localhost:8765/filtered.html` with type filter buttons (📄 ▶️ 🎙️); clicking a YouTube headline opens a generated reading article at `/article/{video_id}` (async, via local `qwen2.5:7b`) with tag buttons for the Zotero Connector; clicking a podcast headline with rich show notes (≥ 200 chars) opens a similar article at `/article/podcast/{episode_id}`; both article types inject the full generated text as the Zotero abstract via `rft.description` in COinS |
 | **1 — Cast wide** | Capture everything that passes the pre-filter | Interesting items from the filtered feed flow into Zotero `_inbox` via browser extension or iOS app; podcasts and videos are added via the iOS share sheet |
 | **2 — Filter** | You decide what enters the vault | `index-score.py` ranks inbox items by semantic similarity to your existing library; Qwen3.5:9b (local) generates a 2–3 sentence summary per item; you give a **Go** or **No-go** |
 | **3 — Process** | Full processing of approved items | Claude Code writes a structured literature note to the Obsidian vault, including key findings, methodology notes, relevant quotes, and flashcards for spaced repetition |
@@ -61,8 +61,8 @@ ResearchVault/
     ├── phase0-feeds.txt    # List of RSS feed URLs for phase 0 (web, YouTube, podcast)
     ├── score_log.jsonl     # Running log of scored feed items (incl. source_type, skipped flag)
     ├── skip_queue.jsonl    # Queue of explicitly rejected items (👎); processed daily
-    ├── transcript_cache/   # YouTube transcript cache (JSON per video_id)
-    ├── article_cache/      # Generated article cache (HTML per video_id)
+    ├── transcript_cache/   # Transcript & show-notes cache (YouTube: {video_id}.json; podcast: podcast_{episode_id}.json)
+    ├── article_cache/      # Generated article cache (YouTube: {video_id}.html; podcast: podcast_{episode_id}.html)
     └── skills/             # Research workflow skill loaded each session
 ```
 

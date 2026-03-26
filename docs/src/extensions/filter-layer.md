@@ -87,7 +87,7 @@ Claude Code retrieves the metadata and abstract via Zotero MCP and gives a recom
 | Go | `podcast [URL]` in Claude Code (download + transcription + processing) |
 | No-go | Delete item from `_inbox` |
 
-For podcasts the filter moment is intentionally manual — audio is harder to evaluate quickly than an abstract. You can ask Claude Code to fetch the show notes of an episode for additional help with the decision:
+For podcasts with rich show notes (≥ 200 characters), clicking the headline in the HTML reader opens a generated article at `/article/podcast/{episode_id}` — the same layout as YouTube articles, with tag buttons and abstract injection via COinS. For episodes with thin show notes the headline links directly to the source. You can also ask Claude Code to fetch show notes manually:
 
 ```
 Fetch the show notes from [URL] and give a 3-sentence summary.
@@ -99,7 +99,7 @@ Fetch the show notes from [URL] and give a 3-sentence summary.
 
 | Phase | What |
 |------|-----|
-| Phase 0 — Pre-filter | `phase0-score.py` scores all feed items daily; YouTube items are scored using transcript text fetched via `youtube_transcript_api`; produces filtered Atom feed + HTML reader sorted by relevance at `http://localhost:8765/filtered.html`; clicking a YouTube headline opens a generated article (`/article/{video_id}`) with Zotero tag buttons |
+| Phase 0 — Pre-filter | `phase0-score.py` scores all feed items daily; YouTube items are scored using transcript text fetched via `youtube_transcript_api`; podcast items with show notes ≥ 200 chars have their show notes cached; produces filtered Atom feed + HTML reader sorted by relevance at `http://localhost:8765/filtered.html`; clicking a YouTube headline opens a generated article (`/article/{video_id}`) with Zotero tag buttons; clicking a podcast headline (with sufficient show notes) opens a similar article (`/article/podcast/{episode_id}`); both article types inject the full text into the Zotero Abstract field via `rft.description` in COinS |
 | Phase 1 — Dump layer | Browse the filtered feed in the HTML reader or NetNewsWire; interesting items forwarded to Zotero `_inbox` via browser extension or iOS app |
 | Phase 2 — Filter moment | Scan headline and intro of items in `_inbox` |
 | Go (academic) | Item already in Zotero `_inbox` → process via type 0 → type 1 in the skill |

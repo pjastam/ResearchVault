@@ -22,6 +22,7 @@ Configuratie (pas aan indien nodig):
     WEIGHT_*        — gewichten voor het voorkeursprofiel
 """
 
+import hashlib
 import html
 import json
 import os
@@ -68,6 +69,7 @@ INBOX_ID      = 333
 
 FEED_TIMEOUT = 15  # seconden per feed
 TRANSCRIPT_CACHE_DIR = SCRIPT_DIR / "transcript_cache"
+SHOWNOTES_MIN_LENGTH = 200  # minimale tekenlengte voor podcast show notes om artikel te genereren
 
 # ── Hulpfuncties ──────────────────────────────────────────────────────────────
 
@@ -210,6 +212,28 @@ def fetch_and_cache_transcript(
     return text
 
 
+def cache_podcast_shownotes(
+    episode_id: str, title: str, channel: str, url: str, published: str, text: str
+) -> None:
+    """
+    Slaat podcast show notes op in de transcript_cache map (prefix: podcast_).
+    Schrijft alleen als er nog geen cache-bestand bestaat.
+    """
+    TRANSCRIPT_CACHE_DIR.mkdir(exist_ok=True)
+    cache_file = TRANSCRIPT_CACHE_DIR / f"{episode_id}.json"
+    if not cache_file.exists():
+        cache_file.write_text(json.dumps({
+            "episode_id": episode_id,
+            "title":      title,
+            "channel":    channel,
+            "url":        url,
+            "published":  published,
+            "text":       text,
+            "source":     "shownotes",
+            "cached_at":  datetime.now(timezone.utc).isoformat(),
+        }, ensure_ascii=False))
+
+
 def atom_escape(text: str) -> str:
     """Escapet tekst voor gebruik in XML."""
     return (text
@@ -274,7 +298,11 @@ def generate_html(items: list[dict], generated_at: datetime) -> str:
     data = _json.dumps([
         {
             "url":       item["url"],
-            "href":      f"/article/{item['video_id']}" if item.get("has_transcript") else item["url"],
+            "href":      (
+                f"/article/{item['video_id']}" if item.get("has_transcript")
+                else f"/article/podcast/{item.get('episode_id', '')}" if item.get("has_shownotes")
+                else item["url"]
+            ),
             "title":     item["title"],
             "score":     item["score"],
             "label":     score_label(item["score"]),
@@ -702,6 +730,14 @@ def main():
                         score_text += " " + transcript[:3000]
                         has_transcript = True
 
+            # Podcast show notes cachen voor artikelgeneratie
+            episode_id = None
+            has_shownotes = False
+            if source_type == "podcast" and len(description) >= SHOWNOTES_MIN_LENGTH:
+                episode_id = "podcast_" + hashlib.md5(url.encode()).hexdigest()[:16]
+                cache_podcast_shownotes(episode_id, title, feed_name, url, published, description)
+                has_shownotes = True
+
             all_items.append({
                 "url":            url,
                 "title":          title,
@@ -713,6 +749,8 @@ def main():
                 "score_text":     score_text,
                 "video_id":       video_id,
                 "has_transcript": has_transcript,
+                "episode_id":     episode_id,
+                "has_shownotes":  has_shownotes,
             })
 
     if not all_items:

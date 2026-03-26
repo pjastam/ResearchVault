@@ -1,5 +1,5 @@
 # Skill: Research Workflow Begeleider
-**Bestandsnaam:** `research-workflow-skill-v1.14.md`
+**Bestandsnaam:** `research-workflow-skill-v1.15.md`
 **Locatie in vault:** `ResearchVault/.claude/skills/research-workflow-skill-v1.14.md`
 **Activeren:** typ `/research` of "start research workflow" in Claude Code
 
@@ -252,7 +252,10 @@ Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laa
 
 1. Haal de URL op uit het `_inbox` item in Zotero, of vraag de gebruiker hem te plakken
 2. **Als beoordeling gewenst:** haal metadata op (titel, kanaal, duur, beschrijving) en geef een relevantie-advies; wacht op Go van de gebruiker
-3. **Bij Go:** controleer eerst of er al een `.vtt`-bestand in `inbox/` staat met een vergelijkbare naam. Zo ja: "Ik zie al een transcript voor deze video in inbox/. Wil je dat ik het bestaande bestand gebruik?" Zo nee: haal transcript op via yt-dlp en sla op in `inbox/`
+3. **Bij Go:** controleer in deze volgorde of het transcript al beschikbaar is:
+   - **Phase 0-cache:** extraheer het video-ID uit de URL (`[?&]v=([a-zA-Z0-9_-]{11})`) en controleer of `.claude/transcript_cache/{video_id}.json` bestaat. Zo ja: gebruik de `text`-waarde uit dat bestand direct — geen download nodig. Meld: "Transcript gevonden in Phase 0-cache, yt-dlp niet nodig."
+   - **inbox/:** controleer of er al een `.vtt`-bestand met een vergelijkbare naam in `inbox/` staat. Zo ja: gebruik dat bestand.
+   - **yt-dlp:** ontbreekt het transcript in beide caches, haal het dan op via yt-dlp en sla op in `inbox/`.
 4. Toon wat er is opgehaald — vraag of de gebruiker de ruwe tekst wil zien
 5. Genereer de gestructureerde note lokaal via qwen3.5:9b:
    ```
@@ -269,7 +272,11 @@ Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laa
 > **Let op:** `podcast [URL]` slaat de Zotero `_inbox` stap over — de podcast gaat direct naar Obsidian. De gebruiker heeft de aflevering al gefilterd door hem aan te reiken.
 
 1. Vraag naar de URL — of: "Wil je dat ik de shownotities ophaal zodat je kunt beslissen?"
-2. **Als shownotities gewenst:** haal de beschrijving en shownotities op via de URL; geef een samenvatting van 3 zinnen; wacht op Go
+2. **Als shownotities gewenst:** controleer eerst de Phase 0-cache. Bereken het episode-ID:
+   ```bash
+   python3 -c "import hashlib; print('podcast_' + hashlib.md5('[URL]'.encode()).hexdigest()[:16])"
+   ```
+   Controleer of `.claude/transcript_cache/{episode_id}.json` bestaat. Zo ja: gebruik de `text`-waarde uit dat bestand als shownotities. Zo nee: haal de beschrijving op via de URL. Geef in beide gevallen een samenvatting van 3 zinnen; wacht op Go.
 3. **Bij Go:**
    - Controleer eerst of er al een `.mp3` of `.txt`-bestand in `inbox/` staat met een vergelijkbare naam. Zo ja: "Ik zie al een audiobestand/transcript voor deze aflevering in inbox/. Wil je dat ik het bestaande bestand gebruik?"
    - Zo nee: download audio via yt-dlp naar `inbox/`: `yt-dlp -x --audio-format mp3 "[url]" -o "inbox/%(title)s.%(ext)s"`
@@ -377,4 +384,4 @@ Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laa
 
 ---
 
-*Skill versie 1.14 — maart 2026*
+*Skill versie 1.15 — maart 2026*
