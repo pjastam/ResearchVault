@@ -10,7 +10,7 @@ Every source — paper, podcast, video, RSS article — passes through four expl
 
 | Phase | Goal | How |
 |---|---|---|
-| **0 — Pre-filter** | Automatically score and rank RSS feeds before you see them | `phase0-score.py` runs daily via launchd, scores each feed item (web articles, YouTube videos, podcasts) by semantic similarity to your library, and produces a sorted Atom feed and HTML reader at `http://localhost:8765/filtered.html` with type filter buttons (📄 ▶️ 🎙️) |
+| **0 — Pre-filter** | Automatically score and rank RSS feeds before you see them | `phase0-score.py` runs daily via launchd, scores each feed item (web articles, YouTube videos, podcasts) by semantic similarity to your library — YouTube scores are enriched with transcript text fetched via `youtube_transcript_api` — and produces a sorted Atom feed and HTML reader at `http://localhost:8765/filtered.html` with type filter buttons (📄 ▶️ 🎙️); clicking a YouTube headline opens a generated reading article at `/article/{video_id}` (async, via local `qwen2.5:7b`) with tag buttons for the Zotero Connector |
 | **1 — Cast wide** | Capture everything that passes the pre-filter | Interesting items from the filtered feed flow into Zotero `_inbox` via browser extension or iOS app; podcasts and videos are added via the iOS share sheet |
 | **2 — Filter** | You decide what enters the vault | `index-score.py` ranks inbox items by semantic similarity to your existing library; Qwen3.5:9b (local) generates a 2–3 sentence summary per item; you give a **Go** or **No-go** |
 | **3 — Process** | Full processing of approved items | Claude Code writes a structured literature note to the Obsidian vault, including key findings, methodology notes, relevant quotes, and flashcards for spaced repetition |
@@ -33,6 +33,7 @@ The separation between phases 0 and 3 keeps both your feed reader and your vault
 | [Obsidian](https://obsidian.md) | Markdown-based note-taking and knowledge base | Local |
 | [Ollama](https://ollama.ai) | Local language model for offline tasks | Local |
 | [yt-dlp](https://github.com/yt-dlp/yt-dlp) | Download YouTube transcripts and podcast audio | Local |
+| [youtube-transcript-api](https://github.com/jdepoix/youtube-transcript-api) | Fast transcript fetching for Phase 0 YouTube scoring (no video download) | Local |
 | [whisper.cpp](https://github.com/ggerganov/whisper.cpp) | Local speech-to-text transcription for podcasts | Local |
 | [NetNewsWire](https://netnewswire.com) | RSS reader subscribed to the Phase 0 filtered feed | Local |
 | [Claude Code](https://claude.ai/claude-code) | AI assistant that orchestrates the workflow; generative work runs locally via Qwen3.5:9b (Ollama) | Local (default) / Cloud API with `--hd` |
@@ -55,11 +56,13 @@ ResearchVault/
     ├── index-score.py      # Relevance scoring for _inbox items (phase 2)
     ├── phase0-score.py     # RSS feed scoring and filtered feed generation (phase 0)
     ├── phase0_core.py      # Shared scoring functions (cosine similarity, profile, source type detection)
-    ├── phase0-server.py    # Local HTTP server (port 8765) + POST /skip endpoint
+    ├── phase0-server.py    # Local HTTP server (port 8765) + POST /skip + GET /article/{video_id}
     ├── phase0-learn.py     # Learning loop: processes skip queue + threshold calibration
     ├── phase0-feeds.txt    # List of RSS feed URLs for phase 0 (web, YouTube, podcast)
     ├── score_log.jsonl     # Running log of scored feed items (incl. source_type, skipped flag)
     ├── skip_queue.jsonl    # Queue of explicitly rejected items (👎); processed daily
+    ├── transcript_cache/   # YouTube transcript cache (JSON per video_id)
+    ├── article_cache/      # Generated article cache (HTML per video_id)
     └── skills/             # Research workflow skill loaded each session
 ```
 
