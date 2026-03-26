@@ -49,6 +49,13 @@ from phase0_core import (
     detect_source_type,
 )
 
+# optionele afhankelijkheid — transcript-verrijking werkt alleen als dit pakket geïnstalleerd is
+try:
+    from youtube_transcript_api import YouTubeTranscriptApi
+    _YT_API_OK = True
+except ImportError:
+    _YT_API_OK = False
+
 # ── Configuratie ──────────────────────────────────────────────────────────────
 
 SCRIPT_DIR    = Path(__file__).parent
@@ -60,6 +67,7 @@ ZOTERO_SQLITE = Path.home() / "Zotero" / "zotero.sqlite"
 INBOX_ID      = 333
 
 FEED_TIMEOUT = 15  # seconden per feed
+TRANSCRIPT_CACHE_DIR = SCRIPT_DIR / "transcript_cache"
 
 # ── Hulpfuncties ──────────────────────────────────────────────────────────────
 
@@ -156,6 +164,52 @@ def append_log(path: Path, entries: list[dict]) -> None:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 
+def extract_video_id(url: str) -> str | None:
+    """Extraheert het YouTube video-ID uit een watch-URL."""
+    m = re.search(r'[?&]v=([a-zA-Z0-9_-]{11})', url)
+    return m.group(1) if m else None
+
+
+def fetch_and_cache_transcript(
+    video_id: str, title: str, channel: str, url: str, published: str
+) -> str | None:
+    """
+    Haalt het transcript op via YouTubeTranscriptApi en slaat het op in de cache.
+    Schrijft ook bij mislukking een cache-bestand om herhaalde API-pogingen te vermijden.
+    """
+    TRANSCRIPT_CACHE_DIR.mkdir(exist_ok=True)
+    cache_file = TRANSCRIPT_CACHE_DIR / f"{video_id}.json"
+
+    if cache_file.exists():
+        try:
+            return json.loads(cache_file.read_text(encoding="utf-8")).get("text")
+        except Exception:
+            pass
+
+    if not _YT_API_OK:
+        return None
+
+    text = None
+    try:
+        snippets = YouTubeTranscriptApi().fetch(
+            video_id, languages=["nl", "en", "de", "fr"]
+        )
+        text = " ".join(s.text for s in snippets)
+    except Exception:
+        pass  # geen transcript beschikbaar; cache toch om herhaalde pogingen te voorkomen
+
+    cache_file.write_text(json.dumps({
+        "video_id":   video_id,
+        "title":      title,
+        "channel":    channel,
+        "url":        url,
+        "published":  published,
+        "text":       text,
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
+    }, ensure_ascii=False))
+    return text
+
+
 def atom_escape(text: str) -> str:
     """Escapet tekst voor gebruik in XML."""
     return (text
@@ -220,6 +274,7 @@ def generate_html(items: list[dict], generated_at: datetime) -> str:
     data = _json.dumps([
         {
             "url":       item["url"],
+            "href":      f"/article/{item['video_id']}" if item.get("has_transcript") else item["url"],
             "title":     item["title"],
             "score":     item["score"],
             "label":     score_label(item["score"]),
@@ -447,7 +502,7 @@ function makeItem(item, read, skipped) {{
     <span class="badge ${{badgeClass(item.score)}}">${{item.score}}</span>
     <div class="item-body">
       <div class="item-title">
-        <a href="${{item.url}}" target="_blank" rel="noopener">${{escHtml(item.title)}}</a>
+        <a href="${{item.href}}" target="_blank" rel="noopener">${{escHtml(item.title)}}</a>
       </div>
       <div class="item-meta">${{escHtml(item.source)}}${{item.published ? " · " + fmtDate(item.published) : ""}}</div>
     </div>`;
@@ -469,7 +524,7 @@ function makeItem(item, read, skipped) {{
     if (!div.classList.contains("skipped")) {{
       div.classList.add("read");
       markRead(item.url);
-      window.open(item.url, "_blank", "noopener");
+      window.open(item.href, "_blank", "noopener");
     }}
   }});
   return div;
@@ -634,15 +689,30 @@ def main():
             if description:
                 score_text += " " + description[:1000]
 
+            # YouTube-transcriptverrijking voor betere scoring
+            video_id = None
+            has_transcript = False
+            if source_type == "youtube":
+                video_id = extract_video_id(url)
+                if video_id:
+                    transcript = fetch_and_cache_transcript(
+                        video_id, title, feed_name, url, published
+                    )
+                    if transcript:
+                        score_text += " " + transcript[:3000]
+                        has_transcript = True
+
             all_items.append({
-                "url":         url,
-                "title":       title,
-                "description": description,
-                "feed_name":   feed_name,
-                "feed_url":    feed_url,
-                "published":   published,
-                "source_type": source_type,
-                "score_text":  score_text,
+                "url":            url,
+                "title":          title,
+                "description":    description,
+                "feed_name":      feed_name,
+                "feed_url":       feed_url,
+                "published":      published,
+                "source_type":    source_type,
+                "score_text":     score_text,
+                "video_id":       video_id,
+                "has_transcript": has_transcript,
             })
 
     if not all_items:
@@ -650,6 +720,9 @@ def main():
         return
 
     # 4. Scoren
+    yt_transcripts = sum(1 for i in all_items if i.get("has_transcript"))
+    if yt_transcripts:
+        print(f"     {yt_transcripts} YouTube-transcript(en) beschikbaar voor verrijkte scoring")
     print(f"[4/5] {len(all_items)} items scoren...")
     texts = [item["score_text"] for item in all_items]
     embeddings = model.encode(texts, batch_size=32, show_progress_bar=False)

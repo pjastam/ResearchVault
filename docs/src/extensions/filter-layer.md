@@ -99,7 +99,7 @@ Fetch the show notes from [URL] and give a 3-sentence summary.
 
 | Phase | What |
 |------|-----|
-| Phase 0 — Pre-filter | `phase0-score.py` scores all feed items daily; produces filtered Atom feed + HTML reader sorted by relevance at `http://localhost:8765/filtered.html` |
+| Phase 0 — Pre-filter | `phase0-score.py` scores all feed items daily; YouTube items are scored using transcript text fetched via `youtube_transcript_api`; produces filtered Atom feed + HTML reader sorted by relevance at `http://localhost:8765/filtered.html`; clicking a YouTube headline opens a generated article (`/article/{video_id}`) with Zotero tag buttons |
 | Phase 1 — Dump layer | Browse the filtered feed in the HTML reader or NetNewsWire; interesting items forwarded to Zotero `_inbox` via browser extension or iOS app |
 | Phase 2 — Filter moment | Scan headline and intro of items in `_inbox` |
 | Go (academic) | Item already in Zotero `_inbox` → process via type 0 → type 1 in the skill |

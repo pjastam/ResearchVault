@@ -9,7 +9,7 @@
 
 Deze skill maakt Claude Code tot een actieve, vragenderwijs werkende research-assistent. De workflow volgt een **4-fasen model**:
 
-- **Fase 0 — Automatisch filteren:** `phase0-score.py` haalt dagelijks alle RSS-feeds op uit `phase0-feeds.txt` (webartikel-, YouTube- en podcast-feeds per categorie), scoort elk item op relevantie aan de hand van het ChromaDB-voorkeursprofiel, detecteert het brontype (`web` / `youtube` / `podcast`), en schrijft een gefilterde Atom-feed (`filtered.xml`) en HTML-lezer (`filtered.html`) met type-filterknoppen (📄 ▶️ 🎙️) naar `~/.local/share/phase0-serve/`. De scorelogica is gedeeld via `phase0_core.py`. Draait automatisch via launchd om 06:00.
+- **Fase 0 — Automatisch filteren:** `phase0-score.py` haalt dagelijks alle RSS-feeds op uit `phase0-feeds.txt` (webartikel-, YouTube- en podcast-feeds per categorie), scoort elk item op relevantie aan de hand van het ChromaDB-voorkeursprofiel, detecteert het brontype (`web` / `youtube` / `podcast`), en schrijft een gefilterde Atom-feed (`filtered.xml`) en HTML-lezer (`filtered.html`) met type-filterknoppen (📄 ▶️ 🎙️) naar `~/.local/share/phase0-serve/`. Voor YouTube-items wordt automatisch een transcript opgehaald via `youtube_transcript_api` (gecachet in `transcript_cache/`) en meegenomen in de scoreberekening. Klikken op een YouTube-headline in de HTML-lezer opent een leesartikel gegenereerd door Ollama `qwen2.5:7b` (asynchroon; gecachet in `article_cache/`), met tag-knoppen voor de Zotero Connector (✅ / 📖 / geen). De scorelogica is gedeeld via `phase0_core.py`. Draait automatisch via launchd om 06:00.
 - **Fase 1 — Breed vangen:** de gebruiker scant de gefilterde feed (HTML-lezer of NetNewsWire) en stuurt interessante items door naar Zotero `_inbox` als centrale verzamelbucket — via browser-extensie, iOS-app of Zotero Connector. Lage drempel, geen verdere filtering.
 - **Fase 2 — Filteren:** Claude Code genereert een samenvatting of beoordeling; de gebruiker geeft Go of No-go. Alleen goedgekeurde items gaan verder.
 - **Fase 3 — Verwerken & opslaan:** volledige verwerking naar de Obsidian vault.
@@ -165,6 +165,8 @@ Phase 0 draait automatisch via launchd (06:00 dagelijks). Beheer is alleen nodig
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/phase0-score.py
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/phase0-learn.py
 ```
+
+**YouTube-artikelen:** klikken op een YouTube-headline opent een gegenereerd artikel bij `http://localhost:8765/article/{video_id}`. Het artikel (Inleiding + Kernpunten + Conclusie, in de originele videotaal) wordt asynchroon gegenereerd door `qwen2.5:7b` via Ollama; de eerste keer duurt 30–60 seconden (laadpagina herlaadt automatisch elke 5 s). Daarna is het gecachet. Het artikel bevat drie tag-knoppen — **✅ verwerken**, **📖 later lezen**, **geen tag** — waarmee een Zotero-tag wordt meegegeven via een COinS-span, zodat de Zotero Connector hem automatisch overneemt bij opslaan.
 
 **👎-knop:** elk item in de HTML-lezer heeft een 👎-knop voor expliciete afwijzing zonder het artikel te openen. Klikken op de headline markeert als gelezen en opent het artikel. Beide signalen worden opgeslagen in `score_log.jsonl` resp. `skip_queue.jsonl`.
 

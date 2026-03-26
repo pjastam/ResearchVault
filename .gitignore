@@ -28,6 +28,8 @@ inbox/*.md
 .claude/phase0-serve/
 .claude/score_log.jsonl
 .claude/skip_queue.jsonl
+.claude/transcript_cache/
+.claude/article_cache/
 
 # Python cache
 **/__pycache__/

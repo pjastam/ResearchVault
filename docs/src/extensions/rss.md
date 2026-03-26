@@ -9,8 +9,10 @@ In the 4-phase model, RSS feeds are pre-filtered automatically before you see th
 **Install dependencies** (if not already present from step 10):
 
 ```bash
-~/.local/share/uv/tools/zotero-mcp-server/bin/pip install feedparser sentence-transformers
+~/.local/share/uv/tools/zotero-mcp-server/bin/pip install feedparser sentence-transformers youtube-transcript-api
 ```
+
+> `youtube-transcript-api` is used to fetch transcripts for YouTube items in your feeds. These transcripts enrich the relevance score (instead of scoring on the title alone) and are cached in `.claude/transcript_cache/` so they are only fetched once per video.
 
 **Configure your feeds** — add one URL per line to `.claude/phase0-feeds.txt`:
 
@@ -39,6 +41,10 @@ This starts a local HTTP server on port 8765 and schedules the daily score run a
 **Access the filtered feed:**
 - HTML reader (Mac/iPhone/iPad): `http://localhost:8765/filtered.html`
 - Atom feed (NetNewsWire): `http://localhost:8765/filtered.xml`
+
+**YouTube articles:** clicking a YouTube headline in the HTML reader opens a generated reading article at `http://localhost:8765/article/{video_id}` instead of going to YouTube. The article (Introduction + Key Points + Conclusion, written in the original video language) is generated locally by `qwen2.5:7b` via Ollama. The first visit takes 30–60 seconds; a loading page refreshes automatically every 5 seconds until it is ready. Subsequent visits are instant (cached in `.claude/article_cache/`).
+
+The article page includes three tag buttons — **✅ verwerken**, **📖 later lezen**, **geen tag** (default) — that control which Zotero tag is attached when you save the page via the Zotero Connector. The selected tag is injected as a COinS span (`<span class="Z3988">`) that Zotero reliably reads at page-load time.
 
 > **Serve directory:** the HTTP server serves files from `~/.local/share/phase0-serve/`, not from `~/Documents/`, because macOS TCC prevents system Python from accessing the Documents folder when launched via launchd.
 
