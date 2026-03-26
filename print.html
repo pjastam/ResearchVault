@@ -731,8 +731,11 @@ note in literature/ with summary, key points, and timestamped quotes.
 <h2 id="12a-phase-0--automatic-relevance-filtering"><a class="header" href="#12a-phase-0--automatic-relevance-filtering">12a. Phase 0 — Automatic relevance filtering</a></h2>
 <p><code>phase0-score.py</code> runs daily via launchd and produces a filtered, scored Atom feed and HTML reader from your RSS subscriptions. It uses the same ChromaDB preference profile as <code>index-score.py</code> — items are scored by semantic similarity to your existing library.</p>
 <p><strong>Install dependencies</strong> (if not already present from step 10):</p>
-<pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/pip install feedparser sentence-transformers
+<pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/pip install feedparser sentence-transformers youtube-transcript-api
 </code></pre>
+<blockquote>
+<p><code>youtube-transcript-api</code> is used to fetch transcripts for YouTube items in your feeds. These transcripts enrich the relevance score (instead of scoring on the title alone) and are cached in <code>.claude/transcript_cache/</code> so they are only fetched once per video.</p>
+</blockquote>
 <p><strong>Configure your feeds</strong> — add one URL per line to <code>.claude/phase0-feeds.txt</code>:</p>
 <pre><code>https://arxiv.org/rss/econ.GN
 https://www.skipr.nl/feed/
@@ -752,6 +755,8 @@ launchctl load ~/Library/LaunchAgents/nl.researchvault.phase0-learn.plist
 <li>HTML reader (Mac/iPhone/iPad): <code>http://localhost:8765/filtered.html</code></li>
 <li>Atom feed (NetNewsWire): <code>http://localhost:8765/filtered.xml</code></li>
 </ul>
+<p><strong>YouTube articles:</strong> clicking a YouTube headline in the HTML reader opens a generated reading article at <code>http://localhost:8765/article/{video_id}</code> instead of going to YouTube. The article (Introduction + Key Points + Conclusion, written in the original video language) is generated locally by <code>qwen2.5:7b</code> via Ollama. The first visit takes 30–60 seconds; a loading page refreshes automatically every 5 seconds until it is ready. Subsequent visits are instant (cached in <code>.claude/article_cache/</code>).</p>
+<p>The article page includes three tag buttons — <strong>✅ verwerken</strong>, <strong>📖 later lezen</strong>, <strong>geen tag</strong> (default) — that control which Zotero tag is attached when you save the page via the Zotero Connector. The selected tag is injected as a COinS span (<code>&lt;span class="Z3988"&gt;</code>) that Zotero reliably reads at page-load time.</p>
 <blockquote>
 <p><strong>Serve directory:</strong> the HTTP server serves files from <code>~/.local/share/phase0-serve/</code>, not from <code>~/Documents/</code>, because macOS TCC prevents system Python from accessing the Documents folder when launched via launchd.</p>
 </blockquote>
@@ -929,7 +934,7 @@ summary per item and a relevance assessment for my research on [topic].
 <hr />
 <h2 id="rss-feeds"><a class="header" href="#rss-feeds">RSS feeds</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Phase</th><th>What</th></tr></thead><tbody>
-<tr><td>Phase 0 — Pre-filter</td><td><code>phase0-score.py</code> scores all feed items daily; produces filtered Atom feed + HTML reader sorted by relevance at <code>http://localhost:8765/filtered.html</code></td></tr>
+<tr><td>Phase 0 — Pre-filter</td><td><code>phase0-score.py</code> scores all feed items daily; YouTube items are scored using transcript text fetched via <code>youtube_transcript_api</code>; produces filtered Atom feed + HTML reader sorted by relevance at <code>http://localhost:8765/filtered.html</code>; clicking a YouTube headline opens a generated article (<code>/article/{video_id}</code>) with Zotero tag buttons</td></tr>
 <tr><td>Phase 1 — Dump layer</td><td>Browse the filtered feed in the HTML reader or NetNewsWire; interesting items forwarded to Zotero <code>_inbox</code> via browser extension or iOS app</td></tr>
 <tr><td>Phase 2 — Filter moment</td><td>Scan headline and intro of items in <code>_inbox</code></td></tr>
 <tr><td>Go (academic)</td><td>Item already in Zotero <code>_inbox</code> → process via type 0 → type 1 in the skill</td></tr>
