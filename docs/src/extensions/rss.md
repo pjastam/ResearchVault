@@ -44,7 +44,9 @@ This starts a local HTTP server on port 8765 and schedules the daily score run a
 
 **YouTube articles:** clicking a YouTube headline in the HTML reader opens a generated reading article at `http://localhost:8765/article/{video_id}` instead of going to YouTube. The article (Introduction + Key Points + Conclusion, written in the original video language) is generated locally by `qwen2.5:7b` via Ollama. The first visit takes 30–60 seconds; a loading page refreshes automatically every 5 seconds until it is ready. Subsequent visits are instant (cached in `.claude/article_cache/`).
 
-The article page includes three tag buttons — **✅ verwerken**, **📖 later lezen**, **geen tag** (default) — that control which Zotero tag is attached when you save the page via the Zotero Connector. The selected tag is injected as a COinS span (`<span class="Z3988">`) that Zotero reliably reads at page-load time.
+**Podcast articles:** clicking a podcast headline opens a similar generated article at `http://localhost:8765/article/podcast/{episode_id}`, based on the episode's show notes rather than an audio transcript. Only episodes with show notes of at least 200 characters get an article page; episodes with thinner show notes link directly to the source. Generation follows the same async pattern as YouTube articles.
+
+The article page (for both YouTube and podcast) includes three tag buttons — **✅ verwerken**, **📖 later lezen**, **geen tag** (default) — that control which Zotero tag is attached when you save the page via the Zotero Connector. The selected tag is injected as a COinS span (`<span class="Z3988">`); the full article text is also injected as `rft.description`, so it appears automatically in the Abstract field of the saved Zotero item.
 
 > **Serve directory:** the HTTP server serves files from `~/.local/share/phase0-serve/`, not from `~/Documents/`, because macOS TCC prevents system Python from accessing the Documents folder when launched via launchd.
 
