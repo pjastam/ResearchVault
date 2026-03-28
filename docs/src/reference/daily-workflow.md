@@ -9,14 +9,14 @@ The skill is a markdown file that tells Claude Code how to behave during researc
 mkdir -p ~/Documents/ResearchVault/.claude/skills
 
 # Copy the skill file to the vault
-cp research-workflow-skill.md ~/Documents/ResearchVault/.claude/skills/
+cp research-workflow-skill-v1.16.md ~/Documents/ResearchVault/.claude/skills/
 ```
 
 Then add the following line to your `CLAUDE.md` (at the bottom):
 
 ```markdown
 ## Active skills
-- Read and follow `.claude/skills/research-workflow-skill.md` during every research session.
+- Read and follow `.claude/skills/research-workflow-skill-v1.16.md` during every research session.
 ```
 
 From that point on, the skill is active as soon as you open Claude Code in your vault. You can start the workflow by typing: `/research` or simply "start research workflow".
@@ -55,11 +55,47 @@ You do not need to know exactly what you are looking for — the skill is design
    ```
    This ranks all `_inbox` items by semantic similarity to your existing library (using the ChromaDB embeddings from zotero-mcp), so you know which items to focus on.
 6. Claude Code retrieves all items from your Zotero `_inbox` and presents each one with a short summary and relevance assessment — the summary is generated locally by Qwen3.5:9b. You respond **Go** or **No-go** per item.
-7. For each **Go**: Claude Code moves the item to the correct Zotero collection and writes a structured literature note in `literature/`.
+7. For each **Go**: Claude Code writes a structured literature note using the safe pipeline below.
 8. For each **No-go**: Claude Code removes the item from `_inbox` (after your confirmation).
-9. At the end of the session, Claude Code shows a summary: X approved, Y removed. If new papers were added, update the semantic search database. Use the quick version for metadata only, or the recommended full version for much better search results (5–20 min on Apple Silicon):
+9. At the end of the session, Claude Code shows a summary: X approved, Y removed. If new papers were added, update the semantic search database:
    ```bash
    zotero-mcp update-db            # quick (metadata only)
    zotero-mcp update-db --fulltext # recommended (includes full text)
    ```
    Or use the alias: `update-zotero` (equivalent to `--fulltext`). Check database status with `zotero-mcp db-status`.
+
+---
+
+## Helper scripts
+
+The workflow uses three helper scripts in `.claude/`. They keep source content out of Claude Code's context and handle Zotero write operations.
+
+### `fetch-fulltext.py` — retrieve and save attachment text
+
+Fetches the full text of a Zotero attachment and saves it to a local file. Only prints status; never prints content.
+
+```bash
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/fetch-fulltext.py ITEMKEY inbox/bron.txt
+# Output: Saved: inbox/bron.txt (12,345 chars, type: application/pdf)
+```
+
+### `ollama-generate.py` — generate text via Ollama REST API
+
+Calls Ollama's REST API directly (no CLI, no ANSI codes). Prepends `/no_think` to suppress Qwen3.5:9b's reasoning step. Prints only status lines.
+
+```bash
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
+  --input  inbox/bron.txt \
+  --output literature/notitie.md \
+  --prompt "Write a literature note in Dutch..."
+# Output: Input: inbox/bron.txt (12,345 chars) | Written: literature/notitie.md (3,200 chars)
+```
+
+### `zotero-remove-from-inbox.py` — remove processed item from `_inbox`
+
+Removes the item from the `_inbox` collection in Zotero via the web API. Requires `ZOTERO_API_KEY` in the environment or `.env` file (see step 4d).
+
+```bash
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/zotero-remove-from-inbox.py ITEMKEY
+# Output: Item ITEMKEY removed from _inbox.
+```

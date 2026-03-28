@@ -1,5 +1,5 @@
 # Skill: Research Workflow Begeleider
-**Bestandsnaam:** `research-workflow-skill-v1.15.md`
+**Bestandsnaam:** `research-workflow-skill-v1.16.md`
 **Locatie in vault:** `ResearchVault/.claude/skills/research-workflow-skill-v1.14.md`
 **Activeren:** typ `/research` of "start research workflow" in Claude Code
 
@@ -223,14 +223,24 @@ Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laa
 1. Vraag: recent toegevoegd, of specifiek thema?
 2. Haal via Zotero MCP de meest recente items op, of zoek op thema
 3. Toon lijst met titels — vraag welke verwerkt moeten worden
-4. Per paper: haal metadata + volledige tekst + annotaties op; sla de ruwe tekst tijdelijk op als `inbox/[auteur-jaar]-bron.txt`
-5. Genereer de literatuurnotitie lokaal via qwen3.5:9b:
+4. Per paper: haal metadata op (alleen titel, auteurs, jaar, tags, citation key — geen volledige tekst). Sla de volledige tekst weg naar `inbox/` via `.claude/fetch-fulltext.py` — **nooit de inhoud printen of als tool-output retourneren**:
+   ```bash
+   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/fetch-fulltext.py ITEMKEY inbox/[auteur-jaar]-bron.txt
    ```
-   ollama run qwen3.5:9b < inbox/[auteur-jaar]-bron.txt > literature/[auteur-jaar-kernwoord].md
+5. Genereer de literatuurnotitie lokaal via qwen3.5:9b:
+   ```bash
+   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
+     --input inbox/[auteur-jaar]-bron.txt \
+     --output literature/[auteur-jaar-kernwoord].md \
+     --prompt "You are a research assistant writing literature notes for an Obsidian vault on health economics. Write the note in the same language as the source text. Use these sections: ## Core question and main argument / ## Key findings (3-5 points) / ## Methodological notes / ## Relevant quotes (original language) / ## Links to related notes. No frontmatter."
    ```
 6. Verwijder het tijdelijke bronbestand uit `inbox/` na afronding
 7. Voeg daarna toe: frontmatter (inclusief `status: unread`, tenzij het item de tag `✅` had — dan `status: read`), `[[interne links]]` naar gerelateerde notes, en `#tags`
-8. Vraag: "Nog een paper, of wil je nu iets anders?"
+8. Verwijder het item uit de Zotero `_inbox` collectie via de web API:
+   ```bash
+   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/zotero-remove-from-inbox.py ITEMKEY
+   ```
+9. Vraag: "Nog een paper, of wil je nu iets anders?"
 
 > **Contextlimiet:** qwen3.5:9b heeft een contextvenster van 256K tokens. Bij standaard papers is er geen limiet; ook zeer lange papers kunnen volledig worden verwerkt.
 
@@ -253,16 +263,25 @@ Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laa
 1. Haal de URL op uit het `_inbox` item in Zotero, of vraag de gebruiker hem te plakken
 2. **Als beoordeling gewenst:** haal metadata op (titel, kanaal, duur, beschrijving) en geef een relevantie-advies; wacht op Go van de gebruiker
 3. **Bij Go:** controleer in deze volgorde of het transcript al beschikbaar is:
-   - **Phase 0-cache:** extraheer het video-ID uit de URL (`[?&]v=([a-zA-Z0-9_-]{11})`) en controleer of `.claude/transcript_cache/{video_id}.json` bestaat. Zo ja: gebruik de `text`-waarde uit dat bestand direct — geen download nodig. Meld: "Transcript gevonden in Phase 0-cache, yt-dlp niet nodig."
+   - **Phase 0-cache:** extraheer het video-ID uit de URL (`[?&]v=([a-zA-Z0-9_-]{11})`) en controleer of `.claude/transcript_cache/{video_id}.json` bestaat. Zo ja: kopieer de `text`-waarde naar `inbox/` via een script — **nooit de inhoud lezen of printen**:
+     ```bash
+     ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 -c "import json; d=json.load(open('.claude/transcript_cache/{video_id}.json')); open('inbox/{video_id}.txt','w').write(d.get('text',''))" && echo "Gekopieerd naar inbox/{video_id}.txt"
+     ```
    - **inbox/:** controleer of er al een `.vtt`-bestand met een vergelijkbare naam in `inbox/` staat. Zo ja: gebruik dat bestand.
    - **yt-dlp:** ontbreekt het transcript in beide caches, haal het dan op via yt-dlp en sla op in `inbox/`.
-4. Toon wat er is opgehaald — vraag of de gebruiker de ruwe tekst wil zien
+4. Meld bestandsnaam en grootte — **toon nooit de ruwe transcripttekst**
 5. Genereer de gestructureerde note lokaal via qwen3.5:9b:
-   ```
-   ollama run qwen3.5:9b < inbox/[bestandsnaam].vtt > literature/[naam].md
+   ```bash
+   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
+     --input inbox/[bestandsnaam].vtt \
+     --output literature/[naam].md \
+     --prompt "You are a research assistant. Write a structured note in the same language as the video transcript. Use these sections: title, speaker, channel, date, URL / summary (3-5 sentences) / key points with timestamps / relevant quotes with timestamps / links to related notes. No frontmatter."
    ```
 6. Voeg daarna toe: frontmatter, `[[interne links]]` en `#video` tag
-7. Vraag: verwijder het ruwe `.vtt`-bestand uit `inbox/`? En het Zotero `_inbox` item?
+7. Verwijder het ruwe `.vtt`-bestand uit `inbox/` en het Zotero `_inbox` item:
+   ```bash
+   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/zotero-remove-from-inbox.py ITEMKEY
+   ```
 
 ### Type 4: Podcast ophalen en verwerken
 
@@ -276,19 +295,25 @@ Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laa
    ```bash
    python3 -c "import hashlib; print('podcast_' + hashlib.md5('[URL]'.encode()).hexdigest()[:16])"
    ```
-   Controleer of `.claude/transcript_cache/{episode_id}.json` bestaat. Zo ja: gebruik de `text`-waarde uit dat bestand als shownotities. Zo nee: haal de beschrijving op via de URL. Geef in beide gevallen een samenvatting van 3 zinnen; wacht op Go.
+   Controleer of `.claude/transcript_cache/{episode_id}.json` bestaat. Zo ja: lees **alleen** het `title`- en eventueel een samenvatting-veld — **nooit de volledige `text`-waarde printen**. Zo nee: haal de beschrijving op via de URL. Geef in beide gevallen een samenvatting van 3 zinnen; wacht op Go.
 3. **Bij Go:**
    - Controleer eerst of er al een `.mp3` of `.txt`-bestand in `inbox/` staat met een vergelijkbare naam. Zo ja: "Ik zie al een audiobestand/transcript voor deze aflevering in inbox/. Wil je dat ik het bestaande bestand gebruik?"
    - Zo nee: download audio via yt-dlp naar `inbox/`: `yt-dlp -x --audio-format mp3 "[url]" -o "inbox/%(title)s.%(ext)s"`
    - Bepaal de taal op basis van de metadata (titel, kanaal, beschrijving). Transcribeer via whisper.cpp zonder `--language` vlag voor automatische taaldetectie, tenzij de taal onduidelijk is — geef dan `--language nl` of `--language en` expliciet mee: `whisper-cpp --model small inbox/[bestand].mp3`
-4. Vraag of de gebruiker de ruwe transcriptie wil zien voor verwerking
+4. Meld bestandsnaam en grootte — **toon nooit de ruwe transcripttekst**
 5. Genereer de gestructureerde note lokaal via qwen3.5:9b:
-   ```
-   ollama run qwen3.5:9b < inbox/[bestandsnaam].txt > literature/[naam].md
+   ```bash
+   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
+     --input inbox/[bestandsnaam].txt \
+     --output literature/[naam].md \
+     --prompt "You are a research assistant. Write a structured note in the same language as the transcript. Use these sections: title, speaker(s), programme/channel, date, URL / summary (3-5 sentences) / key points with timestamps / relevant quotes with timestamps (original language) / links to related notes. No frontmatter."
    ```
 6. Voeg daarna toe: frontmatter, `[[interne links]]` en `#podcast` tag
 7. Bij lange podcasts (> 45 min): vraag qwen3.5:9b eerst een gelaagde samenvatting te maken (hoofdlijn → per segment) voordat de definitieve note wordt geschreven
-8. Vraag: verwijder de ruwe `.mp3` en `.txt` bestanden uit `inbox/`?
+8. Verwijder de ruwe `.mp3` en `.txt` bestanden uit `inbox/` en het Zotero `_inbox` item:
+   ```bash
+   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/zotero-remove-from-inbox.py ITEMKEY
+   ```
 
 ### Type 5: RSS-items verwerken
 
@@ -384,4 +409,4 @@ Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laa
 
 ---
 
-*Skill versie 1.15 — maart 2026*
+*Skill versie 1.16 — maart 2026*

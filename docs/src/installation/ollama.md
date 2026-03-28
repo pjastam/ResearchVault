@@ -67,43 +67,38 @@ ollama list
 
 ## 6d. How Ollama is used in the workflow
 
-Qwen3.5:9b is the default engine for all generative tasks. Claude Code calls Ollama via its bash tool whenever it needs to generate a summary, write a literature note, or create flashcards. No explicit configuration is needed per task — the CLAUDE.md in your vault already sets this as the default.
+Qwen3.5:9b is the default engine for all generative tasks. The workflow uses a dedicated helper script — `.claude/ollama-generate.py` — to call Ollama via its REST API rather than the CLI.
 
-**Option 1: Verify per task (if needed)**
+**Why a helper script instead of `ollama run`?**
 
-To confirm that a specific task runs locally, you can instruct Claude Code explicitly:
+The Ollama CLI (`ollama run qwen3.5:9b < file.txt`) produces terminal output with ANSI escape codes and a loading spinner. When this output is captured by Claude Code's bash tool, the result contains hundreds of lines of control characters that need to be stripped before the content is usable. The helper script avoids this entirely by talking directly to the Ollama REST API at `http://localhost:11434/api/generate`.
 
-```
-Use Ollama (qwen3.5:9b) to create a summary of this transcript.
-Call the model via: ollama run qwen3.5:9b
-```
+The script also prepends `/no_think` to the prompt, which tells Qwen3.5:9b to skip its internal reasoning step and produce output directly. This saves time and keeps the output clean.
 
-Claude Code runs the command locally via the bash tool and processes the output without making an Anthropic API call for that step.
-
-**Option 2: Default rule in CLAUDE.md**
-
-The starter `CLAUDE.md` from step 7d already contains the following section — no further action needed. It instructs Claude Code to use Ollama by default for all processing tasks:
-
-```markdown
-## Local processing via Ollama
-
-By default, all processing runs locally via Qwen3.5:9b. Use this for:
-- Literature notes based on papers or transcripts
-- Thematic syntheses
-- Flashcard generation
-
-Call Ollama via the bash tool:
-`ollama run qwen3.5:9b < inbox/[filename].txt`
-
-**Maximum quality mode:** if the user adds `--hd` or explicitly asks for "maximum quality" or "use Sonnet", switch to Claude Sonnet 4.6 via the Anthropic API. Always announce this first and wait for confirmation before making the API call. Never automatically fall back to Sonnet if Qwen is unreachable — report that Ollama is not active and ask what the user wants.
-```
-
-**Option 3: Test whether Ollama is reachable**
-
-Verify from Claude Code that Ollama is active and processes a test prompt:
+**Usage:**
 
 ```bash
-ollama run qwen3.5:9b "Give a three-sentence summary about substitution care."
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
+  --input  inbox/source.txt \
+  --output literature/note.md \
+  --prompt "Write a literature note in the same language as the source text..."
 ```
 
-If this returns a response, Ollama is ready for use from Claude Code.
+The script prints only status lines (`Input: ...`, `Model: ...`, `Written: ...`) — never the source content or the generated text. This ensures source content does not appear in Claude Code's context.
+
+**Test whether Ollama is reachable:**
+
+```bash
+echo "Test" > /tmp/test.txt
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
+  --input /tmp/test.txt \
+  --output /tmp/test-out.txt \
+  --prompt "Say only: works."
+cat /tmp/test-out.txt
+```
+
+If this returns a short response, Ollama and the helper script are ready for use.
+
+**Default rule in CLAUDE.md**
+
+The `CLAUDE.md` in your vault already contains the privacy rule and points to `ollama-generate.py` as the standard tool — no further configuration is needed per task.
