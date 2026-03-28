@@ -39,3 +39,4 @@ inbox/*.md
 *.opml
 
 # Laat lege mappen zichtbaar via .gitkeep (zie per map)
+.env

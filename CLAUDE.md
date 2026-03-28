@@ -46,7 +46,8 @@ Na de frontmatter bevat elke notitie:
 
 ## Taal
 - Antwoord in het Nederlands tenzij anders gevraagd
-- Schrijf literatuurnotities in het Nederlands, citaten in de originele taal
+- Schrijf literatuurnotities in de taal van de originele bron (Engels artikel → Engelstalige note, Nederlands artikel → Nederlandstalige note)
+- Citaten altijd in de originele taal
 
 ## Zotero-workflow
 - Gebruik Zotero MCP om papers op te halen via hun titel of sleutelwoorden
@@ -145,5 +146,22 @@ Phase 0 filtert RSS-feeds automatisch op relevantie vóórdat je ze handmatig do
 - Maak maximaal 5 kaarten per bron — kies de meest relevante concepten
 - Dagelijkse review via Obsidian Spaced Repetition plugin (zijbalk → Kaarten beoordelen)
 
+## Privacyregel: broninhoud blijft lokaal
+
+**Volledige tekst van bronnen (papers, artikelen, transcripten) mag nooit als output van een Bash-commando in Claude's context terechtkomen.** Zodra tekst als tool-output terugkomt, is hij naar de Anthropic API gegaan — ook als de intentie was om hem alleen lokaal te verwerken.
+
+Correcte aanpak: haal de volledige tekst op én schrijf hem weg naar `inbox/` in één Bash-commando. Geef alleen lengte/status terug als output. Gebruik daarvoor `.claude/fetch-fulltext.py`:
+
+```bash
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/fetch-fulltext.py ITEMKEY inbox/bestand.txt
+```
+
+Daarna verwerken via Ollama:
+```bash
+ollama run qwen3.5:9b < inbox/bestand.txt > literature/bestand.md
+```
+
+Dit geldt ook voor snapshot-HTML, VTT-transcripten en podcast-transcripten: nooit `cat` of `print` op de volledige inhoud uitvoeren als Bash-tool.
+
 ## Actieve skills
-- Lees en volg `.claude/skills/research-workflow-skill-v1.15.md` bij elke research-sessie.
+- Lees en volg `.claude/skills/research-workflow-skill-v1.16.md` bij elke research-sessie.
