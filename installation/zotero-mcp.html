@@ -209,6 +209,34 @@ zotero-mcp update-db --fulltext
 <p>Check the status of the database:</p>
 <pre><code class="language-bash">zotero-mcp db-status
 </code></pre>
+<h2 id="4d-set-up-a-zotero-api-key-required-for-write-access"><a class="header" href="#4d-set-up-a-zotero-api-key-required-for-write-access">4d. Set up a Zotero API key (required for write access)</a></h2>
+<p>The local Zotero API (port 23119) is read-only. To allow Claude Code to remove processed items from your <code>_inbox</code> collection automatically, you need a Zotero web API key with write access.</p>
+<p><strong>Create the key:</strong></p>
+<ol>
+<li>Go to <a href="https://www.zotero.org/settings/keys">zotero.org/settings/keys</a></li>
+<li>Click <strong>Create new private key</strong></li>
+<li>Give it a name (e.g. "Claude Code")</li>
+<li>Enable <strong>Allow library access</strong> and <strong>Allow write access</strong> under <em>Personal Library</em></li>
+<li>Click <strong>Create</strong> and copy the key</li>
+</ol>
+<p><strong>Find your library ID:</strong></p>
+<p>Your library ID is visible in the Zotero web interface URL after logging in, or you can retrieve it from the local API:</p>
+<pre><code class="language-bash">curl -s http://localhost:23119/api/users/0/items?limit=1 | python3 -c "import json,sys; items=json.load(sys.stdin); print(items[0]['library']['id'])"
+</code></pre>
+<p><strong>Store the credentials:</strong></p>
+<p>Add these lines to your <code>~/.zprofile</code> (persistent across sessions):</p>
+<pre><code class="language-bash">export ZOTERO_API_KEY=your_api_key_here
+export ZOTERO_LIBRARY_ID=your_library_id_here
+export ZOTERO_LIBRARY_TYPE=user
+</code></pre>
+<p>Also create a <code>.env</code> file in your vault root (used by the helper scripts):</p>
+<pre><code class="language-bash">cat &gt; ~/Documents/ResearchVault/.env &lt;&lt; EOF
+ZOTERO_API_KEY=your_api_key_here
+ZOTERO_LIBRARY_ID=your_library_id_here
+ZOTERO_LIBRARY_TYPE=user
+EOF
+</code></pre>
+<p>The <code>.env</code> file is already listed in <code>.gitignore</code> so it will not be committed to version control.</p>
 
                     </main>
 

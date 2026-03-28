@@ -186,11 +186,11 @@
 mkdir -p ~/Documents/ResearchVault/.claude/skills
 
 # Copy the skill file to the vault
-cp research-workflow-skill.md ~/Documents/ResearchVault/.claude/skills/
+cp research-workflow-skill-v1.16.md ~/Documents/ResearchVault/.claude/skills/
 </code></pre>
 <p>Then add the following line to your <code>CLAUDE.md</code> (at the bottom):</p>
 <pre><code class="language-markdown">## Active skills
-- Read and follow `.claude/skills/research-workflow-skill.md` during every research session.
+- Read and follow `.claude/skills/research-workflow-skill-v1.16.md` during every research session.
 </code></pre>
 <p>From that point on, the skill is active as soon as you open Claude Code in your vault. You can start the workflow by typing: <code>/research</code> or simply "start research workflow".</p>
 <hr />
@@ -222,14 +222,35 @@ or just type: <code>start research workflow</code></li>
 </code></pre>
 This ranks all <code>_inbox</code> items by semantic similarity to your existing library (using the ChromaDB embeddings from zotero-mcp), so you know which items to focus on.</li>
 <li>Claude Code retrieves all items from your Zotero <code>_inbox</code> and presents each one with a short summary and relevance assessment — the summary is generated locally by Qwen3.5:9b. You respond <strong>Go</strong> or <strong>No-go</strong> per item.</li>
-<li>For each <strong>Go</strong>: Claude Code moves the item to the correct Zotero collection and writes a structured literature note in <code>literature/</code>.</li>
+<li>For each <strong>Go</strong>: Claude Code writes a structured literature note using the safe pipeline below.</li>
 <li>For each <strong>No-go</strong>: Claude Code removes the item from <code>_inbox</code> (after your confirmation).</li>
-<li>At the end of the session, Claude Code shows a summary: X approved, Y removed. If new papers were added, update the semantic search database. Use the quick version for metadata only, or the recommended full version for much better search results (5–20 min on Apple Silicon):
+<li>At the end of the session, Claude Code shows a summary: X approved, Y removed. If new papers were added, update the semantic search database:
 <pre><code class="language-bash">zotero-mcp update-db            # quick (metadata only)
 zotero-mcp update-db --fulltext # recommended (includes full text)
 </code></pre>
 Or use the alias: <code>update-zotero</code> (equivalent to <code>--fulltext</code>). Check database status with <code>zotero-mcp db-status</code>.</li>
 </ol>
+<hr />
+<h2 id="helper-scripts"><a class="header" href="#helper-scripts">Helper scripts</a></h2>
+<p>The workflow uses three helper scripts in <code>.claude/</code>. They keep source content out of Claude Code's context and handle Zotero write operations.</p>
+<h3 id="fetch-fulltextpy--retrieve-and-save-attachment-text"><a class="header" href="#fetch-fulltextpy--retrieve-and-save-attachment-text"><code>fetch-fulltext.py</code> — retrieve and save attachment text</a></h3>
+<p>Fetches the full text of a Zotero attachment and saves it to a local file. Only prints status; never prints content.</p>
+<pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/fetch-fulltext.py ITEMKEY inbox/bron.txt
+# Output: Saved: inbox/bron.txt (12,345 chars, type: application/pdf)
+</code></pre>
+<h3 id="ollama-generatepy--generate-text-via-ollama-rest-api"><a class="header" href="#ollama-generatepy--generate-text-via-ollama-rest-api"><code>ollama-generate.py</code> — generate text via Ollama REST API</a></h3>
+<p>Calls Ollama's REST API directly (no CLI, no ANSI codes). Prepends <code>/no_think</code> to suppress Qwen3.5:9b's reasoning step. Prints only status lines.</p>
+<pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
+  --input  inbox/bron.txt \
+  --output literature/notitie.md \
+  --prompt "Write a literature note in Dutch..."
+# Output: Input: inbox/bron.txt (12,345 chars) | Written: literature/notitie.md (3,200 chars)
+</code></pre>
+<h3 id="zotero-remove-from-inboxpy--remove-processed-item-from-_inbox"><a class="header" href="#zotero-remove-from-inboxpy--remove-processed-item-from-_inbox"><code>zotero-remove-from-inbox.py</code> — remove processed item from <code>_inbox</code></a></h3>
+<p>Removes the item from the <code>_inbox</code> collection in Zotero via the web API. Requires <code>ZOTERO_API_KEY</code> in the environment or <code>.env</code> file (see step 4d).</p>
+<pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/zotero-remove-from-inbox.py ITEMKEY
+# Output: Item ITEMKEY removed from _inbox.
+</code></pre>
 
                     </main>
 

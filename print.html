@@ -314,6 +314,34 @@ zotero-mcp update-db --fulltext
 <p>Check the status of the database:</p>
 <pre><code class="language-bash">zotero-mcp db-status
 </code></pre>
+<h2 id="4d-set-up-a-zotero-api-key-required-for-write-access"><a class="header" href="#4d-set-up-a-zotero-api-key-required-for-write-access">4d. Set up a Zotero API key (required for write access)</a></h2>
+<p>The local Zotero API (port 23119) is read-only. To allow Claude Code to remove processed items from your <code>_inbox</code> collection automatically, you need a Zotero web API key with write access.</p>
+<p><strong>Create the key:</strong></p>
+<ol>
+<li>Go to <a href="https://www.zotero.org/settings/keys">zotero.org/settings/keys</a></li>
+<li>Click <strong>Create new private key</strong></li>
+<li>Give it a name (e.g. "Claude Code")</li>
+<li>Enable <strong>Allow library access</strong> and <strong>Allow write access</strong> under <em>Personal Library</em></li>
+<li>Click <strong>Create</strong> and copy the key</li>
+</ol>
+<p><strong>Find your library ID:</strong></p>
+<p>Your library ID is visible in the Zotero web interface URL after logging in, or you can retrieve it from the local API:</p>
+<pre><code class="language-bash">curl -s http://localhost:23119/api/users/0/items?limit=1 | python3 -c "import json,sys; items=json.load(sys.stdin); print(items[0]['library']['id'])"
+</code></pre>
+<p><strong>Store the credentials:</strong></p>
+<p>Add these lines to your <code>~/.zprofile</code> (persistent across sessions):</p>
+<pre><code class="language-bash">export ZOTERO_API_KEY=your_api_key_here
+export ZOTERO_LIBRARY_ID=your_library_id_here
+export ZOTERO_LIBRARY_TYPE=user
+</code></pre>
+<p>Also create a <code>.env</code> file in your vault root (used by the helper scripts):</p>
+<pre><code class="language-bash">cat &gt; ~/Documents/ResearchVault/.env &lt;&lt; EOF
+ZOTERO_API_KEY=your_api_key_here
+ZOTERO_LIBRARY_ID=your_library_id_here
+ZOTERO_LIBRARY_TYPE=user
+EOF
+</code></pre>
+<p>The <code>.env</code> file is already listed in <code>.gitignore</code> so it will not be committed to version control.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="step-5-install-claude-code"><a class="header" href="#step-5-install-claude-code">Step 5: Install Claude Code</a></h1>
 <h2 id="5a-install-nodejs"><a class="header" href="#5a-install-nodejs">5a. Install Node.js</a></h2>
 <pre><code class="language-bash">brew install node
@@ -365,32 +393,28 @@ brew services start ollama
 <pre><code class="language-bash">ollama list
 </code></pre>
 <h2 id="6d-how-ollama-is-used-in-the-workflow"><a class="header" href="#6d-how-ollama-is-used-in-the-workflow">6d. How Ollama is used in the workflow</a></h2>
-<p>Qwen3.5:9b is the default engine for all generative tasks. Claude Code calls Ollama via its bash tool whenever it needs to generate a summary, write a literature note, or create flashcards. No explicit configuration is needed per task — the CLAUDE.md in your vault already sets this as the default.</p>
-<p><strong>Option 1: Verify per task (if needed)</strong></p>
-<p>To confirm that a specific task runs locally, you can instruct Claude Code explicitly:</p>
-<pre><code>Use Ollama (qwen3.5:9b) to create a summary of this transcript.
-Call the model via: ollama run qwen3.5:9b
+<p>Qwen3.5:9b is the default engine for all generative tasks. The workflow uses a dedicated helper script — <code>.claude/ollama-generate.py</code> — to call Ollama via its REST API rather than the CLI.</p>
+<p><strong>Why a helper script instead of <code>ollama run</code>?</strong></p>
+<p>The Ollama CLI (<code>ollama run qwen3.5:9b &lt; file.txt</code>) produces terminal output with ANSI escape codes and a loading spinner. When this output is captured by Claude Code's bash tool, the result contains hundreds of lines of control characters that need to be stripped before the content is usable. The helper script avoids this entirely by talking directly to the Ollama REST API at <code>http://localhost:11434/api/generate</code>.</p>
+<p>The script also prepends <code>/no_think</code> to the prompt, which tells Qwen3.5:9b to skip its internal reasoning step and produce output directly. This saves time and keeps the output clean.</p>
+<p><strong>Usage:</strong></p>
+<pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
+  --input  inbox/source.txt \
+  --output literature/note.md \
+  --prompt "Write a literature note in the same language as the source text..."
 </code></pre>
-<p>Claude Code runs the command locally via the bash tool and processes the output without making an Anthropic API call for that step.</p>
-<p><strong>Option 2: Default rule in CLAUDE.md</strong></p>
-<p>The starter <code>CLAUDE.md</code> from step 7d already contains the following section — no further action needed. It instructs Claude Code to use Ollama by default for all processing tasks:</p>
-<pre><code class="language-markdown">## Local processing via Ollama
-
-By default, all processing runs locally via Qwen3.5:9b. Use this for:
-- Literature notes based on papers or transcripts
-- Thematic syntheses
-- Flashcard generation
-
-Call Ollama via the bash tool:
-`ollama run qwen3.5:9b &lt; inbox/[filename].txt`
-
-**Maximum quality mode:** if the user adds `--hd` or explicitly asks for "maximum quality" or "use Sonnet", switch to Claude Sonnet 4.6 via the Anthropic API. Always announce this first and wait for confirmation before making the API call. Never automatically fall back to Sonnet if Qwen is unreachable — report that Ollama is not active and ask what the user wants.
+<p>The script prints only status lines (<code>Input: ...</code>, <code>Model: ...</code>, <code>Written: ...</code>) — never the source content or the generated text. This ensures source content does not appear in Claude Code's context.</p>
+<p><strong>Test whether Ollama is reachable:</strong></p>
+<pre><code class="language-bash">echo "Test" &gt; /tmp/test.txt
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
+  --input /tmp/test.txt \
+  --output /tmp/test-out.txt \
+  --prompt "Say only: works."
+cat /tmp/test-out.txt
 </code></pre>
-<p><strong>Option 3: Test whether Ollama is reachable</strong></p>
-<p>Verify from Claude Code that Ollama is active and processes a test prompt:</p>
-<pre><code class="language-bash">ollama run qwen3.5:9b "Give a three-sentence summary about substitution care."
-</code></pre>
-<p>If this returns a response, Ollama is ready for use from Claude Code.</p>
+<p>If this returns a short response, Ollama and the helper script are ready for use.</p>
+<p><strong>Default rule in CLAUDE.md</strong></p>
+<p>The <code>CLAUDE.md</code> in your vault already contains the privacy rule and points to <code>ollama-generate.py</code> as the standard tool — no further configuration is needed per task.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="step-7-install-obsidian-and-create-vault"><a class="header" href="#step-7-install-obsidian-and-create-vault">Step 7: Install Obsidian and create vault</a></h1>
 <h2 id="7a-download-obsidian"><a class="header" href="#7a-download-obsidian">7a. Download Obsidian</a></h2>
 <p>Download Obsidian via <a href="https://obsidian.md">obsidian.md</a>. Install the application in the usual way.</p>
@@ -976,11 +1000,11 @@ summary per item and a relevance assessment for my research on [topic].
 mkdir -p ~/Documents/ResearchVault/.claude/skills
 
 # Copy the skill file to the vault
-cp research-workflow-skill.md ~/Documents/ResearchVault/.claude/skills/
+cp research-workflow-skill-v1.16.md ~/Documents/ResearchVault/.claude/skills/
 </code></pre>
 <p>Then add the following line to your <code>CLAUDE.md</code> (at the bottom):</p>
 <pre><code class="language-markdown">## Active skills
-- Read and follow `.claude/skills/research-workflow-skill.md` during every research session.
+- Read and follow `.claude/skills/research-workflow-skill-v1.16.md` during every research session.
 </code></pre>
 <p>From that point on, the skill is active as soon as you open Claude Code in your vault. You can start the workflow by typing: <code>/research</code> or simply "start research workflow".</p>
 <hr />
@@ -1012,14 +1036,35 @@ or just type: <code>start research workflow</code></li>
 </code></pre>
 This ranks all <code>_inbox</code> items by semantic similarity to your existing library (using the ChromaDB embeddings from zotero-mcp), so you know which items to focus on.</li>
 <li>Claude Code retrieves all items from your Zotero <code>_inbox</code> and presents each one with a short summary and relevance assessment — the summary is generated locally by Qwen3.5:9b. You respond <strong>Go</strong> or <strong>No-go</strong> per item.</li>
-<li>For each <strong>Go</strong>: Claude Code moves the item to the correct Zotero collection and writes a structured literature note in <code>literature/</code>.</li>
+<li>For each <strong>Go</strong>: Claude Code writes a structured literature note using the safe pipeline below.</li>
 <li>For each <strong>No-go</strong>: Claude Code removes the item from <code>_inbox</code> (after your confirmation).</li>
-<li>At the end of the session, Claude Code shows a summary: X approved, Y removed. If new papers were added, update the semantic search database. Use the quick version for metadata only, or the recommended full version for much better search results (5–20 min on Apple Silicon):
+<li>At the end of the session, Claude Code shows a summary: X approved, Y removed. If new papers were added, update the semantic search database:
 <pre><code class="language-bash">zotero-mcp update-db            # quick (metadata only)
 zotero-mcp update-db --fulltext # recommended (includes full text)
 </code></pre>
 Or use the alias: <code>update-zotero</code> (equivalent to <code>--fulltext</code>). Check database status with <code>zotero-mcp db-status</code>.</li>
 </ol>
+<hr />
+<h2 id="helper-scripts"><a class="header" href="#helper-scripts">Helper scripts</a></h2>
+<p>The workflow uses three helper scripts in <code>.claude/</code>. They keep source content out of Claude Code's context and handle Zotero write operations.</p>
+<h3 id="fetch-fulltextpy--retrieve-and-save-attachment-text"><a class="header" href="#fetch-fulltextpy--retrieve-and-save-attachment-text"><code>fetch-fulltext.py</code> — retrieve and save attachment text</a></h3>
+<p>Fetches the full text of a Zotero attachment and saves it to a local file. Only prints status; never prints content.</p>
+<pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/fetch-fulltext.py ITEMKEY inbox/bron.txt
+# Output: Saved: inbox/bron.txt (12,345 chars, type: application/pdf)
+</code></pre>
+<h3 id="ollama-generatepy--generate-text-via-ollama-rest-api"><a class="header" href="#ollama-generatepy--generate-text-via-ollama-rest-api"><code>ollama-generate.py</code> — generate text via Ollama REST API</a></h3>
+<p>Calls Ollama's REST API directly (no CLI, no ANSI codes). Prepends <code>/no_think</code> to suppress Qwen3.5:9b's reasoning step. Prints only status lines.</p>
+<pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
+  --input  inbox/bron.txt \
+  --output literature/notitie.md \
+  --prompt "Write a literature note in Dutch..."
+# Output: Input: inbox/bron.txt (12,345 chars) | Written: literature/notitie.md (3,200 chars)
+</code></pre>
+<h3 id="zotero-remove-from-inboxpy--remove-processed-item-from-_inbox"><a class="header" href="#zotero-remove-from-inboxpy--remove-processed-item-from-_inbox"><code>zotero-remove-from-inbox.py</code> — remove processed item from <code>_inbox</code></a></h3>
+<p>Removes the item from the <code>_inbox</code> collection in Zotero via the web API. Requires <code>ZOTERO_API_KEY</code> in the environment or <code>.env</code> file (see step 4d).</p>
+<pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/zotero-remove-from-inbox.py ITEMKEY
+# Output: Item ITEMKEY removed from _inbox.
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="troubleshooting"><a class="header" href="#troubleshooting">Troubleshooting</a></h1>
 <div class="table-wrapper"><table><thead><tr><th>Problem</th><th>Possible cause</th><th>Solution</th></tr></thead><tbody>
 <tr><td>Zotero MCP returns no results</td><td>Zotero is not open</td><td>Start Zotero and check <code>http://localhost:23119/</code></td></tr>
@@ -1039,19 +1084,43 @@ Or use the alias: <code>update-zotero</code> (equivalent to <code>--fulltext</co
 </div><div style="break-before: page; page-break-before: always;"></div><h1 id="privacy-overview"><a class="header" href="#privacy-overview">Privacy overview</a></h1>
 <div class="table-wrapper"><table><thead><tr><th>Component</th><th>Data local?</th><th>Notes</th></tr></thead><tbody>
 <tr><td>Zotero + local API</td><td>✅ Fully</td><td>Runs on <code>localhost</code>, no cloud</td></tr>
-<tr><td>Zotero MCP</td><td>✅ Fully</td><td>Local connection, no external API</td></tr>
+<tr><td>Zotero MCP</td><td>✅ Fully</td><td>Local connection; write operations use Zotero web API with your own key</td></tr>
 <tr><td>Obsidian vault</td><td>✅ Fully</td><td>Regular files on your Mac</td></tr>
-<tr><td>Ollama + Qwen3.5:9b</td><td>✅ Fully</td><td>Model runs locally on M4; default for all processing tasks</td></tr>
+<tr><td>Ollama + Qwen3.5:9b</td><td>✅ Fully</td><td>Model runs locally on M4; default for all generative tasks</td></tr>
 <tr><td>yt-dlp</td><td>✅ Fully</td><td>Scraping executed locally</td></tr>
 <tr><td>whisper.cpp</td><td>✅ Fully</td><td>Transcription locally on M4 via Metal</td></tr>
 <tr><td>NetNewsWire</td><td>✅ Fully</td><td>RSS data stored locally, no account</td></tr>
 <tr><td>Obsidian Spaced Repetition</td><td>✅ Fully</td><td>Cards and review data in vault files</td></tr>
-<tr><td>Claude Code — default</td><td>✅ Fully</td><td>Orchestration and Zotero MCP calls; Qwen3.5:9b does the generative work locally</td></tr>
+<tr><td>Claude Code — orchestration</td><td>⚠️ Partially</td><td>Workflow instructions and metadata go to the Anthropic API; <strong>source content must not</strong></td></tr>
 <tr><td>Claude Code — <code>--hd</code> mode</td><td>⚠️ Partially</td><td>Only on explicit <code>--hd</code> request: prompt and source content go to Anthropic API (Claude Sonnet 4.6)</td></tr>
 </tbody></table>
 </div>
+<h2 id="the-content-privacy-rule"><a class="header" href="#the-content-privacy-rule">The content privacy rule</a></h2>
+<p>The most important privacy boundary in this workflow is not which tools you use — it is <strong>whether source content appears in Claude Code's context</strong>.</p>
+<p>Claude Code communicates with the Anthropic API in every session. This is unavoidable: it is how the orchestration layer works. What you can control is whether the <em>content</em> of your papers, transcripts, or articles gets included in that communication.</p>
+<p><strong>The rule:</strong> source content (full text of papers, article HTML, transcripts) must never be returned as output of a Bash command. The moment text appears as tool output, it has reached the Anthropic API.</p>
+<p><strong>The safe pipeline:</strong></p>
+<pre><code class="language-bash"># 1. Fetch full text and write to file — only length/status is printed
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/fetch-fulltext.py ITEMKEY inbox/bron.txt
+
+# 2. Generate note via Ollama REST API — content stays local
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
+  --input inbox/bron.txt \
+  --output literature/notitie.md \
+  --prompt "..."
+
+# 3. Remove source file
+rm inbox/bron.txt
+</code></pre>
+<p>What goes to the Anthropic API in this pipeline: only the prompt instruction and metadata (title, authors, year). What stays local: the full content of the paper or transcript.</p>
+<p><strong>What this means in practice:</strong></p>
+<ul>
+<li><code>fetch-fulltext.py</code> writes the Zotero attachment text to a local file and prints only <code>Saved: inbox/bron.txt (12,345 chars)</code>.</li>
+<li><code>ollama-generate.py</code> calls the Ollama REST API directly (no CLI, no ANSI codes) and writes the result to the output file.</li>
+<li>Neither tool prints source content to the terminal or to Claude Code's context.</li>
+</ul>
 <blockquote>
-<p><strong>Conclusion:</strong> in the default mode, no vault content, paper, transcript, or note leaves the Mac mini. Claude Code orchestrates the workflow, but the reasoning and writing work happens locally via Qwen3.5:9b. Only when you explicitly request <code>--hd</code> or "maximum quality" does the source content go to the Anthropic API. Claude Code always asks for confirmation first.</p>
+<p><strong>Conclusion:</strong> in the default mode, no paper content, transcript, or note text leaves the Mac mini. Claude Code orchestrates the workflow (instructions go to Anthropic), but all generative work runs locally via Qwen3.5:9b. Only when you explicitly request <code>--hd</code> does source content go to the Anthropic API — Claude Code always asks for confirmation first.</p>
 </blockquote>
 
                     </main>

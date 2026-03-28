@@ -182,19 +182,43 @@
                         <h1 id="privacy-overview"><a class="header" href="#privacy-overview">Privacy overview</a></h1>
 <div class="table-wrapper"><table><thead><tr><th>Component</th><th>Data local?</th><th>Notes</th></tr></thead><tbody>
 <tr><td>Zotero + local API</td><td>✅ Fully</td><td>Runs on <code>localhost</code>, no cloud</td></tr>
-<tr><td>Zotero MCP</td><td>✅ Fully</td><td>Local connection, no external API</td></tr>
+<tr><td>Zotero MCP</td><td>✅ Fully</td><td>Local connection; write operations use Zotero web API with your own key</td></tr>
 <tr><td>Obsidian vault</td><td>✅ Fully</td><td>Regular files on your Mac</td></tr>
-<tr><td>Ollama + Qwen3.5:9b</td><td>✅ Fully</td><td>Model runs locally on M4; default for all processing tasks</td></tr>
+<tr><td>Ollama + Qwen3.5:9b</td><td>✅ Fully</td><td>Model runs locally on M4; default for all generative tasks</td></tr>
 <tr><td>yt-dlp</td><td>✅ Fully</td><td>Scraping executed locally</td></tr>
 <tr><td>whisper.cpp</td><td>✅ Fully</td><td>Transcription locally on M4 via Metal</td></tr>
 <tr><td>NetNewsWire</td><td>✅ Fully</td><td>RSS data stored locally, no account</td></tr>
 <tr><td>Obsidian Spaced Repetition</td><td>✅ Fully</td><td>Cards and review data in vault files</td></tr>
-<tr><td>Claude Code — default</td><td>✅ Fully</td><td>Orchestration and Zotero MCP calls; Qwen3.5:9b does the generative work locally</td></tr>
+<tr><td>Claude Code — orchestration</td><td>⚠️ Partially</td><td>Workflow instructions and metadata go to the Anthropic API; <strong>source content must not</strong></td></tr>
 <tr><td>Claude Code — <code>--hd</code> mode</td><td>⚠️ Partially</td><td>Only on explicit <code>--hd</code> request: prompt and source content go to Anthropic API (Claude Sonnet 4.6)</td></tr>
 </tbody></table>
 </div>
+<h2 id="the-content-privacy-rule"><a class="header" href="#the-content-privacy-rule">The content privacy rule</a></h2>
+<p>The most important privacy boundary in this workflow is not which tools you use — it is <strong>whether source content appears in Claude Code's context</strong>.</p>
+<p>Claude Code communicates with the Anthropic API in every session. This is unavoidable: it is how the orchestration layer works. What you can control is whether the <em>content</em> of your papers, transcripts, or articles gets included in that communication.</p>
+<p><strong>The rule:</strong> source content (full text of papers, article HTML, transcripts) must never be returned as output of a Bash command. The moment text appears as tool output, it has reached the Anthropic API.</p>
+<p><strong>The safe pipeline:</strong></p>
+<pre><code class="language-bash"># 1. Fetch full text and write to file — only length/status is printed
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/fetch-fulltext.py ITEMKEY inbox/bron.txt
+
+# 2. Generate note via Ollama REST API — content stays local
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
+  --input inbox/bron.txt \
+  --output literature/notitie.md \
+  --prompt "..."
+
+# 3. Remove source file
+rm inbox/bron.txt
+</code></pre>
+<p>What goes to the Anthropic API in this pipeline: only the prompt instruction and metadata (title, authors, year). What stays local: the full content of the paper or transcript.</p>
+<p><strong>What this means in practice:</strong></p>
+<ul>
+<li><code>fetch-fulltext.py</code> writes the Zotero attachment text to a local file and prints only <code>Saved: inbox/bron.txt (12,345 chars)</code>.</li>
+<li><code>ollama-generate.py</code> calls the Ollama REST API directly (no CLI, no ANSI codes) and writes the result to the output file.</li>
+<li>Neither tool prints source content to the terminal or to Claude Code's context.</li>
+</ul>
 <blockquote>
-<p><strong>Conclusion:</strong> in the default mode, no vault content, paper, transcript, or note leaves the Mac mini. Claude Code orchestrates the workflow, but the reasoning and writing work happens locally via Qwen3.5:9b. Only when you explicitly request <code>--hd</code> or "maximum quality" does the source content go to the Anthropic API. Claude Code always asks for confirmation first.</p>
+<p><strong>Conclusion:</strong> in the default mode, no paper content, transcript, or note text leaves the Mac mini. Claude Code orchestrates the workflow (instructions go to Anthropic), but all generative work runs locally via Qwen3.5:9b. Only when you explicitly request <code>--hd</code> does source content go to the Anthropic API — Claude Code always asks for confirmation first.</p>
 </blockquote>
 
                     </main>
