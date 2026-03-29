@@ -22,6 +22,7 @@
 - [Step 13: Spaced repetition](extensions/spaced-repetition.md)
 - [Step 14: Filter layer per source](extensions/filter-layer.md)
 - [Step 15: Future perspective — local orchestrator](extensions/future-orchestrator.md)
+- [Step 16: iPad access via SSH terminal](extensions/ipad-ssh.md)
 
 # Reference
 
