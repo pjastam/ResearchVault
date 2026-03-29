@@ -999,7 +999,7 @@ summary per item and a relevance assessment for my research on [topic].
 <ol>
 <li>Open <strong>System Settings → General → Sharing</strong></li>
 <li>Enable <strong>Remote Login</strong></li>
-<li>Leave "Allow full disk access for remote users" <strong>off</strong> — you will SSH in as your own user account and already have the same access as when sitting at the Mac mini</li>
+<li>Enable "Allow full disk access for remote users" <strong>on</strong> — macOS protects folders like Documents and Desktop via TCC (privacy framework), which blocks SSH access even for your own account unless this option is enabled</li>
 </ol>
 <h2 id="16b-install-a-terminal-app-on-your-ipad"><a class="header" href="#16b-install-a-terminal-app-on-your-ipad">16b. Install a terminal app on your iPad</a></h2>
 <p><strong>Recommended:</strong> <a href="https://apps.apple.com/app/termius-ssh-sftp-client/id549039908">Termius</a> (free tier is sufficient for a single SSH connection)</p>
@@ -1067,6 +1067,18 @@ chmod 600 ~/.ssh/authorized_keys
 claude
 </code></pre>
 <p>You are now in exactly the same environment as when using Claude Code on the Mac mini directly — including Zotero MCP, Ollama, whisper.cpp, and all workflow skills. Type <code>/research</code> to start the research workflow.</p>
+<p><strong>First-time login:</strong> The Claude Code CLI stores its credentials separately from the desktop or VS Code login. The first time you run <code>claude</code> via SSH it will tell you that you are not logged in and ask you to run <code>/login</code>. Do the following:</p>
+<ol>
+<li>Type <code>/login</code> inside Claude Code</li>
+<li>Claude Code displays a URL</li>
+<li>Open that URL in Safari on your iPad</li>
+<li>Sign in with your Claude account</li>
+<li>After confirmation the token is saved to <code>~/.claude/</code> on the Mac mini — you will not be asked again</li>
+</ol>
+<p><strong>One-step shortcut:</strong> Add the following alias to <code>~/.zshrc</code> on the Mac mini so you can launch Claude Code in the vault with a single command:</p>
+<pre><code class="language-bash">alias rv='cd ~/Documents/ResearchVault &amp;&amp; claude "start research workflow"'
+</code></pre>
+<p>Activate it once with <code>source ~/.zshrc</code>, then from any SSH session just type <code>rv</code>.</p>
 <p>A keyboard (Smart Keyboard, Magic Keyboard, or similar) makes this experience comfortable on an iPad.</p>
 <h2 id="16g-outside-your-home-network--tailscale"><a class="header" href="#16g-outside-your-home-network--tailscale">16g. Outside your home network — Tailscale</a></h2>
 <p>The setup above works on your local network. To also run Phase 2 and Phase 3 from outside your home (e.g. on the road with an iPad and cellular), you need a way to reach the Mac mini securely over the internet. <strong>Tailscale</strong> is the simplest option: it creates an encrypted peer-to-peer network between your devices without requiring port forwarding or a VPN server.</p>
