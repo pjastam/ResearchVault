@@ -6,7 +6,7 @@ Phase 0 and Phase 1 of the workflow run naturally on an iPad — the HTML reader
 
 1. Open **System Settings → General → Sharing**
 2. Enable **Remote Login**
-3. Leave "Allow full disk access for remote users" **off** — you will SSH in as your own user account and already have the same access as when sitting at the Mac mini
+3. Enable "Allow full disk access for remote users" **on** — macOS protects folders like Documents and Desktop via TCC (privacy framework), which blocks SSH access even for your own account unless this option is enabled
 
 ## 16b. Install a terminal app on your iPad
 
@@ -103,6 +103,22 @@ claude
 ```
 
 You are now in exactly the same environment as when using Claude Code on the Mac mini directly — including Zotero MCP, Ollama, whisper.cpp, and all workflow skills. Type `/research` to start the research workflow.
+
+**First-time login:** The Claude Code CLI stores its credentials separately from the desktop or VS Code login. The first time you run `claude` via SSH it will tell you that you are not logged in and ask you to run `/login`. Do the following:
+
+1. Type `/login` inside Claude Code
+2. Claude Code displays a URL
+3. Open that URL in Safari on your iPad
+4. Sign in with your Claude account
+5. After confirmation the token is saved to `~/.claude/` on the Mac mini — you will not be asked again
+
+**One-step shortcut:** Add the following alias to `~/.zshrc` on the Mac mini so you can launch Claude Code in the vault with a single command:
+
+```bash
+alias rv='cd ~/Documents/ResearchVault && claude "start research workflow"'
+```
+
+Activate it once with `source ~/.zshrc`, then from any SSH session just type `rv`.
 
 A keyboard (Smart Keyboard, Magic Keyboard, or similar) makes this experience comfortable on an iPad.
 
