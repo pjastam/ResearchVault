@@ -1,6 +1,13 @@
 # Step 16: iPad access via SSH terminal
 
-Phase 0 and Phase 1 of the workflow run naturally on an iPad — the HTML reader at `http://localhost:8765/filtered.html` is accessible from any browser on your local network, and adding items to Zotero works via the iOS app. Phase 2 and Phase 3 require Claude Code, which runs on the Mac mini. The most practical way to run these phases from an iPad is via SSH: you connect to the Mac mini over the network and run Claude Code in a terminal session, with full access to all local tools (Zotero MCP, Ollama, whisper.cpp, yt-dlp).
+Phase 0 and Phase 1 of the workflow run naturally on an iPad — the HTML reader at `http://[mac-ip]:8765/filtered.html` is accessible from any browser on your local network, and adding items to Zotero works via the iOS app. Phase 2 and Phase 3 require Claude Code, which runs on the Mac mini.
+
+**Two routes to Phase 2 from an iPad:**
+
+- **In-browser terminal (Step 17, recommended):** the HTML reader has an embedded terminal panel (⌨️ button in the header) that runs directly in Safari, without a separate app. This keeps Phase 0 reading and Phase 2 work in the same tab. See [Step 17](browser-terminal.md) for setup.
+- **SSH terminal app (this step):** connect to the Mac mini via SSH using Termius or Blink Shell. This is slightly more powerful (full terminal, no browser overhead) and works outside your home network via Tailscale. It is also the fallback when the browser terminal is not available.
+
+The rest of this page documents the SSH approach.
 
 ## 16a. Enable SSH on the Mac mini
 

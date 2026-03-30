@@ -174,7 +174,7 @@ Phase 0 draait automatisch via launchd (06:00 dagelijks). Beheer is alleen nodig
 - Draai `phase0-learn.py` — het verwerkt eerst de skip-queue, toont daarna ✅ positieven · 👎 expliciet afgewezen · ❌ zwak negatief
 - Pas na ≥30 positieven `THRESHOLD_GREEN` en `THRESHOLD_YELLOW` aan in `phase0-score.py`
 
-**HTML-lezer:** `http://localhost:8765/filtered.html` (ook bereikbaar op iPhone/iPad via het LAN-IP van de Mac mini)
+**HTML-lezer:** `http://localhost:8765/filtered.html` (ook bereikbaar op iPhone/iPad via het LAN-IP van de Mac mini). De lezer bevat een **⌨️ terminal**-knop in de header die een ttyd-terminal als iframe opent (poort 7681) — hiermee kun je Phase 2 (Claude Code) direct vanuit de browser starten, zonder te wisselen van app of tab.
 
 ---
 

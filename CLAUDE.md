@@ -109,7 +109,7 @@ Phase 0 filtert RSS-feeds automatisch op relevantie vóórdat je ze handmatig do
 - `~/.local/share/phase0-serve/` — serveermap (buiten Documents vanwege macOS TCC)
 
 **URLs (lokale HTTP-server op poort 8765):**
-- `http://localhost:8765/filtered.html` — HTML-lezer met score- en bronweergave + type-filterknoppen **Alles / 📄 / ▶️ / 🎙️** (Mac/iPhone/iPad)
+- `http://localhost:8765/filtered.html` — HTML-lezer met score- en bronweergave + type-filterknoppen **Alles / 📄 / ▶️ / 🎙️** + **⌨️ terminal**-knop die een ttyd-terminal als iframe opent (poort 7681; iframe-URL gebaseerd op `window.location.hostname` zodat het ook werkt op iPad via het Mac-IP) (Mac/iPhone/iPad)
 - `http://localhost:8765/filtered.xml` — Atom-feed voor NetNewsWire
 - `http://localhost:8765/article/{video_id}` — gegenereerd leesartikel voor een YouTube-video (structuur: Inleiding · Kernpunten · Conclusie; taal = originele videotaal)
 - `http://localhost:8765/article/podcast/{episode_id}` — gegenereerd leesartikel voor een podcast-aflevering op basis van show notes (zelfde structuur; alleen voor afleveringen met show notes ≥ 200 tekens)
@@ -129,9 +129,10 @@ Phase 0 filtert RSS-feeds automatisch op relevantie vóórdat je ze handmatig do
 **Leerloop:** phase0-learn.py verwerkt eerst de skip-queue (👎-signalen), matcht daarna recent aan Zotero toegevoegde items aan het logboek, en onderscheidt drie categorieën: ✅ positieven · 👎 expliciet afgewezen · ❌ zwak negatief (niet toegevoegd na timeout). Na ≥30 positieven geeft het een drempeladvies. Pas dan `THRESHOLD_GREEN` en `THRESHOLD_YELLOW` in `phase0-score.py` aan.
 
 **launchd-agents** (laden bij inloggen):
-- `nl.researchvault.phase0-server` — HTTP-server permanent actief
+- `nl.researchvault.phase0-server` — HTTP-server permanent actief (poort 8765)
 - `nl.researchvault.phase0-score` — score-run dagelijks om 06:00
 - `nl.researchvault.phase0-learn` — leerloop dagelijks om 06:15
+- `nl.researchvault.ttyd` — browser-terminal permanent actief (poort 7681, `--writable`); log: `/tmp/ttyd.log`
 
 ## RSS-feeds
 - RSS-feeds worden gefilterd via Phase 0; de HTML-lezer (`http://localhost:8765/filtered.html`) of de Atom-feed in NetNewsWire toont items gesorteerd op relevantiescore

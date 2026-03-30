@@ -352,7 +352,8 @@ def generate_html(items: list[dict], generated_at: datetime) -> str:
     font-size: 15px;
     background: var(--bg);
     color: var(--text);
-    padding: 0 0 3rem;
+    padding: 0;
+    overflow: hidden;
   }}
   header {{
     position: sticky; top: 0; z-index: 10;
@@ -384,6 +385,25 @@ def generate_html(items: list[dict], generated_at: datetime) -> str:
   .toggle-read {{
     font-size: .8rem; color: var(--muted);
     background: none; border: none; cursor: pointer; text-decoration: underline;
+  }}
+  #layout {{
+    display: flex; height: calc(100vh - 48px);
+  }}
+  #content-panel {{
+    flex: 1; overflow-y: auto; min-width: 0;
+  }}
+  #terminal-panel {{
+    display: none; flex-shrink: 0; width: 45%;
+    border-left: 1px solid var(--border);
+    background: #1e1e1e;
+  }}
+  #terminal-panel.visible {{ display: flex; flex-direction: column; }}
+  #terminal-panel iframe {{
+    flex: 1; border: none; width: 100%; height: 100%;
+  }}
+  @media (max-width: 800px) {{
+    #layout {{ flex-direction: column; height: auto; }}
+    #terminal-panel {{ width: 100%; height: 60vh; border-left: none; border-top: 1px solid var(--border); }}
   }}
   .view {{ display: none; padding: .75rem 1rem; max-width: 720px; margin: 0 auto; }}
   .view.active {{ display: block; }}
@@ -455,11 +475,19 @@ def generate_html(items: list[dict], generated_at: datetime) -> str:
     <button onclick="switchView('date', this)">Op datum</button>
   </div>
   <button class="toggle-read" onclick="toggleRead()">verberg gelezen / overgeslagen</button>
+  <button class="toggle-read" onclick="toggleTerminal()" id="term-btn">⌨️ terminal</button>
 </header>
 
-<div id="view-score" class="view active"></div>
-<div id="view-source" class="view"></div>
-<div id="view-date" class="view"></div>
+<div id="layout">
+  <div id="content-panel">
+    <div id="view-score" class="view active"></div>
+    <div id="view-source" class="view"></div>
+    <div id="view-date" class="view"></div>
+  </div>
+  <div id="terminal-panel">
+    <iframe id="term-iframe" src="about:blank"></iframe>
+  </div>
+</div>
 
 <script>
 const ITEMS = {data};
@@ -625,6 +653,17 @@ function toggleRead() {{
 renderScore();
 renderSource();
 renderDate();
+
+function toggleTerminal() {{
+  const panel = document.getElementById("terminal-panel");
+  const iframe = document.getElementById("term-iframe");
+  const btn    = document.getElementById("term-btn");
+  const open   = panel.classList.toggle("visible");
+  btn.style.fontWeight = open ? "700" : "";
+  if (open && iframe.src === "about:blank") {{
+    iframe.src = "http://" + window.location.hostname + ":7681/?";
+  }}
+}}
 </script>
 </body>
 </html>

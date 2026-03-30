@@ -23,6 +23,7 @@
 - [Step 14: Filter layer per source](extensions/filter-layer.md)
 - [Step 15: Future perspective — local orchestrator](extensions/future-orchestrator.md)
 - [Step 16: iPad access via SSH terminal](extensions/ipad-ssh.md)
+- [Step 17: In-browser terminal](extensions/browser-terminal.md)
 
 # Reference
 
