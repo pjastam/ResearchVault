@@ -213,23 +213,40 @@ def main():
 
 
 def cleanup_transcript_cache(max_age_days: int = 90) -> None:
-    """Verwijder transcript-cache-bestanden ouder dan max_age_days dagen."""
-    cache_dir = SCRIPT_DIR / "transcript_cache"
-    if not cache_dir.exists():
-        return
+    """Verwijder transcript- en artikel-cache-bestanden ouder dan max_age_days dagen."""
     cutoff = datetime.now(timezone.utc) - timedelta(days=max_age_days)
     removed = 0
-    for cache_file in cache_dir.glob("*.json"):
-        try:
-            data = json.loads(cache_file.read_text(encoding="utf-8"))
-            ts_str = data.get("fetched_at") or data.get("cached_at")
-            if ts_str and datetime.fromisoformat(ts_str) < cutoff:
-                cache_file.unlink()
-                removed += 1
-        except Exception:
-            pass
+    for cache_dir in [SCRIPT_DIR / "transcript_cache", SCRIPT_DIR / "article_cache"]:
+        if not cache_dir.exists():
+            continue
+        for cache_file in cache_dir.glob("*"):
+            if not cache_file.is_file():
+                continue
+            try:
+                if cache_file.suffix == ".json":
+                    data = json.loads(cache_file.read_text(encoding="utf-8"))
+                    ts_str = data.get("fetched_at") or data.get("cached_at")
+                    if ts_str:
+                        ts = datetime.fromisoformat(ts_str)
+                        # Zorg dat de timestamp timezone-aware is voor de vergelijking;
+                        # fromisoformat() geeft een naive datetime als de string geen
+                        # tijdzone bevat, wat een TypeError geeft bij vergelijking met
+                        # de timezone-aware cutoff.
+                        if ts.tzinfo is None:
+                            ts = ts.replace(tzinfo=timezone.utc)
+                        if ts < cutoff:
+                            cache_file.unlink()
+                            removed += 1
+                        continue
+                # Fallback voor HTML en andere bestanden: gebruik bestandsmodificatietijd
+                mtime = datetime.fromtimestamp(cache_file.stat().st_mtime, tz=timezone.utc)
+                if mtime < cutoff:
+                    cache_file.unlink()
+                    removed += 1
+            except Exception:
+                pass
     if removed:
-        print(f"[cache] {removed} transcript-cache-bestand(en) verwijderd (ouder dan {max_age_days} dagen)")
+        print(f"[cache] {removed} cache-bestand(en) verwijderd (ouder dan {max_age_days} dagen)")
 
 
 if __name__ == "__main__":

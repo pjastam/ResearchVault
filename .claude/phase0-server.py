@@ -138,9 +138,15 @@ class Phase0Handler(http.server.SimpleHTTPRequestHandler):
             self._respond_html(200, content)
             return
 
-        # 2. Controleer generatiestatus
+        # 2. Controleer generatiestatus atomisch: lees én claim "pending" in één lock-acquisitie
+        # zodat twee gelijktijdige requests nooit allebei een generatie-thread starten.
         with Phase0Handler._gen_lock:
             state = Phase0Handler._generating.get(video_id)
+            if state is None:
+                Phase0Handler._generating[video_id] = "pending"
+                should_generate = True
+            else:
+                should_generate = False
 
         if state == "pending":
             self._respond_html(200, self._loading_page(video_id))
@@ -155,9 +161,11 @@ class Phase0Handler(http.server.SimpleHTTPRequestHandler):
             ))
             return
 
-        # 3. Laad transcript
+        # 3. Laad transcript (slot al geclaimd; geef het vrij bij fouten vóór terugkeer)
         transcript_file = TRANSCRIPT_CACHE / f"{video_id}.json"
         if not transcript_file.exists():
+            with Phase0Handler._gen_lock:
+                Phase0Handler._generating.pop(video_id, None)
             self._respond_html(404, self._error_page(
                 "Transcript niet gevonden",
                 "Dit transcript is nog niet gecached. Voer phase0-score.py opnieuw uit "
@@ -168,12 +176,16 @@ class Phase0Handler(http.server.SimpleHTTPRequestHandler):
         try:
             data = json.loads(transcript_file.read_text(encoding="utf-8"))
         except Exception as e:
+            with Phase0Handler._gen_lock:
+                Phase0Handler._generating.pop(video_id, None)
             self._respond_html(500, self._error_page("Cache-fout", html.escape(str(e))))
             return
 
         transcript = data.get("text")
         if not transcript:
             yt_url = data.get("url", f"https://www.youtube.com/watch?v={video_id}")
+            with Phase0Handler._gen_lock:
+                Phase0Handler._generating.pop(video_id, None)
             self._respond_html(404, self._error_page(
                 "Geen transcript beschikbaar",
                 f'YouTube heeft geen automatische ondertitels voor deze video. '
@@ -182,10 +194,7 @@ class Phase0Handler(http.server.SimpleHTTPRequestHandler):
             ))
             return
 
-        # 4. Start generatie in achtergrond-thread
-        with Phase0Handler._gen_lock:
-            Phase0Handler._generating[video_id] = "pending"
-
+        # 4. Start generatie in achtergrond-thread (slot al op "pending" gezet in stap 2)
         threading.Thread(
             target=Phase0Handler._generate_in_background,
             args=(video_id, data),
@@ -316,9 +325,15 @@ class Phase0Handler(http.server.SimpleHTTPRequestHandler):
             self._respond_html(200, content)
             return
 
-        # 2. Controleer generatiestatus
+        # 2. Controleer generatiestatus atomisch: lees én claim "pending" in één lock-acquisitie
+        # zodat twee gelijktijdige requests nooit allebei een generatie-thread starten.
         with Phase0Handler._gen_lock:
             state = Phase0Handler._generating.get(episode_id)
+            if state is None:
+                Phase0Handler._generating[episode_id] = "pending"
+                should_generate = True
+            else:
+                should_generate = False
 
         if state == "pending":
             self._respond_html(200, self._loading_page(episode_id))
@@ -333,9 +348,11 @@ class Phase0Handler(http.server.SimpleHTTPRequestHandler):
             ))
             return
 
-        # 3. Laad show notes uit cache
+        # 3. Laad show notes uit cache (slot al geclaimd; geef het vrij bij fouten vóór terugkeer)
         shownotes_file = TRANSCRIPT_CACHE / f"{episode_id}.json"
         if not shownotes_file.exists():
+            with Phase0Handler._gen_lock:
+                Phase0Handler._generating.pop(episode_id, None)
             self._respond_html(404, self._error_page(
                 "Show notes niet gevonden",
                 "De show notes voor deze aflevering zijn nog niet gecached. "
@@ -346,21 +363,22 @@ class Phase0Handler(http.server.SimpleHTTPRequestHandler):
         try:
             data = json.loads(shownotes_file.read_text(encoding="utf-8"))
         except Exception as e:
+            with Phase0Handler._gen_lock:
+                Phase0Handler._generating.pop(episode_id, None)
             self._respond_html(500, self._error_page("Cache-fout", html.escape(str(e))))
             return
 
         shownotes_text = data.get("text", "")
         if not shownotes_text:
+            with Phase0Handler._gen_lock:
+                Phase0Handler._generating.pop(episode_id, None)
             self._respond_html(404, self._error_page(
                 "Geen show notes beschikbaar",
                 "Deze aflevering heeft geen show notes om een artikel van te genereren."
             ))
             return
 
-        # 4. Start generatie in achtergrond-thread
-        with Phase0Handler._gen_lock:
-            Phase0Handler._generating[episode_id] = "pending"
-
+        # 4. Start generatie in achtergrond-thread (slot al op "pending" gezet in stap 2)
         threading.Thread(
             target=Phase0Handler._generate_podcast_in_background,
             args=(episode_id, data),
