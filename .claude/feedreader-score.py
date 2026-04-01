@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-phase0-score.py — RSS-feeds scoren en gefilterde Atom-feed genereren
-=====================================================================
-Haalt alle feeds op uit phase0-feeds.txt, scoort elk item op relevantie
+feedreader-score.py — RSS-feeds scoren en gefilterde Atom-feed genereren
+=========================================================================
+Haalt alle feeds op uit feedreader-list.txt, scoort elk item op relevantie
 aan de hand van het ChromaDB-voorkeursprofiel, en schrijft een gesorteerde
-Atom-feed naar phase0-serve/filtered.xml.
+Atom-feed naar feedreader-serve/filtered.xml.
 
 Gebruik:
-    python3 phase0-score.py
+    python3 feedreader-score.py
 
 Vereisten:
     feedparser, chromadb, numpy, sentence_transformers
@@ -40,7 +40,7 @@ import feedparser
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
-from phase0_core import (
+from feedreader_core import (
     THRESHOLD_GREEN,
     THRESHOLD_YELLOW,
     WEIGHT_DEFAULT,
@@ -61,8 +61,8 @@ except ImportError:
 # ── Configuratie ──────────────────────────────────────────────────────────────
 
 SCRIPT_DIR    = Path(__file__).parent
-FEEDS_FILE    = SCRIPT_DIR / "phase0-feeds.txt"
-SERVE_DIR     = Path.home() / ".local" / "share" / "phase0-serve"
+FEEDS_FILE    = SCRIPT_DIR / "feedreader-list.txt"
+SERVE_DIR     = Path.home() / ".local" / "share" / "feedreader-serve"
 LOG_FILE      = SCRIPT_DIR / "score_log.jsonl"
 CHROMA_PATH   = Path.home() / ".config" / "zotero-mcp" / "chroma_db"
 ZOTERO_SQLITE = Path.home() / "Zotero" / "zotero.sqlite"
@@ -312,10 +312,10 @@ def generate_atom(items: list[dict], generated_at: datetime) -> str:
     entries_xml = "\n".join(entries)
     return f"""<?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
-  <title>Phase 0 — Gefilterde RSS-feed</title>
-  <id>urn:phase0:filtered-feed</id>
+  <title>Feedreader — Gefilterde RSS-feed</title>
+  <id>urn:feedreader:filtered-feed</id>
   <updated>{ts}</updated>
-  <author><name>phase0-score.py</name></author>
+  <author><name>feedreader-score.py</name></author>
 {entries_xml}
 </feed>
 """
@@ -525,7 +525,7 @@ def generate_html(items: list[dict], generated_at: datetime) -> str:
 
 <script>
 const ITEMS = {data};
-const READ_KEY = "phase0_read";
+const READ_KEY = "feedreader_read";
 
 function getRead() {{
   try {{ return new Set(JSON.parse(localStorage.getItem(READ_KEY) || "[]")); }}
@@ -535,7 +535,7 @@ function markRead(url) {{
   const s = getRead(); s.add(url);
   localStorage.setItem(READ_KEY, JSON.stringify([...s]));
 }}
-const SKIP_KEY = "phase0_skipped";
+const SKIP_KEY = "feedreader_skipped";
 function getSkipped() {{
   try {{ return new Set(JSON.parse(localStorage.getItem(SKIP_KEY) || "[]")); }}
   catch {{ return new Set(); }}
@@ -708,7 +708,7 @@ function toggleTerminal() {{
 # ── Hoofdprogramma ────────────────────────────────────────────────────────────
 
 def main():
-    print("\n📡 phase0-score — RSS-feeds scoren")
+    print("\n📡 feedreader-score — RSS-feeds scoren")
     print("=" * 52)
 
     # Serveermap aanmaken indien nodig
@@ -720,7 +720,7 @@ def main():
         return
     feed_urls = load_feeds(FEEDS_FILE)
     if not feed_urls:
-        print("⚠️  Geen feed-URLs gevonden in phase0-feeds.txt.")
+        print("⚠️  Geen feed-URLs gevonden in feedreader-list.txt.")
         return
     print(f"\n[1/5] {len(feed_urls)} feed(s) geladen.")
 

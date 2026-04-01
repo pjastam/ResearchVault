@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-phase0-server.py — Lokale HTTP-server voor Phase 0
-===================================================
+feedreader-server.py — Lokale HTTP-server voor de feedreader
+=============================================================
 Serveert statische bestanden uit SERVE_DIR, accepteert POST /skip requests
 en genereert on-demand artikel-pagina's voor YouTube-video's via GET /article/{video_id}.
 
@@ -11,7 +11,7 @@ achtergrond-thread het artikel genereert. Bij het volgende verzoek wordt het
 gecachede artikel geserveerd.
 
 Gebruik (via launchd):
-    python3 phase0-server.py
+    python3 feedreader-server.py
 """
 
 import html
@@ -24,7 +24,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-SERVE_DIR        = Path.home() / ".local" / "share" / "phase0-serve"
+SERVE_DIR        = Path.home() / ".local" / "share" / "feedreader-serve"
 SCRIPT_DIR       = Path(__file__).parent
 TRANSCRIPT_CACHE = SCRIPT_DIR / "transcript_cache"
 ARTICLE_CACHE    = SCRIPT_DIR / "article_cache"
@@ -168,7 +168,7 @@ class Phase0Handler(http.server.SimpleHTTPRequestHandler):
                 Phase0Handler._generating.pop(video_id, None)
             self._respond_html(404, self._error_page(
                 "Transcript niet gevonden",
-                "Dit transcript is nog niet gecached. Voer phase0-score.py opnieuw uit "
+                "Dit transcript is nog niet gecached. Voer feedreader-score.py opnieuw uit "
                 "om transcripten te downloaden voor recente video's."
             ))
             return
@@ -356,7 +356,7 @@ class Phase0Handler(http.server.SimpleHTTPRequestHandler):
             self._respond_html(404, self._error_page(
                 "Show notes niet gevonden",
                 "De show notes voor deze aflevering zijn nog niet gecached. "
-                "Voer phase0-score.py opnieuw uit."
+                "Voer feedreader-score.py opnieuw uit."
             ))
             return
 
@@ -765,7 +765,7 @@ class Phase0Handler(http.server.SimpleHTTPRequestHandler):
 if __name__ == "__main__":
     SERVE_DIR.mkdir(parents=True, exist_ok=True)
     ARTICLE_CACHE.mkdir(parents=True, exist_ok=True)
-    print(f"phase0-server: luistert op http://localhost:{PORT}")
+    print(f"feedreader-server: luistert op http://localhost:{PORT}")
     print(f"Skip-queue:    {SKIP_QUEUE}")
     print(f"Artikel-cache: {ARTICLE_CACHE}")
     with http.server.ThreadingHTTPServer(("", PORT), Phase0Handler) as httpd:

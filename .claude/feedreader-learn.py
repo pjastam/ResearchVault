@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-phase0-learn.py — Leerloop voor drempelkalibratie
-==================================================
+feedreader-learn.py — Leerloop voor drempelkalibratie
+======================================================
 Matcht recent aan Zotero toegevoegde items tegen het score-logboek,
 markeert ze als added_to_zotero: true/false, en geeft een drempeladvies
 zodra er voldoende gelabelde voorbeelden zijn.
 
 Gebruik:
-    python3 phase0-learn.py
+    python3 feedreader-learn.py
 
 Configuratie:
     LOG_FILE        — pad naar score_log.jsonl
@@ -104,11 +104,11 @@ def process_skip_queue(entries: list[dict]) -> int:
 # ── Hoofdprogramma ────────────────────────────────────────────────────────────
 
 def main():
-    print("\n🎓 phase0-learn — Drempelkalibratie")
+    print("\n🎓 feedreader-learn — Drempelkalibratie")
     print("=" * 52)
 
     if not LOG_FILE.exists():
-        print("⚠️  score_log.jsonl niet gevonden. Voer eerst phase0-score.py uit.")
+        print("⚠️  score_log.jsonl niet gevonden. Voer eerst feedreader-score.py uit.")
         return
 
     # Log-rotatie: archiveer als het bestand groter is dan 10 MB
@@ -209,7 +209,7 @@ def main():
     print(f"  Gebalanceerd:                          drempel = {p25:.0f}")
     print(f"  Strikt (minder items, hogere precisie): drempel = {p50:.0f}")
     print(f"\n  Aanbeveling: begin met {p10:.0f} en verhoog geleidelijk.")
-    print(f"  Activeer de filter in phase0-score.py via SCORE_THRESHOLD = {p10:.0f}\n")
+    print(f"  Activeer de filter in feedreader-score.py via SCORE_THRESHOLD = {p10:.0f}\n")
 
 
 def cleanup_transcript_cache(max_age_days: int = 90) -> None:

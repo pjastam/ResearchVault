@@ -1,9 +1,9 @@
 """
-phase0_core.py — Gedeelde rekenkern voor Phase 0
-=================================================
+feedreader_core.py — Gedeelde rekenkern voor de feedreader
+===========================================================
 Bevat puur rekenkundige hulpfuncties zonder I/O of feedparser-afhankelijkheden,
-zodat ze herbruikbaar zijn vanuit phase0-score.py, phase0-learn.py en toekomstige
-scripts.
+zodat ze herbruikbaar zijn vanuit feedreader-score.py, feedreader-learn.py en
+toekomstige scripts.
 """
 
 import numpy as np
