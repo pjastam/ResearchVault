@@ -14,7 +14,7 @@ Every source — paper, podcast, video, RSS article — passes through three exp
 | **2 — Filter** | You decide what enters the vault | `index-score.py` ranks inbox items by semantic similarity to your existing library; Qwen3.5:9b (local) generates a 2–3 sentence summary per item; you give a **Go** or **No-go** |
 | **3 — Process** | Full processing of approved items | Claude Code writes a structured literature note to the Obsidian vault, including key findings, methodology notes, relevant quotes, and flashcards for spaced repetition |
 
-The separation between phases 1 and 3 keeps both your feed reader and your vault clean: only sources you have consciously approved end up in the vault, and your feed reader only shows items that are likely relevant.
+The explicit filter step between capture and processing keeps both your feed reader and your vault clean: only sources you have consciously approved end up in the vault, and your feed reader only shows items that are likely relevant.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/architecture-diagram-v1.13-dark.svg">
@@ -32,7 +32,7 @@ The separation between phases 1 and 3 keeps both your feed reader and your vault
 | [Obsidian](https://obsidian.md) | Markdown-based note-taking and knowledge base | Local |
 | [Ollama](https://ollama.ai) | Local language model for offline tasks | Local |
 | [yt-dlp](https://github.com/yt-dlp/yt-dlp) | Download YouTube transcripts and podcast audio | Local |
-| [youtube-transcript-api](https://github.com/jdepoix/youtube-transcript-api) | Fast transcript fetching for Phase 0 YouTube scoring (no video download) | Local |
+| [youtube-transcript-api](https://github.com/jdepoix/youtube-transcript-api) | Fast transcript fetching for feedreader YouTube scoring (no video download) | Local |
 | [whisper.cpp](https://github.com/ggerganov/whisper.cpp) | Local speech-to-text transcription for podcasts | Local |
 | [NetNewsWire](https://netnewswire.com) | RSS reader subscribed to the feedreader filtered feed | Local |
 | [Claude Code](https://claude.ai/claude-code) | AI assistant that orchestrates the workflow; generative work runs locally via Qwen3.5:9b (Ollama) | Local (default) / Cloud API with `--hd` |
