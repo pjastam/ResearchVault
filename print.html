@@ -182,12 +182,12 @@
 <p><strong>Estimated installation time:</strong> 60–120 minutes
 <strong>Requirements:</strong> macOS Sequoia or later, internet connection for downloads, an Anthropic account (for Claude Code)</p>
 <hr />
-<h2 id="the-4-phase-model"><a class="header" href="#the-4-phase-model">The 4-phase model</a></h2>
-<p>Every source — paper, podcast, video, RSS article — passes through four explicit phases:</p>
+<h2 id="the-3-phase-model"><a class="header" href="#the-3-phase-model">The 3-phase model</a></h2>
+<p>Every source — paper, podcast, video, RSS article — passes through three explicit phases:</p>
 <div class="table-wrapper"><table><thead><tr><th>Phase</th><th>Goal</th><th>How</th></tr></thead><tbody>
 <tr><td><strong>1 — Cast wide</strong></td><td>Capture everything relevant</td><td>Items flow into Zotero <code>_inbox</code> from three sources: (1) the feedreader (<code>feedreader-score.py</code>) scores RSS/YouTube/podcast feeds daily and produces a sorted HTML reader and Atom feed; (2) items shared directly via the iOS share sheet; (3) manual additions from desktop/email/notes</td></tr>
 <tr><td><strong>2 — Filter</strong></td><td>You decide what enters the vault</td><td><code>index-score.py</code> ranks inbox items by semantic similarity to your library; Qwen3.5:9b (local) generates a summary for mid-range items; you give a <strong>Go</strong> or <strong>No-go</strong></td></tr>
-<tr><td><strong>3 — Process</strong></td><td>Full processing of approved items</td><td>Claude Code writes a structured literature note to the Obsidian vault, including key findings, methodology notes, relevant quotes, and flashcards for spaced repetition</td></tr>
+<tr><td><strong>3 — Process</strong></td><td>Full processing of approved items</td><td>The local subagent <code>process_item.py</code> fetches the full text, generates a structured literature note via Qwen3.5:9b, and writes it to the Obsidian vault — including key findings, methodology notes, relevant quotes, and <code>[[internal links]]</code></td></tr>
 </tbody></table>
 </div>
 <p>The separation between phases 1 and 3 keeps both your feed reader and your vault clean: only sources you have consciously approved end up in the vault.</p>
@@ -1286,8 +1286,8 @@ THRESHOLD_YELLOW = ...   # from the recommendation
 <hr />
 <h2 id="go"><a class="header" href="#go">Go</a></h2>
 <p><strong>Go</strong> means: this item is approved for Phase 3.</p>
-<p>Claude Code moves the item to the appropriate Zotero collection and begins processing — or asks whether you want to process it immediately or later in the session.</p>
-<p>When the resulting literature note is created, the <code>status</code> field in the frontmatter is set based on the Zotero tag:</p>
+<p>Claude Code moves the item to the appropriate Zotero collection and calls the local subagent <code>process_item.py</code> with the item key and metadata (title, authors, year, tags). The subagent fetches the full text locally, generates the literature note via Qwen3.5:9b, builds the YAML frontmatter, and writes the <code>.md</code> file to <code>literature/</code>. Claude Code receives only a JSON status object — no source content.</p>
+<p>The <code>status</code> field in the frontmatter is set based on the Zotero tag:</p>
 <ul>
 <li><code>status: read</code> — if the item had a <code>✅</code> tag (you had already read it)</li>
 <li><code>status: unread</code> — in all other cases</li>
@@ -1319,23 +1319,28 @@ zotero-mcp db-status   # check current database status
 </code></pre>
 <p>Claude Code:</p>
 <ol>
-<li>Retrieves metadata from Zotero MCP (title, authors, year, abstract, citation key)</li>
-<li>Saves the full text to <code>inbox/</code> via <code>fetch-fulltext.py</code> — <strong>never printed to screen</strong></li>
-<li>Generates a structured literature note locally via <code>ollama-generate.py</code>:
+<li>Retrieves metadata from Zotero MCP (title, authors, year, journal, citation key, tags) — no full text</li>
+<li>Calls the local subagent <code>process_item.py</code> with only the item key and metadata:
 <ul>
+<li><code>process_item.py</code> fetches the full text locally, generates a structured note via Qwen3.5:9b, builds the YAML frontmatter, and writes the <code>.md</code> file to <code>literature/</code></li>
+<li>Claude Code receives only <code>{"status": "ok", "path": "literature/..."}</code> — no source content</li>
+</ul>
+</li>
+<li>Adds <code>[[internal links]]</code> to related notes in the vault</li>
+<li>Removes the item from Zotero <code>_inbox</code></li>
+</ol>
+<p>The generated note contains:</p>
+<ul>
+<li>YAML frontmatter (title, authors, year, journal, citation key, tags, status)</li>
 <li>Core question and main argument</li>
 <li>Key findings (3–5 points)</li>
 <li>Methodological notes</li>
 <li>Relevant quotes (original language)</li>
 <li>Links to related notes</li>
 </ul>
-</li>
-<li>Adds YAML frontmatter, <code>[[internal links]]</code>, and <code>#tags</code></li>
-<li>Removes the item from Zotero <code>_inbox</code></li>
-</ol>
-<p>Notes are saved to <code>literature/[author-year-keyword].md</code>.</p>
+<p>Notes are saved to <code>literature/[citation-key].md</code>.</p>
 <blockquote>
-<p><strong>Privacy:</strong> the full text of papers never appears as tool output in Claude Code's context. It is fetched and saved in a single Bash command; only the file size and status are returned.</p>
+<p><strong>Privacy:</strong> no paper content ever appears in Claude Code's context. <code>process_item.py</code> is a self-contained local subagent — it fetches, generates, and writes without returning any source text to the orchestration layer.</p>
 </blockquote>
 <hr />
 <h2 id="youtube-videos-1"><a class="header" href="#youtube-videos-1">YouTube videos</a></h2>
@@ -1561,26 +1566,29 @@ Or use the alias: <code>update-zotero</code> (equivalent to <code>--fulltext</co
 <p>The most important privacy boundary in this workflow is not which tools you use — it is <strong>whether source content appears in Claude Code's context</strong>.</p>
 <p>Claude Code communicates with the Anthropic API in every session. This is unavoidable: it is how the orchestration layer works. What you can control is whether the <em>content</em> of your papers, transcripts, or articles gets included in that communication.</p>
 <p><strong>The rule:</strong> source content (full text of papers, article HTML, transcripts) must never be returned as output of a Bash command. The moment text appears as tool output, it has reached the Anthropic API.</p>
-<p><strong>The safe pipeline:</strong></p>
-<pre><code class="language-bash"># 1. Fetch full text and write to file — only length/status is printed
-~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/fetch-fulltext.py ITEMKEY inbox/bron.txt
-
-# 2. Generate note via Ollama REST API — content stays local
-~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
-  --input inbox/bron.txt \
-  --output literature/notitie.md \
-  --prompt "..."
-
-# 3. Remove source file
-rm inbox/bron.txt
+<p><strong>The safe pipeline — single subagent call:</strong></p>
+<pre><code class="language-bash"># One command: fetch, generate, prepend frontmatter, clean up — only JSON status returned
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/skills/process_item.py \
+  --item-key ITEMKEY \
+  --title "Title of paper" \
+  --authors "Smith, John" \
+  --year 2024 \
+  --citation-key smith2024keyword \
+  --zotero-url "zotero://select/library/1/items/ITEMKEY" \
+  --tags "health-economics" \
+  --status unread
+# → {"status": "ok", "path": "literature/smith2024keyword.md"}
 </code></pre>
-<p>What goes to the Anthropic API in this pipeline: only the prompt instruction and metadata (title, authors, year). What stays local: the full content of the paper or transcript.</p>
-<p><strong>What this means in practice:</strong></p>
-<ul>
-<li><code>fetch-fulltext.py</code> writes the Zotero attachment text to a local file and prints only <code>Saved: inbox/bron.txt (12,345 chars)</code>.</li>
-<li><code>ollama-generate.py</code> calls the Ollama REST API directly (no CLI, no ANSI codes) and writes the result to the output file.</li>
-<li>Neither tool prints source content to the terminal or to Claude Code's context.</li>
-</ul>
+<p>What goes to the Anthropic API in this pipeline: only the item key and metadata (title, authors, year, tags). What stays local: the full text, the Qwen3.5:9b generation, the note body, and the final <code>.md</code> file.</p>
+<p><strong>What <code>process_item.py</code> does internally (all local):</strong></p>
+<ol>
+<li><code>fetch-fulltext.py</code> — fetches the Zotero attachment and writes it to <code>inbox/_tmp_ITEMKEY.txt</code>; prints only file size and status.</li>
+<li><code>ollama-generate.py</code> — calls the Ollama REST API directly (no CLI, no ANSI codes), generates the note body, writes to a temp file.</li>
+<li>Frontmatter is built from the metadata arguments and prepended to the note body.</li>
+<li>The final note is written to <code>literature/[citation-key].md</code>.</li>
+<li>Temp files in <code>inbox/</code> are removed.</li>
+</ol>
+<p>Neither tool ever prints source content to the terminal or to Claude Code's context. Claude Code only sees the JSON status object.</p>
 <blockquote>
 <p><strong>Conclusion:</strong> in the default mode, no paper content, transcript, or note text leaves the Mac mini. Claude Code orchestrates the workflow (instructions go to Anthropic), but all generative work runs locally via Qwen3.5:9b. Only when you explicitly request <code>--hd</code> does source content go to the Anthropic API — Claude Code always asks for confirmation first.</p>
 </blockquote>

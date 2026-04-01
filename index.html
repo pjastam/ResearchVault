@@ -184,12 +184,12 @@
 <p><strong>Estimated installation time:</strong> 60–120 minutes
 <strong>Requirements:</strong> macOS Sequoia or later, internet connection for downloads, an Anthropic account (for Claude Code)</p>
 <hr />
-<h2 id="the-4-phase-model"><a class="header" href="#the-4-phase-model">The 4-phase model</a></h2>
-<p>Every source — paper, podcast, video, RSS article — passes through four explicit phases:</p>
+<h2 id="the-3-phase-model"><a class="header" href="#the-3-phase-model">The 3-phase model</a></h2>
+<p>Every source — paper, podcast, video, RSS article — passes through three explicit phases:</p>
 <div class="table-wrapper"><table><thead><tr><th>Phase</th><th>Goal</th><th>How</th></tr></thead><tbody>
 <tr><td><strong>1 — Cast wide</strong></td><td>Capture everything relevant</td><td>Items flow into Zotero <code>_inbox</code> from three sources: (1) the feedreader (<code>feedreader-score.py</code>) scores RSS/YouTube/podcast feeds daily and produces a sorted HTML reader and Atom feed; (2) items shared directly via the iOS share sheet; (3) manual additions from desktop/email/notes</td></tr>
 <tr><td><strong>2 — Filter</strong></td><td>You decide what enters the vault</td><td><code>index-score.py</code> ranks inbox items by semantic similarity to your library; Qwen3.5:9b (local) generates a summary for mid-range items; you give a <strong>Go</strong> or <strong>No-go</strong></td></tr>
-<tr><td><strong>3 — Process</strong></td><td>Full processing of approved items</td><td>Claude Code writes a structured literature note to the Obsidian vault, including key findings, methodology notes, relevant quotes, and flashcards for spaced repetition</td></tr>
+<tr><td><strong>3 — Process</strong></td><td>Full processing of approved items</td><td>The local subagent <code>process_item.py</code> fetches the full text, generates a structured literature note via Qwen3.5:9b, and writes it to the Obsidian vault — including key findings, methodology notes, relevant quotes, and <code>[[internal links]]</code></td></tr>
 </tbody></table>
 </div>
 <p>The separation between phases 1 and 3 keeps both your feed reader and your vault clean: only sources you have consciously approved end up in the vault.</p>

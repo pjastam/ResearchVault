@@ -188,23 +188,28 @@
 </code></pre>
 <p>Claude Code:</p>
 <ol>
-<li>Retrieves metadata from Zotero MCP (title, authors, year, abstract, citation key)</li>
-<li>Saves the full text to <code>inbox/</code> via <code>fetch-fulltext.py</code> — <strong>never printed to screen</strong></li>
-<li>Generates a structured literature note locally via <code>ollama-generate.py</code>:
+<li>Retrieves metadata from Zotero MCP (title, authors, year, journal, citation key, tags) — no full text</li>
+<li>Calls the local subagent <code>process_item.py</code> with only the item key and metadata:
 <ul>
+<li><code>process_item.py</code> fetches the full text locally, generates a structured note via Qwen3.5:9b, builds the YAML frontmatter, and writes the <code>.md</code> file to <code>literature/</code></li>
+<li>Claude Code receives only <code>{"status": "ok", "path": "literature/..."}</code> — no source content</li>
+</ul>
+</li>
+<li>Adds <code>[[internal links]]</code> to related notes in the vault</li>
+<li>Removes the item from Zotero <code>_inbox</code></li>
+</ol>
+<p>The generated note contains:</p>
+<ul>
+<li>YAML frontmatter (title, authors, year, journal, citation key, tags, status)</li>
 <li>Core question and main argument</li>
 <li>Key findings (3–5 points)</li>
 <li>Methodological notes</li>
 <li>Relevant quotes (original language)</li>
 <li>Links to related notes</li>
 </ul>
-</li>
-<li>Adds YAML frontmatter, <code>[[internal links]]</code>, and <code>#tags</code></li>
-<li>Removes the item from Zotero <code>_inbox</code></li>
-</ol>
-<p>Notes are saved to <code>literature/[author-year-keyword].md</code>.</p>
+<p>Notes are saved to <code>literature/[citation-key].md</code>.</p>
 <blockquote>
-<p><strong>Privacy:</strong> the full text of papers never appears as tool output in Claude Code's context. It is fetched and saved in a single Bash command; only the file size and status are returned.</p>
+<p><strong>Privacy:</strong> no paper content ever appears in Claude Code's context. <code>process_item.py</code> is a self-contained local subagent — it fetches, generates, and writes without returning any source text to the orchestration layer.</p>
 </blockquote>
 <hr />
 <h2 id="youtube-videos"><a class="header" href="#youtube-videos">YouTube videos</a></h2>

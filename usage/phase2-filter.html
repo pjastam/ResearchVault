@@ -217,8 +217,8 @@
 <hr />
 <h2 id="go"><a class="header" href="#go">Go</a></h2>
 <p><strong>Go</strong> means: this item is approved for Phase 3.</p>
-<p>Claude Code moves the item to the appropriate Zotero collection and begins processing — or asks whether you want to process it immediately or later in the session.</p>
-<p>When the resulting literature note is created, the <code>status</code> field in the frontmatter is set based on the Zotero tag:</p>
+<p>Claude Code moves the item to the appropriate Zotero collection and calls the local subagent <code>process_item.py</code> with the item key and metadata (title, authors, year, tags). The subagent fetches the full text locally, generates the literature note via Qwen3.5:9b, builds the YAML frontmatter, and writes the <code>.md</code> file to <code>literature/</code>. Claude Code receives only a JSON status object — no source content.</p>
+<p>The <code>status</code> field in the frontmatter is set based on the Zotero tag:</p>
 <ul>
 <li><code>status: read</code> — if the item had a <code>✅</code> tag (you had already read it)</li>
 <li><code>status: unread</code> — in all other cases</li>
