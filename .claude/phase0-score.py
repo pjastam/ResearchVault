@@ -248,6 +248,25 @@ def cache_podcast_shownotes(
         }, ensure_ascii=False))
 
 
+def extract_snippet(text: str, max_len: int = 250) -> str:
+    """Return first meaningful prose from a description, skipping link-heavy lines."""
+    if not text:
+        return ""
+    prose = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        url_count = len(re.findall(r'https?://', line))
+        word_count = len(line.split())
+        if url_count >= 2 or (url_count == 1 and word_count <= 5):
+            continue
+        prose.append(line)
+        if sum(len(l) for l in prose) >= max_len:
+            break
+    return " ".join(prose)[:max_len]
+
+
 def atom_escape(text: str) -> str:
     """Escapet tekst voor gebruik in XML."""
     return (text
@@ -312,17 +331,13 @@ def generate_html(items: list[dict], generated_at: datetime) -> str:
     data = _json.dumps([
         {
             "url":       item["url"],
-            "href":      (
-                f"/article/{item['video_id']}" if item.get("has_transcript")
-                else f"/article/podcast/{item.get('episode_id', '')}" if item.get("has_shownotes")
-                else item["url"]
-            ),
+            "href":      item["url"],
             "title":     item["title"],
             "score":     item["score"],
             "label":     score_label(item["score"]),
             "source":    item["feed_name"],
             "type":      item["source_type"],
-            "desc":      item.get("description", "")[:200],
+            "snippet":   extract_snippet(item.get("description", "")) or item.get("transcript_snippet", ""),
             "published": item.get("published", ""),
         }
         for item in items
@@ -468,6 +483,11 @@ def generate_html(items: list[dict], generated_at: datetime) -> str:
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }}
   .item-meta {{ font-size: .75rem; color: var(--muted); margin-top: .1rem; }}
+  .item-snippet {{
+    font-size: .75rem; color: var(--muted); margin-top: .2rem;
+    line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical; overflow: hidden;
+  }}
   a {{ color: inherit; text-decoration: none; }}
 </style>
 </head>
@@ -575,6 +595,7 @@ function makeItem(item, read, skipped) {{
         <a href="${{item.href}}" target="_blank" rel="noopener">${{escHtml(item.title)}}</a>
       </div>
       <div class="item-meta">${{escHtml(item.source)}}${{item.published ? " · " + fmtDate(item.published) : ""}}</div>
+      ${{item.snippet ? `<div class="item-snippet">${{escHtml(item.snippet)}}</div>` : ""}}
     </div>`;
   div.querySelector("a").addEventListener("click", (e) => {{
     e.stopPropagation();
@@ -767,6 +788,7 @@ def main():
 
             source_type = detect_source_type(feed_url, entry)
             score_text = title
+            transcript_snippet = ""
             if description:
                 score_text += " " + description[:1000]
 
@@ -782,6 +804,7 @@ def main():
                     if transcript:
                         score_text += " " + transcript[:3000]
                         has_transcript = True
+                        transcript_snippet = transcript[:250]
 
             # Podcast show notes cachen voor artikelgeneratie
             episode_id = None
@@ -803,7 +826,8 @@ def main():
                 "video_id":       video_id,
                 "has_transcript": has_transcript,
                 "episode_id":     episode_id,
-                "has_shownotes":  has_shownotes,
+                "has_shownotes":       has_shownotes,
+                "transcript_snippet": transcript_snippet,
             })
 
     if not all_items:

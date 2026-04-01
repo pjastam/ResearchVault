@@ -25,6 +25,14 @@
 - [Step 16: iPad access via SSH terminal](extensions/ipad-ssh.md)
 - [Step 17: In-browser terminal](extensions/browser-terminal.md)
 
+# Usage
+
+- [How the workflow fits together](usage/overview.md)
+- [Phase 0: the HTML reader](usage/phase0-reader.md)
+- [Phase 2: Go/No-go in Claude Code](usage/phase2-filter.md)
+- [Phase 3: processing to the vault](usage/phase3-process.md)
+- [Roadmap](usage/roadmap.md)
+
 # Reference
 
 - [Activating the skill & daily workflow](reference/daily-workflow.md)
