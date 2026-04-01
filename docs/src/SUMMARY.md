@@ -28,7 +28,7 @@
 # Usage
 
 - [How the workflow fits together](usage/overview.md)
-- [Phase 0: the HTML reader](usage/phase0-reader.md)
+- [Phase 1: sources into Zotero _inbox](usage/phase1-sources.md)
 - [Phase 2: Go/No-go in Claude Code](usage/phase2-filter.md)
 - [Phase 3: processing to the vault](usage/phase3-process.md)
 - [Roadmap](usage/roadmap.md)

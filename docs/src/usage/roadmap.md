@@ -6,69 +6,67 @@ The workflow is production-ready and in daily use, but several planned improveme
 
 ## Completed
 
+### Rename: phase0-* → feedreader-* ✅
+
+All scripts, configuration files, launchd agents, and internal references renamed. "Phase 0" was not a separate phase in the workflow but the automatic filtering function within Phase 1. The name `feedreader` better reflects the function: scoring, filtering, and serving RSS/YouTube/podcast feeds.
+
 ### Inline snippets in the HTML reader ✅
 
 The HTML reader now shows a short text excerpt below each item title (max. 2 lines). For web articles and podcasts this comes from the RSS description or show notes. For YouTube videos it comes from the video description, with a fallback to the opening lines of the cached transcript for channels that provide no meaningful description.
 
-This replaced an earlier design where clicking a YouTube or podcast headline generated a full reading article via Ollama (`qwen2.5:7b`). That approach placed article generation in Phase 0, where it does not belong: Phase 0 is for filtering, not for deep reading. All headlines now link directly to the original source URL. The article generation routes in `phase0-server.py` remain available but are no longer linked from the main reader.
+This replaced an earlier design where clicking a YouTube or podcast headline generated a full reading article via Ollama (`qwen2.5:7b`). That approach placed article generation in the wrong part of the workflow: the HTML reader is for filtering, not for deep reading. All headlines now link directly to the original source URL.
 
 ---
 
 ## In progress
 
-### Threshold calibration (Step 2)
+### Threshold calibration
 
-Phase 0 is learning your preferences by observing which items you add to Zotero (positive signal) and which items you explicitly reject with 👎 (negative signal).
+The feedreader is learning your preferences by observing which items you add to Zotero (positive signal) and which items you explicitly reject with 👎 (negative signal).
 
-**Current requirement:** ≥30 positive signals before `phase0-learn.py` can produce a reliable threshold recommendation.
+**Current requirement:** ≥30 positive signals before `feedreader-learn.py` can produce a reliable initial threshold recommendation.
 
 **How to contribute signals:**
 - Browse the HTML reader daily
 - Click on interesting items and add them to Zotero `_inbox`
-- Press 👎 on clearly irrelevant items — even when just the headline makes it obvious
+- Press 👎 on clearly irrelevant items
 
-`phase0-learn.py` runs automatically at 06:15 every morning. Run it manually for a progress report:
+`feedreader-learn.py` runs automatically at 06:15 every morning. Run it manually for a progress report:
 
 ```bash
-~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/phase0-learn.py
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/feedreader-learn.py
 ```
 
-Once ≥30 positives are reached, it will print a threshold recommendation. Apply it in `.claude/phase0-score.py`:
+Once ≥30 positives are reached, it will print a threshold recommendation. Apply it in `.claude/feedreader-score.py`:
 
 ```python
 THRESHOLD_GREEN  = ...   # from the recommendation
 THRESHOLD_YELLOW = ...   # from the recommendation
 ```
 
+**Learning is continuous.** After the initial threshold is set, every 👎 signal and every Zotero addition continues to refine the scoring. There is no endpoint — the feedreader keeps improving as long as you interact with it.
+
 ---
 
 ## Planned
 
-### Autonomous mode (Step 3) — after calibration
+### Autonomous mode — after initial threshold is set
 
-Once the threshold is stable, Phase 0 will route items above the threshold **automatically to Zotero `_inbox`** via the Zotero web API — without any action from you.
+Once the threshold is configured, the feedreader will route items above the threshold **automatically to Zotero `_inbox`** via the Zotero web API — without any action from you.
 
 This changes the daily rhythm:
 - **Now:** browse HTML reader → manually forward interesting items → Phase 2
-- **After:** Phase 0 fills `_inbox` autonomously → you only interact during Phase 2 and 3
+- **After:** feedreader fills `_inbox` autonomously → you interact mainly in Phase 2 and 3
 
-The HTML reader stays available as a transparency window: you can check at any time what was routed and why. The 👎 button continues to work as a correction mechanism.
+The HTML reader stays available as a transparency window and as an ongoing calibration channel. The 👎 button continues to work as a correction mechanism. Occasional browsing in NetNewsWire and sharing items to Zotero remains useful for keeping the scoring calibrated over time.
 
-### Skill update (Step 4) — after Step 3
+### Skill update — after autonomous mode
 
-The research workflow skill (`research-workflow-skill-v1.16.md`) will be updated to reflect the three-sources model:
+The research workflow skill (`research-workflow-skill-v1.17.md`) will be updated to reflect the fully autonomous feedreader as the default state for source 1, and to document the three-source model more precisely in the daily workflow description.
 
-| Source | Filtering | Phase 2 needed? |
-|---|---|---|
-| Phase 0 (autonomous) | Algorithm | Yes |
-| iOS share sheet | You | Minimal |
-| Desktop / email / notes | Manual | Yes |
+### NetNewsWire integration (ongoing, optional)
 
-The current skill describes Phase 1 as "the user scans the filtered feed." This will be updated to reflect that, in autonomous mode, Phase 1 is fully automatic for RSS content.
-
-### NetNewsWire integration test (Step 5, optional)
-
-Subscribe `filtered.xml` in NetNewsWire on iOS and evaluate whether the score labels (🟢🟡🔴) and titles are readable. If successful, NetNewsWire becomes an additional calibration channel: sharing an item from NetNewsWire to Zotero via the iOS share sheet behaves like source (2) — a deliberate user choice — and generates clean positive signals without needing to open the HTML reader.
+`filtered.xml` is available in NetNewsWire on iOS. Sharing an item from NetNewsWire to Zotero via the iOS share sheet generates a clean positive calibration signal and contributes to the ongoing threshold refinement — making NetNewsWire a permanent optional calibration channel, not just a calibration-phase tool.
 
 ---
 
@@ -84,6 +82,4 @@ Two serious candidates exist for replacing this layer with a local model:
 
 **ollmcp** — a terminal interface (TUI) that connects Ollama models to multiple MCP servers simultaneously, with an agent mode and human-in-the-loop controls. Closer to how Claude Code works today.
 
-Neither is yet a full replacement. The orchestration layer that Claude Code provides involves multi-phase session awareness, vault conventions, and reliable instruction-following across many rounds and tools. Local models (Qwen3.5:9b included) are noticeably less consistent in this role — not due to language capability, but due to reliability across complex multi-step workflows. The skill logic and CLAUDE.md conventions would need to be fully rebuilt as a system prompt, and the result would be less robust.
-
-This is worth revisiting as local models improve. The landscape is changing fast — Open WebUI and ollmcp are both in active development.
+Neither is yet a full replacement. The orchestration layer that Claude Code provides involves multi-phase session awareness, vault conventions, and reliable instruction-following across many rounds and tools. The landscape is changing fast and worth continuing to follow.

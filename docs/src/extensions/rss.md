@@ -2,9 +2,9 @@
 
 In the 4-phase model, RSS feeds are pre-filtered automatically before you see them (phase 0), so that your feed reader only shows items that are likely relevant to your research. You then browse this curated selection and send interesting items to Zotero `_inbox` (phase 1). Only in phase 2 do you decide what goes into the vault.
 
-## 12a. Phase 0 — Automatic relevance filtering
+## 12a. Feedreader — Automatic relevance filtering
 
-`phase0-score.py` runs daily via launchd and produces a filtered, scored Atom feed and HTML reader from your RSS subscriptions. It uses the same ChromaDB preference profile as `index-score.py` — items are scored by semantic similarity to your existing library.
+`feedreader-score.py` runs daily via launchd and produces a filtered, scored Atom feed and HTML reader from your RSS subscriptions. It uses the same ChromaDB preference profile as `index-score.py` — items are scored by semantic similarity to your existing library.
 
 **Install dependencies** (if not already present from step 10):
 
@@ -14,7 +14,7 @@ In the 4-phase model, RSS feeds are pre-filtered automatically before you see th
 
 > `youtube-transcript-api` is used to fetch transcripts for YouTube items in your feeds. These transcripts enrich the relevance score (instead of scoring on the title alone) and are cached in `.claude/transcript_cache/` so they are only fetched once per video.
 
-**Configure your feeds** — add one URL per line to `.claude/phase0-feeds.txt`:
+**Configure your feeds** — add one URL per line to `.claude/feedreader-list.txt`:
 
 ```
 https://arxiv.org/rss/econ.GN
@@ -25,9 +25,9 @@ http://onlinelibrary.wiley.com/rss/journal/10.1002/(ISSN)1099-1050
 **Load the launchd agents** (run once after installation):
 
 ```bash
-launchctl load ~/Library/LaunchAgents/nl.researchvault.phase0-server.plist
-launchctl load ~/Library/LaunchAgents/nl.researchvault.phase0-score.plist
-launchctl load ~/Library/LaunchAgents/nl.researchvault.phase0-learn.plist
+launchctl load ~/Library/LaunchAgents/nl.researchvault.feedreader-server.plist
+launchctl load ~/Library/LaunchAgents/nl.researchvault.feedreader-score.plist
+launchctl load ~/Library/LaunchAgents/nl.researchvault.feedreader-learn.plist
 ```
 
 This starts a local HTTP server on port 8765 and schedules the daily score run at 06:00.
@@ -35,7 +35,7 @@ This starts a local HTTP server on port 8765 and schedules the daily score run a
 **Run manually** (first time, or on demand):
 
 ```bash
-~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/phase0-score.py
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/feedreader-score.py
 ```
 
 **Access the filtered feed:**
@@ -50,15 +50,15 @@ The HTML reader includes an **⌨️ terminal** button in the header. Clicking i
 
 The article page (for both YouTube and podcast) includes three tag buttons — **✅ verwerken**, **📖 later lezen**, **geen tag** (default) — that control which Zotero tag is attached when you save the page via the Zotero Connector. The selected tag is injected as a COinS span (`<span class="Z3988">`); the full article text is also injected as `rft.description`, so it appears automatically in the Abstract field of the saved Zotero item.
 
-> **Serve directory:** the HTTP server serves files from `~/.local/share/phase0-serve/`, not from `~/Documents/`, because macOS TCC prevents system Python from accessing the Documents folder when launched via launchd.
+> **Serve directory:** the HTTP server serves files from `~/.local/share/feedreader-serve/`, not from `~/Documents/`, because macOS TCC prevents system Python from accessing the Documents folder when launched via launchd.
 
-**Learning loop** — `phase0-learn.py` runs daily at 06:15 and matches recently added Zotero items (by URL) against the score log. After ≥30 positives it prints a threshold recommendation. Once the threshold is stable, activate score filtering in `phase0-score.py` by adjusting `THRESHOLD_GREEN` and `THRESHOLD_YELLOW`.
+**Learning loop** — `feedreader-learn.py` runs daily at 06:15 and matches recently added Zotero items (by URL) against the score log. After ≥30 positives it prints a threshold recommendation. Once the threshold is stable, activate score filtering in `feedreader-score.py` by adjusting `THRESHOLD_GREEN` and `THRESHOLD_YELLOW`.
 
-> **Privacy note:** `phase0-score.py` runs entirely locally. Feed URLs are fetched directly from the source; no feed content is sent to any cloud service.
+> **Privacy note:** `feedreader-score.py` runs entirely locally. Feed URLs are fetched directly from the source; no feed content is sent to any cloud service.
 
 ## 12b. RSS feeds via NetNewsWire
 
-NetNewsWire is a free, open-source RSS reader for macOS and iOS, with iCloud sync between both devices. Rather than subscribing to individual feeds, you subscribe to the single filtered feed produced by Phase 0. This way your reading list only contains items that are likely relevant, sorted by relevance score.
+NetNewsWire is a free, open-source RSS reader for macOS and iOS, with iCloud sync between both devices. Rather than subscribing to individual feeds, you subscribe to the single filtered feed produced by the feedreader. This way your reading list only contains items that are likely relevant, sorted by relevance score.
 
 **Install:**
 
@@ -76,7 +76,7 @@ http://localhost:8765/filtered.xml
 
 Titles are prefixed with score and label (`🟢 54 | Title…`). To sort by relevance, click the **Date** column header → **Newest First**. Phase 0 encodes the score as a synthetic publication date so that higher-scoring items appear at the top.
 
-**Add your source feeds** to `.claude/phase0-feeds.txt` instead of directly to NetNewsWire. Useful sources:
+**Add your source feeds** to `.claude/feedreader-list.txt` instead of directly to NetNewsWire. Useful sources:
 - Journal RSS (e.g. BMJ, NEJM, Wiley Health Economics)
 - PubMed searches: `https://pubmed.ncbi.nlm.nih.gov/rss/search/?term=[searchterm]&format=abstract`
 - Policy sites and government newsletters
@@ -106,12 +106,12 @@ The HTML reader (`http://localhost:8765/filtered.html`) captures three types of 
 | 4 | 👎 pressed without clicking | **Strong explicit negative** (headline was enough to reject) | `skipped: true` immediately |
 | 5 | Item clicked, then 👎 pressed | **Strongest negative signal** (read and rejected) | `skipped: true` + `added_to_zotero: false` |
 
-> **Type 3 remains ambiguous** even with the 👎 button. Items you never looked at receive the same label as items you chose not to add. Only types 4 and 5 are unambiguous rejections. `phase0-learn.py` reports all three categories separately so you can track signal quality over time.
+> **Type 3 remains ambiguous** even with the 👎 button. Items you never looked at receive the same label as items you chose not to add. Only types 4 and 5 are unambiguous rejections. `feedreader-learn.py` reports all three categories separately so you can track signal quality over time.
 
 **How to use the 👎 button:**
 - When a headline is clearly off-topic, press 👎 directly — no need to open the article.
 - The item is immediately faded and struck through in the reader.
-- The rejection is sent to the server and queued in `skip_queue.jsonl`; `phase0-learn.py` processes it the next morning.
+- The rejection is sent to the server and queued in `skip_queue.jsonl`; `feedreader-learn.py` processes it the next morning.
 
 **Future use of explicit negatives:** once enough `skipped: true` items have accumulated, they can be used to build a negative profile that penalises similarity to rejected content: `score = sim(item, positive_profile) − λ × sim(item, negative_profile)`. The learning loop will advise when enough data is available.
 

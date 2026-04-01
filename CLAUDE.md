@@ -92,21 +92,21 @@ Na de frontmatter bevat elke notitie:
 - Bij lange podcasts (> 45 min): maak eerst een gelaagde samenvatting (hoofdlijn → per segment)
 - Ruwe `.mp3` en `.txt`-bestanden verwijder je uit `inbox/` nadat de note is aangemaakt
 
-## Phase 0 — RSS-filtering (phase0-score.py)
+## Feedreader — RSS-filtering (feedreader-score.py)
 
-Phase 0 filtert RSS-feeds automatisch op relevantie vóórdat je ze handmatig doorscant. Het draait dagelijks via launchd en produceert een gefilterde feed en HTML-pagina.
+De feedreader scoort RSS/YouTube/podcast-feeds automatisch op relevantie en produceert een gefilterde HTML-lezer en Atom-feed. Het is de automatische filterfunctie binnen fase 1 van de workflow. Draait dagelijks via launchd.
 
 **Bestanden:**
-- `.claude/phase0-feeds.txt` — lijst van feed-URLs (één per regel, `#` = commentaar); bevat webartikel-, YouTube- en podcast-feeds ingedeeld per categorie met `# ── Naam ────` headers
-- `.claude/phase0-score.py` — haalt feeds op, scoort items, detecteert brontype; voor YouTube-items haalt het eerst een transcript op via `youtube_transcript_api` (gecachet in `transcript_cache/`) en gebruikt de transcripttekst voor de scoreberekening; voor podcast-items met show notes ≥ 200 tekens (constante `SHOWNOTES_MIN_LENGTH`) worden de show notes gecachet in `transcript_cache/podcast_{episode_id}.json` (`episode_id` = `podcast_` + MD5-hash van de URL); schrijft `filtered.xml` en `filtered.html`
-- `.claude/phase0_core.py` — gedeelde functies: `cosine_similarity`, `compute_weighted_profile`, `score_label`, `detect_source_type`; constanten: `THRESHOLD_GREEN`, `THRESHOLD_YELLOW`, `WEIGHT_DEFAULT`, `WEIGHT_ANNOTATIONS`
-- `.claude/phase0-server.py` — lokale HTTP-server (poort 8765); handelt `POST /skip` af en serveert `GET /article/{video_id}` (YouTube) en `GET /article/podcast/{episode_id}` (podcast): genereert een leesbaar artikel via Ollama `qwen2.5:7b` (asynchroon, met laadpagina die elke 5 seconden herlaadt); na generatie wordt het volledige artikel ook als `abstract` opgeslagen in het cache-JSON-bestand; resultaten gecachet in `article_cache/`
-- `.claude/phase0-learn.py` — leerloop: verwerkt skip-queue, matcht Zotero-toevoegingen, geeft drempeladvies
+- `.claude/feedreader-list.txt` — lijst van feed-URLs (één per regel, `#` = commentaar); bevat webartikel-, YouTube- en podcast-feeds ingedeeld per categorie met `# ── Naam ────` headers
+- `.claude/feedreader-score.py` — haalt feeds op, scoort items, detecteert brontype; voor YouTube-items haalt het eerst een transcript op via `youtube_transcript_api` (gecachet in `transcript_cache/`) en gebruikt de transcripttekst voor de scoreberekening; voor podcast-items met show notes ≥ 200 tekens (constante `SHOWNOTES_MIN_LENGTH`) worden de show notes gecachet in `transcript_cache/podcast_{episode_id}.json` (`episode_id` = `podcast_` + MD5-hash van de URL); schrijft `filtered.xml` en `filtered.html`
+- `.claude/feedreader_core.py` — gedeelde functies: `cosine_similarity`, `compute_weighted_profile`, `score_label`, `detect_source_type`; constanten: `THRESHOLD_GREEN`, `THRESHOLD_YELLOW`, `WEIGHT_DEFAULT`, `WEIGHT_ANNOTATIONS`
+- `.claude/feedreader-server.py` — lokale HTTP-server (poort 8765); handelt `POST /skip` af en serveert `GET /article/{video_id}` (YouTube) en `GET /article/podcast/{episode_id}` (podcast): genereert een leesbaar artikel via Ollama `qwen2.5:7b` (asynchroon, met laadpagina die elke 5 seconden herlaadt); na generatie wordt het volledige artikel ook als `abstract` opgeslagen in het cache-JSON-bestand; resultaten gecachet in `article_cache/`
+- `.claude/feedreader-learn.py` — leerloop: verwerkt skip-queue, matcht Zotero-toevoegingen, geeft drempeladvies (continu proces)
 - `.claude/score_log.jsonl` — groeiend logboek (URL, score, bron, source_type, timestamp, added_to_zotero, skipped)
-- `.claude/skip_queue.jsonl` — wachtrij van expliciet afgewezen items (👎); dagelijks verwerkt door phase0-learn.py
+- `.claude/skip_queue.jsonl` — wachtrij van expliciet afgewezen items (👎); dagelijks verwerkt door feedreader-learn.py
 - `.claude/transcript_cache/` — JSON-cache van transcripten en show notes; YouTube: `{video_id}.json`; podcast: `podcast_{episode_id}.json`; na artikelgeneratie bevat het cache-bestand ook een `abstract`-veld met de volledige artikeltekst
 - `.claude/article_cache/` — HTML-cache van gegenereerde artikelen; YouTube: `{video_id}.html`; podcast: `podcast_{episode_id}.html`
-- `~/.local/share/phase0-serve/` — serveermap (buiten Documents vanwege macOS TCC)
+- `~/.local/share/feedreader-serve/` — serveermap (buiten Documents vanwege macOS TCC)
 
 **URLs (lokale HTTP-server op poort 8765):**
 - `http://localhost:8765/filtered.html` — HTML-lezer met score- en bronweergave + type-filterknoppen **Alles / 📄 / ▶️ / 🎙️** + **⌨️ terminal**-knop die een ttyd-terminal als iframe opent (poort 7681; iframe-URL gebaseerd op `window.location.hostname` zodat het ook werkt op iPad via het Mac-IP) (Mac/iPhone/iPad)
@@ -114,29 +114,27 @@ Phase 0 filtert RSS-feeds automatisch op relevantie vóórdat je ze handmatig do
 - `http://localhost:8765/article/{video_id}` — gegenereerd leesartikel voor een YouTube-video (structuur: Inleiding · Kernpunten · Conclusie; taal = originele videotaal)
 - `http://localhost:8765/article/podcast/{episode_id}` — gegenereerd leesartikel voor een podcast-aflevering op basis van show notes (zelfde structuur; alleen voor afleveringen met show notes ≥ 200 tekens)
 
-**Leesartikelen (YouTube en podcast):** klikken op een YouTube- of podcast-headline in de HTML-lezer opent een gegenereerd artikel in plaats van de originele pagina. Het artikel bevat knoppen om een Zotero-tag mee te geven vóór opslaan via de Zotero Connector: **✅ verwerken** · **📖 later lezen** · **geen tag** (standaard). De tag wordt meegegeven via een COinS-span (`<span class="Z3988">`); het volledige artikel wordt meegegeven als `rft.description` en verschijnt daarmee automatisch in het Abstract-veld van het Zotero-item. Model: `qwen2.5:7b` (Phase 0 only); voor Phase 2+ wordt `qwen3.5:9b` gebruikt.
-
-**Scores en labels:** 🟢 ≥50 · 🟡 40–49 · 🔴 <40 (drempels worden bijgesteld via phase0-learn.py)
+**Scores en labels:** 🟢 ≥50 · 🟡 40–49 · 🔴 <40 (drempels worden bijgesteld via feedreader-learn.py)
 
 **Handmatig uitvoeren:**
 ```bash
-~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/phase0-score.py
-~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/phase0-learn.py
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/feedreader-score.py
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/feedreader-learn.py
 ```
 
-**👎-knop:** elk item in de HTML-lezer heeft een 👎-knop. Klikken markeert het item als `skipped: true` in het logboek (via de server) en visueel als doorgestreept. Dit is een sterk expliciet negatief signaal, onderscheiden van "niet aangeklikt" (ambigu). Klikken op de headline markeert het item als gelezen en opent het artikel.
+**👎-knop:** elk item in de HTML-lezer heeft een 👎-knop. Klikken markeert het item als `skipped: true` in het logboek (via de server) en visueel als doorgestreept. Dit is een sterk expliciet negatief signaal, onderscheiden van "niet aangeklikt" (ambigu).
 
-**Leerloop:** phase0-learn.py verwerkt eerst de skip-queue (👎-signalen), matcht daarna recent aan Zotero toegevoegde items aan het logboek, en onderscheidt drie categorieën: ✅ positieven · 👎 expliciet afgewezen · ❌ zwak negatief (niet toegevoegd na timeout). Na ≥30 positieven geeft het een drempeladvies. Pas dan `THRESHOLD_GREEN` en `THRESHOLD_YELLOW` in `phase0-score.py` aan.
+**Leerloop:** feedreader-learn.py verwerkt eerst de skip-queue (👎-signalen), matcht daarna recent aan Zotero toegevoegde items aan het logboek, en onderscheidt drie categorieën: ✅ positieven · 👎 expliciet afgewezen · ❌ zwak negatief (niet toegevoegd na timeout). Na ≥30 positieven verschijnt een initieel drempeladvies; pas dan `THRESHOLD_GREEN` en `THRESHOLD_YELLOW` in `feedreader-score.py` aan. Het leren gaat daarna continu door.
 
 **launchd-agents** (laden bij inloggen):
-- `nl.researchvault.phase0-server` — HTTP-server permanent actief (poort 8765)
-- `nl.researchvault.phase0-score` — score-run dagelijks om 06:00
-- `nl.researchvault.phase0-learn` — leerloop dagelijks om 06:15
+- `nl.researchvault.feedreader-server` — HTTP-server permanent actief (poort 8765)
+- `nl.researchvault.feedreader-score` — score-run dagelijks om 06:00
+- `nl.researchvault.feedreader-learn` — leerloop dagelijks om 06:15
 - `nl.researchvault.ttyd` — browser-terminal permanent actief (poort 7681, `--writable`); log: `/tmp/ttyd.log`
 
 ## RSS-feeds
-- RSS-feeds worden gefilterd via Phase 0; de HTML-lezer (`http://localhost:8765/filtered.html`) of de Atom-feed in NetNewsWire toont items gesorteerd op relevantiescore
-- Feeds toevoegen: zet de feed-URL op een nieuwe regel in `.claude/phase0-feeds.txt`
+- RSS-feeds worden gefilterd door de feedreader; de HTML-lezer (`http://localhost:8765/filtered.html`) of de Atom-feed in NetNewsWire toont items gesorteerd op relevantiescore
+- Feeds toevoegen: zet de feed-URL op een nieuwe regel in `.claude/feedreader-list.txt`
 - Academische artikelen die interessant zijn: voeg ze toe aan Zotero via de browser-extensie of iOS-app → komen in `_inbox` terecht
 - Niet-academische artikelen: voeg toe via Zotero Connector, of geef de URL door met `inbox [URL]` voor directe opslag als Markdown in `inbox/`
 - Bestandsnaam voor RSS-items zonder Zotero-record: `[bron-jaar-kernwoord].md` met #tag `#web` of `#beleid`
@@ -165,4 +163,4 @@ ollama run qwen3.5:9b < inbox/bestand.txt > literature/bestand.md
 Dit geldt ook voor snapshot-HTML, VTT-transcripten en podcast-transcripten: nooit `cat` of `print` op de volledige inhoud uitvoeren als Bash-tool.
 
 ## Actieve skills
-- Lees en volg `.claude/skills/research-workflow-skill-v1.16.md` bij elke research-sessie.
+- Lees en volg `.claude/skills/research-workflow-skill-v1.17.md` bij elke research-sessie.

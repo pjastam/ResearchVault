@@ -6,7 +6,7 @@ Phase 3 converts approved items into structured Obsidian notes. All generation r
 
 ## Papers
 
-Papers reach `_inbox` via the Zotero browser extension, the iOS app, or automatically via Phase 0 (after calibration). After a Go decision in Phase 2:
+Papers reach `_inbox` via the Zotero browser extension, the iOS app, or automatically via the feedreader (after calibration). After a Go decision in Phase 2:
 
 ```
 verwerk recente papers
@@ -39,7 +39,7 @@ transcript [URL]
 ```
 
 Claude Code:
-1. Checks whether a transcript is already cached from Phase 0 (`.claude/transcript_cache/{video_id}.json`) — no re-fetch needed if so
+1. Checks whether a transcript is already cached from the feedreader (`.claude/transcript_cache/{video_id}.json`) — no re-fetch needed if so
 2. Falls back to yt-dlp if no cache exists
 3. Generates a structured note locally via Qwen3.5:9b:
    - Title, speaker, channel, date, URL

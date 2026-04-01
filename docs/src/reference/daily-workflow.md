@@ -25,7 +25,7 @@ From that point on, the skill is active as soon as you open Claude Code in your 
 
 ## Daily workflow after installation
 
-Once everything is set up, the daily workflow is straightforward. Phase 0 runs automatically — no action required.
+Once everything is set up, the daily workflow is straightforward. The feedreader runs automatically — no action required.
 
 1. **Browse the filtered feed** at `http://localhost:8765/filtered.html` (or in NetNewsWire via `http://localhost:8765/filtered.xml`). Items are sorted by relevance score. Send interesting ones to Zotero `_inbox` via the browser extension or iOS app.
 2. **Start Zotero** (so the local API is active)

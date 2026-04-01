@@ -1,12 +1,12 @@
-# Step 17: In-browser terminal — Phase 0 and Phase 2 in one tab
+# Step 17: In-browser terminal — Phase 1 and Phase 2 in one tab
 
-By default, Phase 0 (reading the filtered feed) happens in the browser, and Phase 2 (running Claude Code) happens in a separate terminal window. This step embeds a fully interactive terminal directly into the Phase 0 HTML reader, so both phases run in the same browser tab — on Mac, iPad, or any other device on your local network.
+By default, feedreader (reading the filtered feed) happens in the browser, and Phase 2 (running Claude Code) happens in a separate terminal window. This step embeds a fully interactive terminal directly into the feedreader HTML reader, so both phases run in the same browser tab — on Mac, iPad, or any other device on your local network.
 
 ## How it works
 
 VS Code embeds a terminal in the browser using **xterm.js** (a terminal renderer) connected to **node-pty** (a pseudo-terminal backend) over a WebSocket. The same architecture is available as a standalone tool: **ttyd**.
 
-ttyd runs a local HTTP server that serves an xterm.js terminal connected to a shell on your Mac mini. The Phase 0 HTML reader embeds this terminal as an iframe. Clicking the **⌨️ terminal** button in the header reveals the terminal panel alongside your article list.
+ttyd runs a local HTTP server that serves an xterm.js terminal connected to a shell on your Mac mini. The feedreader HTML reader embeds this terminal as an iframe. Clicking the **⌨️ terminal** button in the header reveals the terminal panel alongside your article list.
 
 The iframe URL is derived dynamically from `window.location.hostname`, so the terminal works whether you access the page from the Mac mini itself (`localhost`) or from an iPad on the local network (via the Mac's IP address).
 
@@ -46,7 +46,7 @@ cd ~/Documents/ResearchVault
 claude
 ```
 
-Type `/research` to start the research workflow skill. You can now read Phase 0 articles on the left and run Phase 2 in the terminal on the right, without switching tabs or apps.
+Type `/research` to start the research workflow skill. You can now read feedreader items on the left and run Phase 2 in the terminal on the right, without switching tabs or apps.
 
 The terminal panel is lazy-loaded: ttyd is only contacted when you first open the panel. If you never click the button, nothing changes in performance or behaviour.
 
