@@ -206,9 +206,22 @@ Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laa
      echo "[abstract + metadata]" | ollama run qwen3.5:9b
      ```
    - Vraag: **Go** (verwerken naar literatuurnotitie) of **No-go**?
-6. **Go-items:** verplaats naar de juiste collectie en verwerk direct (of stel dat voor als volgende stap). Stel bij het aanmaken van de literatuurnotitie de `status` in de frontmatter in:
-   - `status: read` als het item de tag `✅` had in Zotero
-   - `status: unread` in alle andere gevallen
+6. **Go-items:** verplaats naar de juiste collectie en verwerk via de subagent:
+   ```bash
+   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/skills/process_item.py \
+     --item-key ITEMKEY \
+     --title "Volledige titel" \
+     --authors "Achternaam, Voornaam" \
+     --year JJJJ \
+     --journal "Tijdschrift" \
+     --citation-key auteur2024kernwoord \
+     --zotero-url "zotero://select/library/1/items/ITEMKEY" \
+     --tags "thema1" --tags "thema2" \
+     --status read|unread
+   ```
+   De subagent haalt de volledige tekst lokaal op, genereert de notitie via Qwen3.5:9b en schrijft het `.md`-bestand naar `literature/`. Claude Code ontvangt alleen het JSON-statusobject `{"status": "ok", "path": "literature/..."}` — geen bron-inhoud.
+   - `--status read` als het item de tag `✅` had in Zotero; anders `--status unread`.
+   - Na ontvangst van het statusobject: voeg `[[interne links]]` toe naar gerelateerde notes.
 7. **No-go-items:** vraag altijd om bevestiging vóór verwijdering, verwijder daarna uit `_inbox`. Een no-go betekent altijd: geen notitie aanmaken én verwijderen uit `_inbox` — er is geen tussenoptie.
 8. Sluit af met een overzicht: "X items goedgekeurd, Y items verwijderd."
 
@@ -221,20 +234,23 @@ Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laa
 1. Vraag: recent toegevoegd, of specifiek thema?
 2. Haal via Zotero MCP de meest recente items op, of zoek op thema
 3. Toon lijst met titels — vraag welke verwerkt moeten worden
-4. Per paper: haal metadata op (alleen titel, auteurs, jaar, tags, citation key — geen volledige tekst). Sla de volledige tekst weg naar `inbox/` via `.claude/fetch-fulltext.py` — **nooit de inhoud printen of als tool-output retourneren**:
+4. Per paper: haal metadata op (alleen titel, auteurs, jaar, journal, citation key, tags — geen volledige tekst). Roep de subagent aan:
    ```bash
-   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/fetch-fulltext.py ITEMKEY inbox/[auteur-jaar]-bron.txt
+   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/skills/process_item.py \
+     --item-key ITEMKEY \
+     --title "Volledige titel" \
+     --authors "Achternaam, Voornaam" \
+     --year JJJJ \
+     --journal "Tijdschrift" \
+     --citation-key auteur2024kernwoord \
+     --zotero-url "zotero://select/library/1/items/ITEMKEY" \
+     --tags "thema1" --tags "thema2" \
+     --status unread
    ```
-5. Genereer de literatuurnotitie lokaal via qwen3.5:9b:
-   ```bash
-   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
-     --input inbox/[auteur-jaar]-bron.txt \
-     --output literature/[auteur-jaar-kernwoord].md \
-     --prompt "You are a research assistant writing literature notes for an Obsidian vault on health economics. Write the note in the same language as the source text. Use these sections: ## Core question and main argument / ## Key findings (3-5 points) / ## Methodological notes / ## Relevant quotes (original language) / ## Links to related notes. No frontmatter."
-   ```
-6. Verwijder het tijdelijke bronbestand uit `inbox/` na afronding
-7. Voeg daarna toe: frontmatter (inclusief `status: unread`, tenzij het item de tag `✅` had — dan `status: read`), `[[interne links]]` naar gerelateerde notes, en `#tags`
-8. Verwijder het item uit de Zotero `_inbox` collectie via de web API:
+   De subagent haalt de volledige tekst lokaal op, genereert de notitie via Qwen3.5:9b, bouwt de YAML frontmatter en schrijft het `.md`-bestand naar `literature/`. Geen bron-inhoud bereikt de Anthropic API. Claude Code ontvangt alleen `{"status": "ok", "path": "literature/..."}`.
+5. Na ontvangst van het statusobject: voeg `[[interne links]]` naar gerelateerde notes toe via de Edit-tool (lees de gegenereerde note om relevante links te identificeren op basis van de titel en tags — nooit de volledige inhoud in context laden).
+6. Gebruik `--status read` als het item de tag `✅` had; anders `--status unread`.
+7. Verwijder het item uit de Zotero `_inbox` collectie via de web API:
    ```bash
    ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/zotero-remove-from-inbox.py ITEMKEY
    ```
@@ -406,4 +422,4 @@ Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laa
 
 ---
 
-*Skill versie 1.17 — april 2026*
+*Skill versie 1.18 — april 2026 — subagent process_item.py geïntegreerd in Type 0 en Type 1*

@@ -62,9 +62,9 @@ Claude Code asks for one Go/No-go decision at a time, giving you space to decide
 
 **Go** means: this item is approved for Phase 3.
 
-Claude Code moves the item to the appropriate Zotero collection and begins processing — or asks whether you want to process it immediately or later in the session.
+Claude Code moves the item to the appropriate Zotero collection and calls the local subagent `process_item.py` with the item key and metadata (title, authors, year, tags). The subagent fetches the full text locally, generates the literature note via Qwen3.5:9b, builds the YAML frontmatter, and writes the `.md` file to `literature/`. Claude Code receives only a JSON status object — no source content.
 
-When the resulting literature note is created, the `status` field in the frontmatter is set based on the Zotero tag:
+The `status` field in the frontmatter is set based on the Zotero tag:
 - `status: read` — if the item had a `✅` tag (you had already read it)
 - `status: unread` — in all other cases
 

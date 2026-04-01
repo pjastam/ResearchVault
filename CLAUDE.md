@@ -149,7 +149,21 @@ De feedreader scoort RSS/YouTube/podcast-feeds automatisch op relevantie en prod
 
 **Volledige tekst van bronnen (papers, artikelen, transcripten) mag nooit als output van een Bash-commando in Claude's context terechtkomen.** Zodra tekst als tool-output terugkomt, is hij naar de Anthropic API gegaan — ook als de intentie was om hem alleen lokaal te verwerken.
 
-Correcte aanpak: haal de volledige tekst op én schrijf hem weg naar `inbox/` in één Bash-commando. Geef alleen lengte/status terug als output. Gebruik daarvoor `.claude/fetch-fulltext.py`:
+Correcte aanpak voor papers: gebruik `.claude/skills/process_item.py`. Dit is de privacy-preserving subagent die de volledige lokale pipeline uitvoert en alleen een JSON-statusobject teruggeeft:
+
+```bash
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/skills/process_item.py \
+  --item-key ITEMKEY \
+  --title "Titel" --authors "Achternaam, V." --year 2024 \
+  --journal "..." --citation-key auteur2024kw \
+  --zotero-url "zotero://select/library/1/items/ITEMKEY" \
+  --tags "thema" --status unread
+# → {"status": "ok", "path": "literature/auteur2024kw.md"}
+```
+
+De subagent roept intern `fetch-fulltext.py` en `ollama-generate.py` aan. Geen bron-inhoud bereikt Claude Code als tool-output.
+
+Voor losse stappen of speciale gevallen (transcripten, snapshots): gebruik `.claude/fetch-fulltext.py` direct:
 
 ```bash
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/fetch-fulltext.py ITEMKEY inbox/bestand.txt
@@ -157,7 +171,8 @@ Correcte aanpak: haal de volledige tekst op én schrijf hem weg naar `inbox/` in
 
 Daarna verwerken via Ollama:
 ```bash
-ollama run qwen3.5:9b < inbox/bestand.txt > literature/bestand.md
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
+  --input inbox/bestand.txt --output literature/bestand.md --prompt "..."
 ```
 
 Dit geldt ook voor snapshot-HTML, VTT-transcripten en podcast-transcripten: nooit `cat` of `print` op de volledige inhoud uitvoeren als Bash-tool.

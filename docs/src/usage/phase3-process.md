@@ -13,20 +13,24 @@ verwerk recente papers
 ```
 
 Claude Code:
-1. Retrieves metadata from Zotero MCP (title, authors, year, abstract, citation key)
-2. Saves the full text to `inbox/` via `fetch-fulltext.py` — **never printed to screen**
-3. Generates a structured literature note locally via `ollama-generate.py`:
-   - Core question and main argument
-   - Key findings (3–5 points)
-   - Methodological notes
-   - Relevant quotes (original language)
-   - Links to related notes
-4. Adds YAML frontmatter, `[[internal links]]`, and `#tags`
-5. Removes the item from Zotero `_inbox`
+1. Retrieves metadata from Zotero MCP (title, authors, year, journal, citation key, tags) — no full text
+2. Calls the local subagent `process_item.py` with only the item key and metadata:
+   - `process_item.py` fetches the full text locally, generates a structured note via Qwen3.5:9b, builds the YAML frontmatter, and writes the `.md` file to `literature/`
+   - Claude Code receives only `{"status": "ok", "path": "literature/..."}` — no source content
+3. Adds `[[internal links]]` to related notes in the vault
+4. Removes the item from Zotero `_inbox`
 
-Notes are saved to `literature/[author-year-keyword].md`.
+The generated note contains:
+- YAML frontmatter (title, authors, year, journal, citation key, tags, status)
+- Core question and main argument
+- Key findings (3–5 points)
+- Methodological notes
+- Relevant quotes (original language)
+- Links to related notes
 
-> **Privacy:** the full text of papers never appears as tool output in Claude Code's context. It is fetched and saved in a single Bash command; only the file size and status are returned.
+Notes are saved to `literature/[citation-key].md`.
+
+> **Privacy:** no paper content ever appears in Claude Code's context. `process_item.py` is a self-contained local subagent — it fetches, generates, and writes without returning any source text to the orchestration layer.
 
 ---
 

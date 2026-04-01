@@ -21,28 +21,32 @@ Claude Code communicates with the Anthropic API in every session. This is unavoi
 
 **The rule:** source content (full text of papers, article HTML, transcripts) must never be returned as output of a Bash command. The moment text appears as tool output, it has reached the Anthropic API.
 
-**The safe pipeline:**
+**The safe pipeline — single subagent call:**
 
 ```bash
-# 1. Fetch full text and write to file — only length/status is printed
-~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/fetch-fulltext.py ITEMKEY inbox/bron.txt
-
-# 2. Generate note via Ollama REST API — content stays local
-~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
-  --input inbox/bron.txt \
-  --output literature/notitie.md \
-  --prompt "..."
-
-# 3. Remove source file
-rm inbox/bron.txt
+# One command: fetch, generate, prepend frontmatter, clean up — only JSON status returned
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/skills/process_item.py \
+  --item-key ITEMKEY \
+  --title "Title of paper" \
+  --authors "Smith, John" \
+  --year 2024 \
+  --citation-key smith2024keyword \
+  --zotero-url "zotero://select/library/1/items/ITEMKEY" \
+  --tags "health-economics" \
+  --status unread
+# → {"status": "ok", "path": "literature/smith2024keyword.md"}
 ```
 
-What goes to the Anthropic API in this pipeline: only the prompt instruction and metadata (title, authors, year). What stays local: the full content of the paper or transcript.
+What goes to the Anthropic API in this pipeline: only the item key and metadata (title, authors, year, tags). What stays local: the full text, the Qwen3.5:9b generation, the note body, and the final `.md` file.
 
-**What this means in practice:**
+**What `process_item.py` does internally (all local):**
 
-- `fetch-fulltext.py` writes the Zotero attachment text to a local file and prints only `Saved: inbox/bron.txt (12,345 chars)`.
-- `ollama-generate.py` calls the Ollama REST API directly (no CLI, no ANSI codes) and writes the result to the output file.
-- Neither tool prints source content to the terminal or to Claude Code's context.
+1. `fetch-fulltext.py` — fetches the Zotero attachment and writes it to `inbox/_tmp_ITEMKEY.txt`; prints only file size and status.
+2. `ollama-generate.py` — calls the Ollama REST API directly (no CLI, no ANSI codes), generates the note body, writes to a temp file.
+3. Frontmatter is built from the metadata arguments and prepended to the note body.
+4. The final note is written to `literature/[citation-key].md`.
+5. Temp files in `inbox/` are removed.
+
+Neither tool ever prints source content to the terminal or to Claude Code's context. Claude Code only sees the JSON status object.
 
 > **Conclusion:** in the default mode, no paper content, transcript, or note text leaves the Mac mini. Claude Code orchestrates the workflow (instructions go to Anthropic), but all generative work runs locally via Qwen3.5:9b. Only when you explicitly request `--hd` does source content go to the Anthropic API — Claude Code always asks for confirmation first.

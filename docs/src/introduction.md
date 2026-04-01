@@ -7,15 +7,15 @@ A privacy-first workflow for processing documents, videos, podcasts, and RSS fee
 
 ---
 
-## The 4-phase model
+## The 3-phase model
 
-Every source — paper, podcast, video, RSS article — passes through four explicit phases:
+Every source — paper, podcast, video, RSS article — passes through three explicit phases:
 
 | Phase | Goal | How |
 |---|---|---|
 | **1 — Cast wide** | Capture everything relevant | Items flow into Zotero `_inbox` from three sources: (1) the feedreader (`feedreader-score.py`) scores RSS/YouTube/podcast feeds daily and produces a sorted HTML reader and Atom feed; (2) items shared directly via the iOS share sheet; (3) manual additions from desktop/email/notes |
 | **2 — Filter** | You decide what enters the vault | `index-score.py` ranks inbox items by semantic similarity to your library; Qwen3.5:9b (local) generates a summary for mid-range items; you give a **Go** or **No-go** |
-| **3 — Process** | Full processing of approved items | Claude Code writes a structured literature note to the Obsidian vault, including key findings, methodology notes, relevant quotes, and flashcards for spaced repetition |
+| **3 — Process** | Full processing of approved items | The local subagent `process_item.py` fetches the full text, generates a structured literature note via Qwen3.5:9b, and writes it to the Obsidian vault — including key findings, methodology notes, relevant quotes, and `[[internal links]]` |
 
 The separation between phases 1 and 3 keeps both your feed reader and your vault clean: only sources you have consciously approved end up in the vault.
 

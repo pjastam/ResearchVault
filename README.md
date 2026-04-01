@@ -12,7 +12,7 @@ Every source — paper, podcast, video, RSS article — passes through three exp
 |---|---|---|
 | **1 — Cast wide** | Capture from three sources into Zotero `_inbox` | **Feedreader** — `feedreader-score.py` runs daily, scores RSS/YouTube/podcast items by semantic similarity to your library, and produces a filtered HTML reader and Atom feed at `http://localhost:8765/filtered.html`; interesting items go to `_inbox` via browser extension or iOS app · **Share sheet** — content you've already consumed in apps (browser, YouTube, podcasts) goes directly to `_inbox` via the iOS share sheet · **Other** — documents, emails, and notes added manually |
 | **2 — Filter** | You decide what enters the vault | `index-score.py` ranks inbox items by semantic similarity to your existing library; Qwen3.5:9b (local) generates a 2–3 sentence summary per item; you give a **Go** or **No-go** |
-| **3 — Process** | Full processing of approved items | Claude Code writes a structured literature note to the Obsidian vault, including key findings, methodology notes, relevant quotes, and flashcards for spaced repetition |
+| **3 — Process** | Full processing of approved items | Qwen3.5:9b (local) writes a structured literature note to the Obsidian vault including key findings, methodology notes, relevant quotes, and flashcards for spaced repetition
 
 The explicit filter step between capture and processing keeps both your feed reader and your vault clean: only sources you have consciously approved end up in the vault, and your feed reader only shows items that are likely relevant.
 
@@ -52,17 +52,22 @@ ResearchVault/
 ├── inbox/            # Raw input awaiting processing
 ├── CLAUDE.md         # Workflow instructions for Claude Code
 └── .claude/
-    ├── index-score.py         # Relevance scoring for _inbox items (phase 2)
-    ├── feedreader-score.py    # RSS feed scoring and filtered feed generation (feedreader)
-    ├── feedreader_core.py     # Shared scoring functions (cosine similarity, profile, source type detection)
-    ├── feedreader-server.py   # Local HTTP server (port 8765) + POST /skip + GET /article/{video_id}
-    ├── feedreader-learn.py    # Learning loop: processes skip queue + threshold calibration
-    ├── feedreader-list.txt    # List of RSS feed URLs (web, YouTube, podcast)
-    ├── score_log.jsonl     # Running log of scored feed items (incl. source_type, skipped flag)
-    ├── skip_queue.jsonl    # Queue of explicitly rejected items (👎); processed daily
-    ├── transcript_cache/   # Transcript & show-notes cache (YouTube: {video_id}.json; podcast: podcast_{episode_id}.json)
-    ├── article_cache/      # Generated article cache (YouTube: {video_id}.html; podcast: podcast_{episode_id}.html)
-    └── skills/             # Research workflow skill loaded each session
+    ├── index-score.py          # Relevance scoring for _inbox items (phase 2)
+    ├── fetch-fulltext.py       # Fetch Zotero attachment text to a local file (no content returned)
+    ├── ollama-generate.py      # Call Ollama REST API and write output to file
+    ├── zotero-inbox.py         # List all items in Zotero _inbox (human-readable or JSON)
+    ├── feedreader-score.py     # RSS feed scoring and filtered feed generation (feedreader)
+    ├── feedreader_core.py      # Shared scoring functions (cosine similarity, profile, source type detection)
+    ├── feedreader-server.py    # Local HTTP server (port 8765) + POST /skip + GET /article/{video_id}
+    ├── feedreader-learn.py     # Learning loop: processes skip queue + threshold calibration
+    ├── feedreader-list.txt     # List of RSS feed URLs (web, YouTube, podcast)
+    ├── score_log.jsonl         # Running log of scored feed items (incl. source_type, skipped flag)
+    ├── skip_queue.jsonl        # Queue of explicitly rejected items (👎); processed daily
+    ├── transcript_cache/       # Transcript & show-notes cache (YouTube: {video_id}.json; podcast: podcast_{episode_id}.json)
+    ├── article_cache/          # Generated article cache (YouTube: {video_id}.html; podcast: podcast_{episode_id}.html)
+    └── skills/
+        ├── research-workflow-skill-v1.17.md  # Workflow skill (loaded each session)
+        └── process_item.py                   # Privacy-preserving subagent: item key + metadata → literature note
 ```
 
 ---
@@ -131,7 +136,7 @@ The script auto-detects your home path and asks for your Zotero library ID (foun
 
 1. Does content go to the cloud?
 
-In the default mode: no. Claude Code orchestrates the workflow, but the actual generative work — summaries, literature notes, flashcards — is done by Qwen3.5:9b running locally via Ollama. Source content is piped directly to Ollama via bash (ollama run qwen3.5:9b < file.txt), so it never enters Claude Code's context and never reaches Anthropic's servers. Only when you explicitly add --hd does source content go to the Anthropic API — and Claude Code asks for confirmation first.                                                    
+In the default mode: no. Claude Code orchestrates the workflow, but all content-heavy work is delegated to `process_item.py` — a local subagent that receives only a Zotero item key and metadata (title, authors, year, tags). The subagent fetches the full text locally, generates the literature note via Qwen3.5:9b (Ollama), and writes the `.md` file to `literature/`. Claude Code receives only a JSON status object: `{"status": "ok", "path": "literature/..."}`. No source content ever reaches Anthropic's servers. Only when you explicitly add `--hd` does source content go to the Anthropic API — and Claude Code asks for confirmation first.
 
 2. Do you need a paid Claude subscription?
 

@@ -57,12 +57,14 @@ def make_sqlite_copy(source: Path) -> Path:
 
 
 def get_inbox_keys(conn: sqlite3.Connection, inbox_id: int) -> list[str]:
-    """Haalt alle item_keys op uit de _inbox collectie."""
+    """Haalt item_keys op uit de _inbox collectie, exclusief bijlagen en notes."""
     cur = conn.execute("""
         SELECT i.key
         FROM collectionItems ci
         JOIN items i ON i.itemID = ci.itemID
+        JOIN itemTypes it ON it.itemTypeID = i.itemTypeID
         WHERE ci.collectionID = ?
+        AND it.typeName NOT IN ('note', 'attachment')
     """, (inbox_id,))
     return [row[0] for row in cur.fetchall()]
 
