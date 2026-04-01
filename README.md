@@ -4,22 +4,21 @@ A privacy-first workflow for processing documents, videos, podcasts, and RSS fee
 
 ---
 
-## The 4-phase model
+## The 3-phase model
 
-Every source — paper, podcast, video, RSS article — passes through four explicit phases:
+Every source — paper, podcast, video, RSS article — passes through three explicit phases:
 
 | Phase | Goal | How |
 |---|---|---|
-| **0 — Pre-filter** | Automatically score and rank RSS feeds before you see them | `phase0-score.py` runs daily via launchd, scores each feed item (web articles, YouTube videos, podcasts) by semantic similarity to your library — YouTube scores are enriched with transcript text fetched via `youtube_transcript_api` — and produces a sorted Atom feed and HTML reader at `http://localhost:8765/filtered.html` with type filter buttons (📄 ▶️ 🎙️); clicking a YouTube headline opens a generated reading article at `/article/{video_id}` (async, via local `qwen2.5:7b`) with tag buttons for the Zotero Connector; clicking a podcast headline with rich show notes (≥ 200 chars) opens a similar article at `/article/podcast/{episode_id}`; both article types inject the full generated text as the Zotero abstract via `rft.description` in COinS |
-| **1 — Cast wide** | Capture everything that passes the pre-filter | Interesting items from the filtered feed flow into Zotero `_inbox` via browser extension or iOS app; podcasts and videos are added via the iOS share sheet |
+| **1 — Cast wide** | Capture from three sources into Zotero `_inbox` | **Feedreader** — `feedreader-score.py` runs daily, scores RSS/YouTube/podcast items by semantic similarity to your library, and produces a filtered HTML reader and Atom feed at `http://localhost:8765/filtered.html`; interesting items go to `_inbox` via browser extension or iOS app · **Share sheet** — content you've already consumed in apps (browser, YouTube, podcasts) goes directly to `_inbox` via the iOS share sheet · **Other** — documents, emails, and notes added manually |
 | **2 — Filter** | You decide what enters the vault | `index-score.py` ranks inbox items by semantic similarity to your existing library; Qwen3.5:9b (local) generates a 2–3 sentence summary per item; you give a **Go** or **No-go** |
 | **3 — Process** | Full processing of approved items | Claude Code writes a structured literature note to the Obsidian vault, including key findings, methodology notes, relevant quotes, and flashcards for spaced repetition |
 
-The separation between phases 0 and 3 keeps both your feed reader and your vault clean: only sources you have consciously approved end up in the vault, and your feed reader only shows items that are likely relevant.
+The separation between phases 1 and 3 keeps both your feed reader and your vault clean: only sources you have consciously approved end up in the vault, and your feed reader only shows items that are likely relevant.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/architecture-diagram-v1.12-dark.svg">
-  <img src="assets/architecture-diagram-v1.12-light.svg" alt="Architecture diagram">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/architecture-diagram-v1.13-dark.svg">
+  <img src="assets/architecture-diagram-v1.13-light.svg" alt="Architecture diagram">
 </picture>
 
 ---
@@ -35,7 +34,7 @@ The separation between phases 0 and 3 keeps both your feed reader and your vault
 | [yt-dlp](https://github.com/yt-dlp/yt-dlp) | Download YouTube transcripts and podcast audio | Local |
 | [youtube-transcript-api](https://github.com/jdepoix/youtube-transcript-api) | Fast transcript fetching for Phase 0 YouTube scoring (no video download) | Local |
 | [whisper.cpp](https://github.com/ggerganov/whisper.cpp) | Local speech-to-text transcription for podcasts | Local |
-| [NetNewsWire](https://netnewswire.com) | RSS reader subscribed to the Phase 0 filtered feed | Local |
+| [NetNewsWire](https://netnewswire.com) | RSS reader subscribed to the feedreader filtered feed | Local |
 | [Claude Code](https://claude.ai/claude-code) | AI assistant that orchestrates the workflow; generative work runs locally via Qwen3.5:9b (Ollama) | Local (default) / Cloud API with `--hd` |
 
 In standard mode, only orchestration instructions are sent to the Anthropic API; all generative work is handled locally by Qwen3.5:9b. Only when `--hd` is explicitly requested do the prompt and source content go to the Anthropic API (Claude Sonnet 4.6). Reference data, notes, and transcriptions always stay local.
@@ -53,12 +52,12 @@ ResearchVault/
 ├── inbox/            # Raw input awaiting processing
 ├── CLAUDE.md         # Workflow instructions for Claude Code
 └── .claude/
-    ├── index-score.py      # Relevance scoring for _inbox items (phase 2)
-    ├── phase0-score.py     # RSS feed scoring and filtered feed generation (phase 0)
-    ├── phase0_core.py      # Shared scoring functions (cosine similarity, profile, source type detection)
-    ├── phase0-server.py    # Local HTTP server (port 8765) + POST /skip + GET /article/{video_id}
-    ├── phase0-learn.py     # Learning loop: processes skip queue + threshold calibration
-    ├── phase0-feeds.txt    # List of RSS feed URLs for phase 0 (web, YouTube, podcast)
+    ├── index-score.py         # Relevance scoring for _inbox items (phase 2)
+    ├── feedreader-score.py    # RSS feed scoring and filtered feed generation (feedreader)
+    ├── feedreader_core.py     # Shared scoring functions (cosine similarity, profile, source type detection)
+    ├── feedreader-server.py   # Local HTTP server (port 8765) + POST /skip + GET /article/{video_id}
+    ├── feedreader-learn.py    # Learning loop: processes skip queue + threshold calibration
+    ├── feedreader-list.txt    # List of RSS feed URLs (web, YouTube, podcast)
     ├── score_log.jsonl     # Running log of scored feed items (incl. source_type, skipped flag)
     ├── skip_queue.jsonl    # Queue of explicitly rejected items (👎); processed daily
     ├── transcript_cache/   # Transcript & show-notes cache (YouTube: {video_id}.json; podcast: podcast_{episode_id}.json)
@@ -70,7 +69,7 @@ ResearchVault/
 
 ## Daily use (summary)
 
-**Phase 0 runs automatically** — `phase0-score.py` is triggered daily at 06:00 by a launchd agent, scores all feeds in `phase0-feeds.txt`, and updates the filtered feed at `http://localhost:8765/filtered.html`. No manual action required.
+**The feedreader runs automatically** — `feedreader-score.py` is triggered daily at 06:00 by a launchd agent, scores all feeds in `feedreader-list.txt`, and updates the filtered feed at `http://localhost:8765/filtered.html`. No manual action required.
 
 **Your daily session:**
 
