@@ -1,0 +1,321 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Phase 0: the HTML reader - Local Research Workflow</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="A privacy-first workflow for processing documents, videos, podcasts, and RSS feeds with local AI.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('light')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../introduction.html">Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Installation</li><li class="chapter-item expanded "><a href="../installation/homebrew.html"><strong aria-hidden="true">1.</strong> Step 1: Homebrew</a></li><li class="chapter-item expanded "><a href="../installation/zotero.html"><strong aria-hidden="true">2.</strong> Step 2: Zotero</a></li><li class="chapter-item expanded "><a href="../installation/python.html"><strong aria-hidden="true">3.</strong> Step 3: Python environment</a></li><li class="chapter-item expanded "><a href="../installation/zotero-mcp.html"><strong aria-hidden="true">4.</strong> Step 4: Zotero MCP</a></li><li class="chapter-item expanded "><a href="../installation/claude-code.html"><strong aria-hidden="true">5.</strong> Step 5: Claude Code</a></li><li class="chapter-item expanded "><a href="../installation/ollama.html"><strong aria-hidden="true">6.</strong> Step 6: Ollama</a></li><li class="chapter-item expanded "><a href="../installation/obsidian.html"><strong aria-hidden="true">7.</strong> Step 7: Obsidian</a></li><li class="chapter-item expanded "><a href="../installation/connect.html"><strong aria-hidden="true">8.</strong> Step 8: Connect everything</a></li><li class="chapter-item expanded "><a href="../installation/first-test.html"><strong aria-hidden="true">9.</strong> Step 9: First test</a></li><li class="chapter-item expanded affix "><li class="part-title">Extensions</li><li class="chapter-item expanded "><a href="../extensions/yt-dlp.html"><strong aria-hidden="true">10.</strong> Step 10: yt-dlp & semantic search</a></li><li class="chapter-item expanded "><a href="../extensions/podcasts.html"><strong aria-hidden="true">11.</strong> Step 11: Podcast integration</a></li><li class="chapter-item expanded "><a href="../extensions/rss.html"><strong aria-hidden="true">12.</strong> Step 12: RSS integration + Phase 0 filtering</a></li><li class="chapter-item expanded "><a href="../extensions/spaced-repetition.html"><strong aria-hidden="true">13.</strong> Step 13: Spaced repetition</a></li><li class="chapter-item expanded "><a href="../extensions/filter-layer.html"><strong aria-hidden="true">14.</strong> Step 14: Filter layer per source</a></li><li class="chapter-item expanded "><a href="../extensions/future-orchestrator.html"><strong aria-hidden="true">15.</strong> Step 15: Future perspective — local orchestrator</a></li><li class="chapter-item expanded "><a href="../extensions/ipad-ssh.html"><strong aria-hidden="true">16.</strong> Step 16: iPad access via SSH terminal</a></li><li class="chapter-item expanded "><a href="../extensions/browser-terminal.html"><strong aria-hidden="true">17.</strong> Step 17: In-browser terminal</a></li><li class="chapter-item expanded affix "><li class="part-title">Usage</li><li class="chapter-item expanded "><a href="../usage/overview.html"><strong aria-hidden="true">18.</strong> How the workflow fits together</a></li><li class="chapter-item expanded "><a href="../usage/phase0-reader.html" class="active"><strong aria-hidden="true">19.</strong> Phase 0: the HTML reader</a></li><li class="chapter-item expanded "><a href="../usage/phase2-filter.html"><strong aria-hidden="true">20.</strong> Phase 2: Go/No-go in Claude Code</a></li><li class="chapter-item expanded "><a href="../usage/phase3-process.html"><strong aria-hidden="true">21.</strong> Phase 3: processing to the vault</a></li><li class="chapter-item expanded "><a href="../usage/roadmap.html"><strong aria-hidden="true">22.</strong> Roadmap</a></li><li class="chapter-item expanded affix "><li class="part-title">Reference</li><li class="chapter-item expanded "><a href="../reference/daily-workflow.html"><strong aria-hidden="true">23.</strong> Activating the skill & daily workflow</a></li><li class="chapter-item expanded "><a href="../reference/troubleshooting.html"><strong aria-hidden="true">24.</strong> Troubleshooting</a></li><li class="chapter-item expanded "><a href="../reference/privacy.html"><strong aria-hidden="true">25.</strong> Privacy overview</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Local Research Workflow</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/pjastam/ResearchVault" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/pjastam/ResearchVault/edit/main/docs/src/src/usage/phase0-reader.md" title="Suggest an edit" aria-label="Suggest an edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="phase-0-the-html-reader"><a class="header" href="#phase-0-the-html-reader">Phase 0: the HTML reader</a></h1>
+<p>The filtered feed is available at:</p>
+<ul>
+<li><strong>HTML reader</strong> (Mac, iPhone, iPad): <code>http://localhost:8765/filtered.html</code></li>
+<li><strong>Atom feed</strong> (NetNewsWire): <code>http://localhost:8765/filtered.xml</code></li>
+</ul>
+<p>The HTML reader is the primary interface during the calibration phase. It shows all scored feed items sorted by relevance, with controls for filtering by type and view.</p>
+<hr />
+<h2 id="reading-the-item-list"><a class="header" href="#reading-the-item-list">Reading the item list</a></h2>
+<p>Each item shows:</p>
+<ul>
+<li><strong>Score badge</strong> — relevance score 0–100, colour-coded: 🟢 ≥50 · 🟡 40–49 · 🔴 &lt;40</li>
+<li><strong>Title</strong> — links to the original source</li>
+<li><strong>Source and date</strong> — feed name and publication date</li>
+<li><strong>Snippet</strong> — short excerpt below the title (2 lines max):
+<ul>
+<li>Web articles: first prose from the article description</li>
+<li>Podcasts: first prose from the show notes</li>
+<li>YouTube: first prose from the video description, or — if the description contains only links — the opening lines of the video transcript</li>
+</ul>
+</li>
+</ul>
+<p>Items that have been read appear faded. Items marked with 👎 appear struck through.</p>
+<hr />
+<h2 id="type-filters"><a class="header" href="#type-filters">Type filters</a></h2>
+<p>The header contains four filter buttons:</p>
+<div class="table-wrapper"><table><thead><tr><th>Button</th><th>Shows</th></tr></thead><tbody>
+<tr><td>Alles</td><td>All item types</td></tr>
+<tr><td>📄</td><td>Web articles only</td></tr>
+<tr><td>▶️</td><td>YouTube videos only</td></tr>
+<tr><td>🎙️</td><td>Podcast episodes only</td></tr>
+</tbody></table>
+</div>
+<p>Three sort views are also available: <strong>Op score</strong> (default), <strong>Op bron</strong> (grouped by feed), <strong>Op datum</strong> (chronological).</p>
+<hr />
+<h2 id="giving-feedback"><a class="header" href="#giving-feedback">Giving feedback</a></h2>
+<p>Feedback signals are the core input for calibrating Phase 0's scoring threshold.</p>
+<h3 id="positive-signal-click--add-to-zotero"><a class="header" href="#positive-signal-click--add-to-zotero">Positive signal: click + add to Zotero</a></h3>
+<p>When a headline is interesting:</p>
+<ol>
+<li>Click the headline → the item opens in a new tab and is marked as read.</li>
+<li>Save the item to Zotero <code>_inbox</code> via the browser extension or iOS app.</li>
+</ol>
+<p>This is recorded as <code>added_to_zotero: true</code> in the score log — the strongest positive signal.</p>
+<h3 id="negative-signal--button"><a class="header" href="#negative-signal--button">Negative signal: 👎 button</a></h3>
+<p>When a headline is clearly off-topic, press the 👎 button directly — no need to open the item. The item is immediately struck through in the reader and queued in <code>skip_queue.jsonl</code>. <code>phase0-learn.py</code> processes this the next morning.</p>
+<blockquote>
+<p><strong>Use 👎 liberally during calibration.</strong> Explicit negative signals are valuable because unclicked items are ambiguous — they could mean "not seen" just as easily as "not interesting".</p>
+</blockquote>
+<h3 id="signal-quality-overview"><a class="header" href="#signal-quality-overview">Signal quality overview</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Behaviour</th><th>Signal</th><th>How recorded</th></tr></thead><tbody>
+<tr><td>Clicked + added to Zotero</td><td>Strong positive</td><td><code>added_to_zotero: true</code></td></tr>
+<tr><td>Clicked, not added to Zotero</td><td>Weak negative</td><td><code>added_to_zotero: false</code> after 3 days</td></tr>
+<tr><td>Not clicked, no 👎</td><td>Ambiguous</td><td><code>added_to_zotero: false</code> after 3 days</td></tr>
+<tr><td>👎 without clicking</td><td>Strong explicit negative</td><td><code>skipped: true</code> immediately</td></tr>
+<tr><td>Clicked, then 👎</td><td>Strongest negative</td><td><code>skipped: true</code> + <code>added_to_zotero: false</code></td></tr>
+</tbody></table>
+</div>
+<hr />
+<h2 id="hiding-read-and-skipped-items"><a class="header" href="#hiding-read-and-skipped-items">Hiding read and skipped items</a></h2>
+<p>Click <strong>verberg gelezen / overgeslagen</strong> in the header to hide all items you have already processed. Click again to show everything.</p>
+<hr />
+<h2 id="in-browser-terminal"><a class="header" href="#in-browser-terminal">In-browser terminal</a></h2>
+<p>The <strong>⌨️ terminal</strong> button in the header opens an embedded terminal panel (ttyd, port 7681) alongside the article list. This lets you start a Claude Code session for Phase 2 without switching apps or tabs. The terminal works on Mac (<code>localhost</code>) and on iPad (via the Mac's local IP address).</p>
+<p>To start a Phase 2 session from the terminal:</p>
+<pre><code class="language-bash">cd ~/Documents/ResearchVault &amp;&amp; claude
+</code></pre>
+<p>Then type <code>beoordeel inbox</code> to begin the Go/No-go review.</p>
+<hr />
+<h2 id="calibration-adjusting-the-scoring-threshold"><a class="header" href="#calibration-adjusting-the-scoring-threshold">Calibration: adjusting the scoring threshold</a></h2>
+<p><code>phase0-learn.py</code> runs automatically at 06:15 every day and produces a report of:</p>
+<ul>
+<li>✅ positive signals (clicked + added to Zotero)</li>
+<li>👎 explicit negative signals</li>
+<li>❌ weak negatives (seen but not added after 3 days)</li>
+</ul>
+<p>Run it manually at any time:</p>
+<pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/phase0-learn.py
+</code></pre>
+<p>After <strong>≥30 positive signals</strong>, the script produces a threshold recommendation. Apply it by editing two constants in <code>.claude/phase0-score.py</code>:</p>
+<pre><code class="language-python">THRESHOLD_GREEN  = 50   # adjust based on recommendation
+THRESHOLD_YELLOW = 40   # adjust based on recommendation
+</code></pre>
+<p>Once the threshold is stable, Phase 0 can transition to autonomous mode. See <a href="roadmap.html">Roadmap</a>.</p>
+<hr />
+<h2 id="netnewswire-as-an-alternative-reader"><a class="header" href="#netnewswire-as-an-alternative-reader">NetNewsWire as an alternative reader</a></h2>
+<p><code>filtered.xml</code> can be added as a single subscription in NetNewsWire on macOS or iOS. Titles are prefixed with score and label (<code>🟢 54 | Title…</code>). Phase 0 encodes the score as a synthetic publication date so sorting by <strong>Newest First</strong> equals sorting by relevance.</p>
+<p>In NetNewsWire, saving an item via the share sheet to Zotero behaves like source (2) — you have actively selected the item, so it is treated as pre-filtered. This is an alternative calibration channel that works without opening the HTML reader.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../usage/overview.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../usage/phase2-filter.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../usage/overview.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../usage/phase2-filter.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </div>
+    </body>
+</html>

@@ -1,0 +1,328 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Phase 3: processing to the vault - Local Research Workflow</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="A privacy-first workflow for processing documents, videos, podcasts, and RSS feeds with local AI.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('light')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../introduction.html">Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Installation</li><li class="chapter-item expanded "><a href="../installation/homebrew.html"><strong aria-hidden="true">1.</strong> Step 1: Homebrew</a></li><li class="chapter-item expanded "><a href="../installation/zotero.html"><strong aria-hidden="true">2.</strong> Step 2: Zotero</a></li><li class="chapter-item expanded "><a href="../installation/python.html"><strong aria-hidden="true">3.</strong> Step 3: Python environment</a></li><li class="chapter-item expanded "><a href="../installation/zotero-mcp.html"><strong aria-hidden="true">4.</strong> Step 4: Zotero MCP</a></li><li class="chapter-item expanded "><a href="../installation/claude-code.html"><strong aria-hidden="true">5.</strong> Step 5: Claude Code</a></li><li class="chapter-item expanded "><a href="../installation/ollama.html"><strong aria-hidden="true">6.</strong> Step 6: Ollama</a></li><li class="chapter-item expanded "><a href="../installation/obsidian.html"><strong aria-hidden="true">7.</strong> Step 7: Obsidian</a></li><li class="chapter-item expanded "><a href="../installation/connect.html"><strong aria-hidden="true">8.</strong> Step 8: Connect everything</a></li><li class="chapter-item expanded "><a href="../installation/first-test.html"><strong aria-hidden="true">9.</strong> Step 9: First test</a></li><li class="chapter-item expanded affix "><li class="part-title">Extensions</li><li class="chapter-item expanded "><a href="../extensions/yt-dlp.html"><strong aria-hidden="true">10.</strong> Step 10: yt-dlp & semantic search</a></li><li class="chapter-item expanded "><a href="../extensions/podcasts.html"><strong aria-hidden="true">11.</strong> Step 11: Podcast integration</a></li><li class="chapter-item expanded "><a href="../extensions/rss.html"><strong aria-hidden="true">12.</strong> Step 12: RSS integration + Phase 0 filtering</a></li><li class="chapter-item expanded "><a href="../extensions/spaced-repetition.html"><strong aria-hidden="true">13.</strong> Step 13: Spaced repetition</a></li><li class="chapter-item expanded "><a href="../extensions/filter-layer.html"><strong aria-hidden="true">14.</strong> Step 14: Filter layer per source</a></li><li class="chapter-item expanded "><a href="../extensions/future-orchestrator.html"><strong aria-hidden="true">15.</strong> Step 15: Future perspective — local orchestrator</a></li><li class="chapter-item expanded "><a href="../extensions/ipad-ssh.html"><strong aria-hidden="true">16.</strong> Step 16: iPad access via SSH terminal</a></li><li class="chapter-item expanded "><a href="../extensions/browser-terminal.html"><strong aria-hidden="true">17.</strong> Step 17: In-browser terminal</a></li><li class="chapter-item expanded affix "><li class="part-title">Usage</li><li class="chapter-item expanded "><a href="../usage/overview.html"><strong aria-hidden="true">18.</strong> How the workflow fits together</a></li><li class="chapter-item expanded "><a href="../usage/phase0-reader.html"><strong aria-hidden="true">19.</strong> Phase 0: the HTML reader</a></li><li class="chapter-item expanded "><a href="../usage/phase2-filter.html"><strong aria-hidden="true">20.</strong> Phase 2: Go/No-go in Claude Code</a></li><li class="chapter-item expanded "><a href="../usage/phase3-process.html" class="active"><strong aria-hidden="true">21.</strong> Phase 3: processing to the vault</a></li><li class="chapter-item expanded "><a href="../usage/roadmap.html"><strong aria-hidden="true">22.</strong> Roadmap</a></li><li class="chapter-item expanded affix "><li class="part-title">Reference</li><li class="chapter-item expanded "><a href="../reference/daily-workflow.html"><strong aria-hidden="true">23.</strong> Activating the skill & daily workflow</a></li><li class="chapter-item expanded "><a href="../reference/troubleshooting.html"><strong aria-hidden="true">24.</strong> Troubleshooting</a></li><li class="chapter-item expanded "><a href="../reference/privacy.html"><strong aria-hidden="true">25.</strong> Privacy overview</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Local Research Workflow</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/pjastam/ResearchVault" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/pjastam/ResearchVault/edit/main/docs/src/src/usage/phase3-process.md" title="Suggest an edit" aria-label="Suggest an edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="phase-3-processing-to-the-vault"><a class="header" href="#phase-3-processing-to-the-vault">Phase 3: processing to the vault</a></h1>
+<p>Phase 3 converts approved items into structured Obsidian notes. All generation runs locally via Qwen3.5:9b. Add <code>--hd</code> to any command to use Claude Sonnet 4.6 instead (after explicit confirmation).</p>
+<hr />
+<h2 id="papers"><a class="header" href="#papers">Papers</a></h2>
+<p>Papers reach <code>_inbox</code> via the Zotero browser extension, the iOS app, or automatically via Phase 0 (after calibration). After a Go decision in Phase 2:</p>
+<pre><code>verwerk recente papers
+</code></pre>
+<p>Claude Code:</p>
+<ol>
+<li>Retrieves metadata from Zotero MCP (title, authors, year, abstract, citation key)</li>
+<li>Saves the full text to <code>inbox/</code> via <code>fetch-fulltext.py</code> — <strong>never printed to screen</strong></li>
+<li>Generates a structured literature note locally via <code>ollama-generate.py</code>:
+<ul>
+<li>Core question and main argument</li>
+<li>Key findings (3–5 points)</li>
+<li>Methodological notes</li>
+<li>Relevant quotes (original language)</li>
+<li>Links to related notes</li>
+</ul>
+</li>
+<li>Adds YAML frontmatter, <code>[[internal links]]</code>, and <code>#tags</code></li>
+<li>Removes the item from Zotero <code>_inbox</code></li>
+</ol>
+<p>Notes are saved to <code>literature/[author-year-keyword].md</code>.</p>
+<blockquote>
+<p><strong>Privacy:</strong> the full text of papers never appears as tool output in Claude Code's context. It is fetched and saved in a single Bash command; only the file size and status are returned.</p>
+</blockquote>
+<hr />
+<h2 id="youtube-videos"><a class="header" href="#youtube-videos">YouTube videos</a></h2>
+<p>Videos added via the iOS share sheet from the YouTube app arrive in Zotero <code>_inbox</code> as watch URLs. After a Go decision:</p>
+<pre><code>transcript [URL]
+</code></pre>
+<p>Claude Code:</p>
+<ol>
+<li>Checks whether a transcript is already cached from Phase 0 (<code>.claude/transcript_cache/{video_id}.json</code>) — no re-fetch needed if so</li>
+<li>Falls back to yt-dlp if no cache exists</li>
+<li>Generates a structured note locally via Qwen3.5:9b:
+<ul>
+<li>Title, speaker, channel, date, URL</li>
+<li>Summary (3–5 sentences)</li>
+<li>Key points with timestamps</li>
+<li>Relevant quotes with timestamps</li>
+</ul>
+</li>
+<li>Adds frontmatter, <code>[[internal links]]</code>, and <code>#video</code> tag</li>
+<li>Removes the raw transcript from <code>inbox/</code> and the item from Zotero <code>_inbox</code></li>
+</ol>
+<p>Notes are saved to <code>literature/[speaker-year-keyword].md</code>.</p>
+<hr />
+<h2 id="podcasts"><a class="header" href="#podcasts">Podcasts</a></h2>
+<p>Podcast episodes added from Overcast (via iOS share sheet) arrive in Zotero <code>_inbox</code> as overcast.fm URLs. After a Go decision:</p>
+<pre><code>podcast [URL]
+</code></pre>
+<p>Claude Code:</p>
+<ol>
+<li>Checks for a cached show notes file in <code>.claude/transcript_cache/podcast_{episode_id}.json</code></li>
+<li>If no cache: downloads audio via yt-dlp, transcribes locally via whisper.cpp (automatic language detection)</li>
+<li>For long episodes (&gt; 45 min): generates a layered summary first (main line → per segment), then the final note</li>
+<li>Generates a structured note locally via Qwen3.5:9b:
+<ul>
+<li>Title, speaker(s), programme/channel, date, URL</li>
+<li>Summary (3–5 sentences)</li>
+<li>Key points with timestamps</li>
+<li>Relevant quotes with timestamps (original language)</li>
+</ul>
+</li>
+<li>Adds frontmatter, <code>[[internal links]]</code>, and <code>#podcast</code> tag</li>
+<li>Removes raw <code>.mp3</code> and <code>.txt</code> files from <code>inbox/</code> and the item from Zotero <code>_inbox</code></li>
+</ol>
+<p>Notes are saved to <code>literature/[speaker-year-keyword].md</code>.</p>
+<hr />
+<h2 id="rss-web-articles"><a class="header" href="#rss-web-articles">RSS web articles</a></h2>
+<p>Non-academic articles from RSS feeds that you forward to <code>_inbox</code> can be processed in two ways:</p>
+<p><strong>Via Zotero</strong> (recommended for articles worth citing):</p>
+<pre><code>verwerk recente papers
+</code></pre>
+<p>The item is already in <code>_inbox</code> with metadata from the Zotero Connector. Processed as a standard literature note.</p>
+<p><strong>Direct to <code>inbox/</code></strong> (for news items, policy documents, quick reads):</p>
+<pre><code>inbox [URL]
+</code></pre>
+<p>Claude Code fetches the article and saves it as a Markdown file in <code>inbox/</code>. You can then ask Claude Code to convert it to a note in <code>literature/</code>.</p>
+<p>Notes get <code>#web</code> or <code>#beleid</code> as appropriate.</p>
+<hr />
+<h2 id="after-processing"><a class="header" href="#after-processing">After processing</a></h2>
+<p>After each session, check whether:</p>
+<ul>
+<li>New notes are linked to related existing notes (<code>[[double brackets]]</code>)</li>
+<li>Relevant syntheses in <code>syntheses/</code> need updating</li>
+<li>Flashcards should be created for the new notes:</li>
+</ul>
+<pre><code>maak flashcards voor literature/[note].md
+</code></pre>
+<p>If new papers were added to Zotero, update the semantic search database:</p>
+<pre><code class="language-bash">update-zotero
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../usage/phase2-filter.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../usage/roadmap.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../usage/phase2-filter.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../usage/roadmap.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </div>
+    </body>
+</html>

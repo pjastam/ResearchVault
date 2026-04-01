@@ -1,0 +1,288 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Roadmap - Local Research Workflow</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="A privacy-first workflow for processing documents, videos, podcasts, and RSS feeds with local AI.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('light')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../introduction.html">Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Installation</li><li class="chapter-item expanded "><a href="../installation/homebrew.html"><strong aria-hidden="true">1.</strong> Step 1: Homebrew</a></li><li class="chapter-item expanded "><a href="../installation/zotero.html"><strong aria-hidden="true">2.</strong> Step 2: Zotero</a></li><li class="chapter-item expanded "><a href="../installation/python.html"><strong aria-hidden="true">3.</strong> Step 3: Python environment</a></li><li class="chapter-item expanded "><a href="../installation/zotero-mcp.html"><strong aria-hidden="true">4.</strong> Step 4: Zotero MCP</a></li><li class="chapter-item expanded "><a href="../installation/claude-code.html"><strong aria-hidden="true">5.</strong> Step 5: Claude Code</a></li><li class="chapter-item expanded "><a href="../installation/ollama.html"><strong aria-hidden="true">6.</strong> Step 6: Ollama</a></li><li class="chapter-item expanded "><a href="../installation/obsidian.html"><strong aria-hidden="true">7.</strong> Step 7: Obsidian</a></li><li class="chapter-item expanded "><a href="../installation/connect.html"><strong aria-hidden="true">8.</strong> Step 8: Connect everything</a></li><li class="chapter-item expanded "><a href="../installation/first-test.html"><strong aria-hidden="true">9.</strong> Step 9: First test</a></li><li class="chapter-item expanded affix "><li class="part-title">Extensions</li><li class="chapter-item expanded "><a href="../extensions/yt-dlp.html"><strong aria-hidden="true">10.</strong> Step 10: yt-dlp & semantic search</a></li><li class="chapter-item expanded "><a href="../extensions/podcasts.html"><strong aria-hidden="true">11.</strong> Step 11: Podcast integration</a></li><li class="chapter-item expanded "><a href="../extensions/rss.html"><strong aria-hidden="true">12.</strong> Step 12: RSS integration + Phase 0 filtering</a></li><li class="chapter-item expanded "><a href="../extensions/spaced-repetition.html"><strong aria-hidden="true">13.</strong> Step 13: Spaced repetition</a></li><li class="chapter-item expanded "><a href="../extensions/filter-layer.html"><strong aria-hidden="true">14.</strong> Step 14: Filter layer per source</a></li><li class="chapter-item expanded "><a href="../extensions/future-orchestrator.html"><strong aria-hidden="true">15.</strong> Step 15: Future perspective — local orchestrator</a></li><li class="chapter-item expanded "><a href="../extensions/ipad-ssh.html"><strong aria-hidden="true">16.</strong> Step 16: iPad access via SSH terminal</a></li><li class="chapter-item expanded "><a href="../extensions/browser-terminal.html"><strong aria-hidden="true">17.</strong> Step 17: In-browser terminal</a></li><li class="chapter-item expanded affix "><li class="part-title">Usage</li><li class="chapter-item expanded "><a href="../usage/overview.html"><strong aria-hidden="true">18.</strong> How the workflow fits together</a></li><li class="chapter-item expanded "><a href="../usage/phase0-reader.html"><strong aria-hidden="true">19.</strong> Phase 0: the HTML reader</a></li><li class="chapter-item expanded "><a href="../usage/phase2-filter.html"><strong aria-hidden="true">20.</strong> Phase 2: Go/No-go in Claude Code</a></li><li class="chapter-item expanded "><a href="../usage/phase3-process.html"><strong aria-hidden="true">21.</strong> Phase 3: processing to the vault</a></li><li class="chapter-item expanded "><a href="../usage/roadmap.html" class="active"><strong aria-hidden="true">22.</strong> Roadmap</a></li><li class="chapter-item expanded affix "><li class="part-title">Reference</li><li class="chapter-item expanded "><a href="../reference/daily-workflow.html"><strong aria-hidden="true">23.</strong> Activating the skill & daily workflow</a></li><li class="chapter-item expanded "><a href="../reference/troubleshooting.html"><strong aria-hidden="true">24.</strong> Troubleshooting</a></li><li class="chapter-item expanded "><a href="../reference/privacy.html"><strong aria-hidden="true">25.</strong> Privacy overview</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Local Research Workflow</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/pjastam/ResearchVault" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        <a href="https://github.com/pjastam/ResearchVault/edit/main/docs/src/src/usage/roadmap.md" title="Suggest an edit" aria-label="Suggest an edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="roadmap"><a class="header" href="#roadmap">Roadmap</a></h1>
+<p>The workflow is production-ready and in daily use, but several planned improvements remain. This page describes what has been done and what is still coming.</p>
+<hr />
+<h2 id="completed"><a class="header" href="#completed">Completed</a></h2>
+<h3 id="inline-snippets-in-the-html-reader-"><a class="header" href="#inline-snippets-in-the-html-reader-">Inline snippets in the HTML reader ✅</a></h3>
+<p>The HTML reader now shows a short text excerpt below each item title (max. 2 lines). For web articles and podcasts this comes from the RSS description or show notes. For YouTube videos it comes from the video description, with a fallback to the opening lines of the cached transcript for channels that provide no meaningful description.</p>
+<p>This replaced an earlier design where clicking a YouTube or podcast headline generated a full reading article via Ollama (<code>qwen2.5:7b</code>). That approach placed article generation in Phase 0, where it does not belong: Phase 0 is for filtering, not for deep reading. All headlines now link directly to the original source URL. The article generation routes in <code>phase0-server.py</code> remain available but are no longer linked from the main reader.</p>
+<hr />
+<h2 id="in-progress"><a class="header" href="#in-progress">In progress</a></h2>
+<h3 id="threshold-calibration-step-2"><a class="header" href="#threshold-calibration-step-2">Threshold calibration (Step 2)</a></h3>
+<p>Phase 0 is learning your preferences by observing which items you add to Zotero (positive signal) and which items you explicitly reject with 👎 (negative signal).</p>
+<p><strong>Current requirement:</strong> ≥30 positive signals before <code>phase0-learn.py</code> can produce a reliable threshold recommendation.</p>
+<p><strong>How to contribute signals:</strong></p>
+<ul>
+<li>Browse the HTML reader daily</li>
+<li>Click on interesting items and add them to Zotero <code>_inbox</code></li>
+<li>Press 👎 on clearly irrelevant items — even when just the headline makes it obvious</li>
+</ul>
+<p><code>phase0-learn.py</code> runs automatically at 06:15 every morning. Run it manually for a progress report:</p>
+<pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/phase0-learn.py
+</code></pre>
+<p>Once ≥30 positives are reached, it will print a threshold recommendation. Apply it in <code>.claude/phase0-score.py</code>:</p>
+<pre><code class="language-python">THRESHOLD_GREEN  = ...   # from the recommendation
+THRESHOLD_YELLOW = ...   # from the recommendation
+</code></pre>
+<hr />
+<h2 id="planned"><a class="header" href="#planned">Planned</a></h2>
+<h3 id="autonomous-mode-step-3--after-calibration"><a class="header" href="#autonomous-mode-step-3--after-calibration">Autonomous mode (Step 3) — after calibration</a></h3>
+<p>Once the threshold is stable, Phase 0 will route items above the threshold <strong>automatically to Zotero <code>_inbox</code></strong> via the Zotero web API — without any action from you.</p>
+<p>This changes the daily rhythm:</p>
+<ul>
+<li><strong>Now:</strong> browse HTML reader → manually forward interesting items → Phase 2</li>
+<li><strong>After:</strong> Phase 0 fills <code>_inbox</code> autonomously → you only interact during Phase 2 and 3</li>
+</ul>
+<p>The HTML reader stays available as a transparency window: you can check at any time what was routed and why. The 👎 button continues to work as a correction mechanism.</p>
+<h3 id="skill-update-step-4--after-step-3"><a class="header" href="#skill-update-step-4--after-step-3">Skill update (Step 4) — after Step 3</a></h3>
+<p>The research workflow skill (<code>research-workflow-skill-v1.16.md</code>) will be updated to reflect the three-sources model:</p>
+<div class="table-wrapper"><table><thead><tr><th>Source</th><th>Filtering</th><th>Phase 2 needed?</th></tr></thead><tbody>
+<tr><td>Phase 0 (autonomous)</td><td>Algorithm</td><td>Yes</td></tr>
+<tr><td>iOS share sheet</td><td>You</td><td>Minimal</td></tr>
+<tr><td>Desktop / email / notes</td><td>Manual</td><td>Yes</td></tr>
+</tbody></table>
+</div>
+<p>The current skill describes Phase 1 as "the user scans the filtered feed." This will be updated to reflect that, in autonomous mode, Phase 1 is fully automatic for RSS content.</p>
+<h3 id="netnewswire-integration-test-step-5-optional"><a class="header" href="#netnewswire-integration-test-step-5-optional">NetNewsWire integration test (Step 5, optional)</a></h3>
+<p>Subscribe <code>filtered.xml</code> in NetNewsWire on iOS and evaluate whether the score labels (🟢🟡🔴) and titles are readable. If successful, NetNewsWire becomes an additional calibration channel: sharing an item from NetNewsWire to Zotero via the iOS share sheet behaves like source (2) — a deliberate user choice — and generates clean positive signals without needing to open the HTML reader.</p>
+<hr />
+<h2 id="longer-term-perspective"><a class="header" href="#longer-term-perspective">Longer-term perspective</a></h2>
+<h3 id="local-orchestrator"><a class="header" href="#local-orchestrator">Local orchestrator</a></h3>
+<p>The only component in this stack that does not run fully locally is Claude Code as orchestrator. All generation tasks (summaries, notes, syntheses, flashcards) already run via Qwen3.5:9b on Ollama — fully local, fully private. What goes through the Anthropic API are the workflow instructions: intake, phase monitoring, vault conventions, and the iterative Go/No-go dialogue.</p>
+<p>Two serious candidates exist for replacing this layer with a local model:</p>
+<p><strong>Open WebUI + MCPO</strong> — a self-hosted browser interface that connects to Ollama and can call MCP servers (including zotero-mcp) via the MCPO proxy. Mature interface, actively maintained, works on macOS without Docker.</p>
+<p><strong>ollmcp</strong> — a terminal interface (TUI) that connects Ollama models to multiple MCP servers simultaneously, with an agent mode and human-in-the-loop controls. Closer to how Claude Code works today.</p>
+<p>Neither is yet a full replacement. The orchestration layer that Claude Code provides involves multi-phase session awareness, vault conventions, and reliable instruction-following across many rounds and tools. Local models (Qwen3.5:9b included) are noticeably less consistent in this role — not due to language capability, but due to reliability across complex multi-step workflows. The skill logic and CLAUDE.md conventions would need to be fully rebuilt as a system prompt, and the result would be less robust.</p>
+<p>This is worth revisiting as local models improve. The landscape is changing fast — Open WebUI and ollmcp are both in active development.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../usage/phase3-process.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../reference/daily-workflow.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../usage/phase3-process.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../reference/daily-workflow.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </div>
+    </body>
+</html>
