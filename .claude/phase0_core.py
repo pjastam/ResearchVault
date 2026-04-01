@@ -11,6 +11,7 @@ import numpy as np
 THRESHOLD_GREEN  = 50
 THRESHOLD_YELLOW = 40
 
+# Items with PDF annotations are treated as strong positive signals (3× weight vs. unannotated)
 WEIGHT_DEFAULT     = 1
 WEIGHT_ANNOTATIONS = 3
 

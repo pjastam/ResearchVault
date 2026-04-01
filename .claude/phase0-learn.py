@@ -22,7 +22,7 @@ import os
 import shutil
 import sqlite3
 import tempfile
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 # ── Configuratie ──────────────────────────────────────────────────────────────
@@ -110,6 +110,14 @@ def main():
     if not LOG_FILE.exists():
         print("⚠️  score_log.jsonl niet gevonden. Voer eerst phase0-score.py uit.")
         return
+
+    # Log-rotatie: archiveer als het bestand groter is dan 10 MB
+    log_size = LOG_FILE.stat().st_size
+    if log_size > 10 * 1024 * 1024:
+        archive = LOG_FILE.with_name(f"score_log.{date.today():%Y-%m-%d}.jsonl")
+        LOG_FILE.rename(archive)
+        print(f"[rotatie] score_log.jsonl gearchiveerd als {archive.name} ({log_size // 1024} KB)")
+        LOG_FILE.touch()
 
     # Logboek laden + skip-queue verwerken
     entries = load_log(LOG_FILE)
@@ -204,5 +212,26 @@ def main():
     print(f"  Activeer de filter in phase0-score.py via SCORE_THRESHOLD = {p10:.0f}\n")
 
 
+def cleanup_transcript_cache(max_age_days: int = 90) -> None:
+    """Verwijder transcript-cache-bestanden ouder dan max_age_days dagen."""
+    cache_dir = SCRIPT_DIR / "transcript_cache"
+    if not cache_dir.exists():
+        return
+    cutoff = datetime.now(timezone.utc) - timedelta(days=max_age_days)
+    removed = 0
+    for cache_file in cache_dir.glob("*.json"):
+        try:
+            data = json.loads(cache_file.read_text(encoding="utf-8"))
+            ts_str = data.get("fetched_at") or data.get("cached_at")
+            if ts_str and datetime.fromisoformat(ts_str) < cutoff:
+                cache_file.unlink()
+                removed += 1
+        except Exception:
+            pass
+    if removed:
+        print(f"[cache] {removed} transcript-cache-bestand(en) verwijderd (ouder dan {max_age_days} dagen)")
+
+
 if __name__ == "__main__":
     main()
+    cleanup_transcript_cache()

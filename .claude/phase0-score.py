@@ -24,6 +24,7 @@ Configuratie (pas aan indien nodig):
 
 import hashlib
 import html
+import html.parser
 import json
 import os
 import re
@@ -69,15 +70,28 @@ INBOX_ID      = 333
 
 FEED_TIMEOUT = 15  # seconden per feed
 TRANSCRIPT_CACHE_DIR = SCRIPT_DIR / "transcript_cache"
-SHOWNOTES_MIN_LENGTH = 200  # minimale tekenlengte voor podcast show notes om artikel te genereren
+# Minimum show notes length (chars) to be usable for content-based scoring and article generation;
+# shorter entries contain too little context for a meaningful embedding.
+SHOWNOTES_MIN_LENGTH = 200
 
 # ── Hulpfuncties ──────────────────────────────────────────────────────────────
 
+class _HTMLStripper(html.parser.HTMLParser):
+    """Strips HTML tags; handle_data is called with already-decoded entities."""
+    def __init__(self):
+        super().__init__()
+        self._parts: list[str] = []
+    def handle_data(self, d: str) -> None:
+        self._parts.append(d)
+    def get_data(self) -> str:
+        return " ".join(self._parts)
+
+
 def strip_html(text: str) -> str:
     """Verwijdert HTML-tags en decodeert HTML-entiteiten."""
-    text = re.sub(r"<[^>]+>", " ", text)
-    text = html.unescape(text)
-    return re.sub(r"\s+", " ", text).strip()
+    s = _HTMLStripper()
+    s.feed(text)
+    return re.sub(r"\s+", " ", s.get_data()).strip()
 
 
 def load_feeds(path: Path) -> list[str]:
@@ -773,7 +787,7 @@ def main():
             episode_id = None
             has_shownotes = False
             if source_type == "podcast" and len(description) >= SHOWNOTES_MIN_LENGTH:
-                episode_id = "podcast_" + hashlib.md5(url.encode()).hexdigest()[:16]
+                episode_id = "podcast_" + hashlib.md5(url.encode()).hexdigest()
                 cache_podcast_shownotes(episode_id, title, feed_name, url, published, description)
                 has_shownotes = True
 

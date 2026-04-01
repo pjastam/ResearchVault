@@ -54,7 +54,7 @@ class Phase0Handler(http.server.SimpleHTTPRequestHandler):
             for part in query.split("&"):
                 if part.startswith("tag="):
                     tag = urllib.parse.unquote(part[4:])
-            if re.match(r'^podcast_[0-9a-f]{16}$', episode_id):
+            if re.match(r'^podcast_[0-9a-f]{32}$', episode_id):
                 self._serve_podcast_article(episode_id, tag)
             else:
                 self._respond_html(400, self._error_page(
@@ -75,6 +75,18 @@ class Phase0Handler(http.server.SimpleHTTPRequestHandler):
                     "Ongeldig video-ID",
                     "Het opgegeven YouTube video-ID heeft een onverwacht formaat."
                 ))
+        elif self.path == "/health":
+            try:
+                urllib.request.urlopen("http://localhost:11434/api/tags", timeout=2)
+                ollama_ok = True
+            except Exception:
+                ollama_ok = False
+            body = json.dumps({"ollama": "ok" if ollama_ok else "unreachable"}).encode()
+            self.send_response(200 if ollama_ok else 503)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
         else:
             super().do_GET()
 
