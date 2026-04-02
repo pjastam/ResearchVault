@@ -56,16 +56,17 @@ ResearchVault/
     ├── fetch-fulltext.py       # Fetch Zotero attachment text to a local file (no content returned)
     ├── ollama-generate.py      # Call Ollama REST API and write output to file
     ├── zotero-inbox.py         # List all items in Zotero _inbox (human-readable or JSON)
+    ├── process_item.py         # Privacy-preserving subagent: item key + metadata → literature note
+    ├── summarize_item.py       # Privacy-preserving subagent: item key + metadata → compact summary for Go/No-go
+    ├── zotero_utils.py         # Shared Zotero SQLite helpers (make_sqlite_copy, get_library_keys_with_weights)
     ├── feedreader-score.py     # RSS feed scoring and filtered feed generation (feedreader)
     ├── feedreader_core.py      # Shared scoring functions (cosine similarity, profile, source type detection)
-    ├── feedreader-server.py    # Local HTTP server (port 8765) + POST /skip + GET /article/{video_id}
+    ├── feedreader-server.py    # Local HTTP server (port 8765) + POST /skip
     ├── feedreader-learn.py     # Learning loop: processes skip queue + threshold calibration
     ├── feedreader-list.txt     # List of RSS feed URLs (web, YouTube, podcast)
-    ├── process_item.py         # Privacy-preserving subagent: item key + metadata → literature note
     ├── score_log.jsonl         # Running log of scored feed items (incl. source_type, skipped flag)
     ├── skip_queue.jsonl        # Queue of explicitly rejected items (👎); processed daily
     ├── transcript_cache/       # Transcript & show-notes cache (YouTube: {video_id}.json; podcast: podcast_{episode_id}.json)
-    ├── article_cache/          # Generated article cache (YouTube: {video_id}.html; podcast: podcast_{episode_id}.html)
     └── skills/
         └── research-workflow-skill-v1.17.md  # Workflow skill (loaded each session)
 ```

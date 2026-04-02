@@ -181,8 +181,8 @@ De feedreader draait automatisch via launchd (06:00 dagelijks). Beheer is alleen
 Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laag de vault in mogen.
 
 **Taglogica:** items in `_inbox` kunnen één van de volgende situaties hebben:
-- **Tag `✅`** → al goedgekeurd; sla de Go/No-go vraag over en verwerk direct
-- **Tag `📖`** → al gelezen; geef alleen een Go/No-go prompt zonder samenvatting
+- **Tag `✅`** → in fase 1 al zeker een Go; sla de Go/No-go vraag over en verwerk direct
+- **Tag `📖`** → in fase 1 onvoldoende informatie om te beslissen; genereer een compacte samenvatting via `summarize_item.py` en wacht op Go/No-go
 - **Tag `/unread` of geen tag** → behandel score-afhankelijk (zie scorelogica hieronder)
 - **Elke andere tag** → behandel hetzelfde als `/unread`
 
@@ -190,6 +190,43 @@ Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laa
 - **Score ≥70 (🟢)** → sla samenvatting over; toon titel + score; vraag direct Go/No-go
 - **Score 40–69 (🟡)** → genereer samenvatting van 2–3 zinnen via Qwen3.5:9b + Go/No-go
 - **Score <40 (🔴)** → stel meteen No-go voor ("Score: X — weinig match met je bibliotheek. No-go?"); gebruiker kan alsnog Go kiezen
+
+**Samenvatting voor 📖-items via `summarize_item.py`:**
+
+Roep de subagent aan met het juiste type. De samenvatting wordt naar `inbox/_summary_ITEMKEY.md` geschreven; alleen het pad wordt teruggegeven — geen afgeleide tekst bereikt Claude Code.
+
+Paper met abstract (geen modelaanroep):
+```bash
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/summarize_item.py \
+  --item-key ITEMKEY --type paper \
+  --title "Titel" --authors "Achternaam, V." --year 2024 \
+  --abstract "Abstract-tekst..."
+```
+
+Paper zonder abstract:
+```bash
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/summarize_item.py \
+  --item-key ITEMKEY --type paper \
+  --title "Titel" --authors "Achternaam, V." --year 2024
+```
+
+YouTube (video_id = laatste deel van de YouTube-URL, bijv. `dQw4w9WgXcQ`):
+```bash
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/summarize_item.py \
+  --item-key ITEMKEY --type youtube \
+  --title "Videotitel" --cache-id VIDEO_ID
+```
+
+Podcast (episode_id = `podcast_` + MD5-hash van aflevering-URL, zonder prefix):
+```bash
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/summarize_item.py \
+  --item-key ITEMKEY --type podcast \
+  --title "Afleveringstitel" --cache-id EPISODE_ID
+```
+
+Na ontvangst van `{"status": "ok", "path": "inbox/_summary_ITEMKEY.md"}`:
+- Toon het pad aan de gebruiker: "Samenvatting klaar: `inbox/_summary_ITEMKEY.md`"
+- Wacht op Go of No-go
 
 **Stappenplan:**
 
@@ -201,11 +238,8 @@ Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laa
 3. Toon een genummerde lijst gesorteerd op score: score-label, score, auteur, jaar, titel, tag(s)
 4. Vraag: "Wil je ze één voor één beoordelen, of zal ik per item direct een samenvatting geven?"
 5. Per item, afhankelijk van tag én score (zie taglogica + scorelogica hierboven):
-   - Genereer indien nodig een samenvatting lokaal via Qwen3.5:9b op basis van abstract en metadata:
-     ```
-     echo "[abstract + metadata]" | ollama run qwen3.5:9b
-     ```
-   - Vraag: **Go** (verwerken naar literatuurnotitie) of **No-go**?
+   - `📖`: roep `summarize_item.py` aan, toon pad, wacht op besluit
+   - Overige items: genereer indien nodig samenvatting via Qwen3.5:9b; vraag Go/No-go
 6. **Go-items:** verplaats naar de juiste collectie en verwerk via de subagent:
    ```bash
    ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/process_item.py \
@@ -422,4 +456,4 @@ Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laa
 
 ---
 
-*Skill versie 1.18 — april 2026 — subagent process_item.py geïntegreerd in Type 0 en Type 1*
+*Skill versie 1.19 — april 2026 — summarize_item.py toegevoegd voor 📖-items in Type 0; semantisch onderscheid ✅/📖 verduidelijkt*

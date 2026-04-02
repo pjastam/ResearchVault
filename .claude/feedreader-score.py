@@ -22,15 +22,15 @@ Configuratie (pas aan indien nodig):
     WEIGHT_*        — gewichten voor het voorkeursprofiel
 """
 
+import fcntl
 import hashlib
 import html
 import html.parser
 import json
 import os
 import re
-import shutil
 import sqlite3
-import tempfile
+import sys
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -50,6 +50,7 @@ from feedreader_core import (
     score_label,
     detect_source_type,
 )
+from zotero_utils import make_sqlite_copy, get_library_keys_with_weights
 
 # optionele afhankelijkheid — transcript-verrijking werkt alleen als dit pakket geïnstalleerd is
 try:
@@ -109,43 +110,6 @@ def load_feeds(path: Path) -> list[str]:
     return urls
 
 
-def make_sqlite_copy(source: Path) -> Path:
-    tmp = tempfile.mktemp(suffix=".sqlite")
-    shutil.copy2(source, tmp)
-    return Path(tmp)
-
-
-def get_library_keys_with_weights(conn: sqlite3.Connection, inbox_id: int) -> dict[str, float]:
-    cur = conn.execute("""
-        SELECT DISTINCT i.key
-        FROM items i
-        WHERE i.itemID NOT IN (
-            SELECT itemID FROM collectionItems WHERE collectionID = ?
-        )
-        AND i.itemID NOT IN (SELECT itemID FROM deletedItems)
-        AND i.itemTypeID NOT IN (
-            SELECT itemTypeID FROM itemTypes WHERE typeName IN ('note', 'attachment')
-        )
-    """, (inbox_id,))
-    all_keys = {row[0]: float(WEIGHT_DEFAULT) for row in cur.fetchall()}
-
-    if not all_keys:
-        return all_keys
-
-    cur = conn.execute("""
-        SELECT DISTINCT i.key
-        FROM items i
-        JOIN itemAttachments ia ON ia.parentItemID = i.itemID
-        JOIN itemAnnotations ann ON ann.parentItemID = ia.itemID
-        WHERE i.key IN ({})
-    """.format(",".join("?" * len(all_keys))), list(all_keys.keys()))
-    for row in cur.fetchall():
-        if row[0] in all_keys:
-            all_keys[row[0]] += WEIGHT_ANNOTATIONS
-
-    return all_keys
-
-
 def get_embeddings_for_keys(collection, keys: list[str]) -> dict[str, np.ndarray]:
     if not keys:
         return {}
@@ -174,10 +138,14 @@ def load_existing_log(path: Path) -> set[str]:
 
 
 def append_log(path: Path, entries: list[dict]) -> None:
-    """Voegt nieuwe entries toe aan het JSONL-logboek."""
+    """Voegt nieuwe entries toe aan het JSONL-logboek (exclusief vergrendeld)."""
     with path.open("a", encoding="utf-8") as f:
-        for entry in entries:
-            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        fcntl.flock(f, fcntl.LOCK_EX)
+        try:
+            for entry in entries:
+                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
 
 
 def extract_video_id(url: str) -> str | None:
@@ -199,8 +167,8 @@ def fetch_and_cache_transcript(
     if cache_file.exists():
         try:
             return json.loads(cache_file.read_text(encoding="utf-8")).get("text")
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"⚠️  transcript-cache corrupt, opnieuw ophalen: {cache_file.name}: {e}", file=sys.stderr)
 
     if not _YT_API_OK:
         return None

@@ -18,17 +18,17 @@ Configuratie (pas aan indien nodig):
     CHROMA_PATH     — pad naar ChromaDB directory
     VAULT_LIT_PATH  — pad naar literature/ map in Obsidian vault
     INBOX_ID        — collectionID van _inbox in Zotero (standaard 333)
-    WEIGHT_*        — gewichten voor het voorkeursprofiel
 """
 
 import os
-import shutil
 import sqlite3
-import tempfile
 from pathlib import Path
 
 import chromadb
 import numpy as np
+
+from feedreader_core import cosine_similarity, compute_weighted_profile
+from zotero_utils import make_sqlite_copy, get_library_keys_with_weights
 
 # ── Configuratie ──────────────────────────────────────────────────────────────
 
@@ -36,25 +36,11 @@ ZOTERO_SQLITE  = Path.home() / "Zotero" / "zotero.sqlite"
 CHROMA_PATH    = Path.home() / ".config" / "zotero-mcp" / "chroma_db"
 INBOX_ID       = 333   # collectionID van _inbox — zie: SELECT collectionID, collectionName FROM collections
 
-# Gewichten voor het voorkeursprofiel
-WEIGHT_DEFAULT     = 1   # item aanwezig buiten _inbox, verder onaangeroerd
-WEIGHT_ANNOTATIONS = 3   # item heeft PDF-annotaties in Zotero
-
 # Score-drempels voor labels
 THRESHOLD_GREEN  = 70   # 🟢 Sterk match
 THRESHOLD_YELLOW = 40   # 🟡 Mogelijk relevant  (onder 40 = 🔴 Zwak match)
 
 # ── Hulpfuncties ──────────────────────────────────────────────────────────────
-
-def make_sqlite_copy(source: Path) -> Path:
-    """
-    Maakt een tijdelijke kopie van de Zotero SQLite database.
-    Zotero vergrendelt het origineel tijdens gebruik; een kopie voorkomt conflicten.
-    """
-    tmp = tempfile.mktemp(suffix=".sqlite")
-    shutil.copy2(source, tmp)
-    return Path(tmp)
-
 
 def get_inbox_keys(conn: sqlite3.Connection, inbox_id: int) -> list[str]:
     """Haalt item_keys op uit de _inbox collectie, exclusief bijlagen en notes."""
@@ -67,48 +53,6 @@ def get_inbox_keys(conn: sqlite3.Connection, inbox_id: int) -> list[str]:
         AND it.typeName NOT IN ('note', 'attachment')
     """, (inbox_id,))
     return [row[0] for row in cur.fetchall()]
-
-
-def get_library_keys_with_weights(
-    conn: sqlite3.Connection,
-    inbox_id: int,
-) -> dict[str, float]:
-    """
-    Haalt alle item_keys op die NIET in _inbox zitten, met gewichten:
-      - basisgewicht 1 voor elk item
-      - +WEIGHT_ANNOTATIONS als het item PDF-annotaties heeft
-
-    Retourneert een dict {item_key: gewicht}.
-    """
-    # Alle keys buiten _inbox (exclusief trashed items)
-    cur = conn.execute("""
-        SELECT DISTINCT i.key
-        FROM items i
-        WHERE i.itemID NOT IN (
-            SELECT itemID FROM collectionItems WHERE collectionID = ?
-        )
-        AND i.itemID NOT IN (
-            SELECT itemID FROM deletedItems
-        )
-        AND i.itemTypeID NOT IN (
-            SELECT itemTypeID FROM itemTypes WHERE typeName IN ('note', 'attachment')
-        )
-    """, (inbox_id,))
-    all_keys = {row[0]: float(WEIGHT_DEFAULT) for row in cur.fetchall()}
-
-    # Voeg annotatie-gewicht toe (items met minstens één PDF-annotatie)
-    cur = conn.execute("""
-        SELECT DISTINCT i.key
-        FROM items i
-        JOIN itemAttachments ia ON ia.parentItemID = i.itemID
-        JOIN itemAnnotations ann ON ann.parentItemID = ia.itemID
-        WHERE i.key IN ({})
-    """.format(",".join("?" * len(all_keys))), list(all_keys.keys()))
-    for row in cur.fetchall():
-        if row[0] in all_keys:
-            all_keys[row[0]] += WEIGHT_ANNOTATIONS
-
-    return all_keys
 
 
 def get_embeddings_for_keys(
@@ -128,44 +72,6 @@ def get_embeddings_for_keys(
     for item_id, embedding in zip(result["ids"], result["embeddings"]):
         found[item_id] = np.array(embedding, dtype=np.float32)
     return found
-
-
-def compute_weighted_profile(
-    embeddings: dict[str, np.ndarray],
-    weights: dict[str, float],
-) -> np.ndarray:
-    """
-    Berekent het gewogen gemiddelde van alle bibliotheek-embeddings.
-    Dit is het 'voorkeursprofiel' waartegen inbox-items worden gescoord.
-    """
-    vectors, w = [], []
-    for key, emb in embeddings.items():
-        weight = weights.get(key, WEIGHT_DEFAULT)
-        vectors.append(emb)
-        w.append(weight)
-
-    if not vectors:
-        raise ValueError("Geen bibliotheek-embeddings gevonden voor profielberekening.")
-
-    matrix = np.stack(vectors)         # (N, dim)
-    weights_arr = np.array(w, dtype=np.float32).reshape(-1, 1)
-    weighted_sum = (matrix * weights_arr).sum(axis=0)
-    profile = weighted_sum / weights_arr.sum()
-
-    # Normaliseer naar eenheidsvector (vereist voor cosine-similariteit via dot-product)
-    norm = np.linalg.norm(profile)
-    if norm > 0:
-        profile = profile / norm
-    return profile
-
-
-def cosine_similarity(vec: np.ndarray, profile: np.ndarray) -> float:
-    """Berekent cosine-similariteit tussen een vector en het profiel (beide genormaliseerd)."""
-    norm = np.linalg.norm(vec)
-    if norm == 0:
-        return 0.0
-    vec_normalized = vec / norm
-    return float(np.dot(vec_normalized, profile))
 
 
 def score_label(score: int) -> str:

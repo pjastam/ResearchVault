@@ -19,6 +19,9 @@ if not os.environ.get("ZOTERO_API_KEY"):
         from dotenv import load_dotenv
         load_dotenv(env_file)
 
+# Zotero collection key van _inbox.
+# Opvragen via: zotero-mcp setup-info  (veld: collections → _inbox → key)
+# of via Zotero lokale API: curl http://localhost:23119/api/users/0/collections | python3 -m json.tool
 INBOX_COLLECTION_KEY = "N4MP46Y5"
 
 

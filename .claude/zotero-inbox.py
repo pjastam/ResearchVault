@@ -21,9 +21,10 @@ from typing import Any
 
 # ── Configuratie ──────────────────────────────────────────────────────────────
 
-ZOTERO_API  = "http://localhost:23119/api/users/0"
-INBOX_NAME  = "_inbox"
-PAGE_SIZE   = 100
+ZOTERO_API   = "http://localhost:23119/api/users/0"
+INBOX_NAME   = "_inbox"
+PAGE_SIZE    = 100
+API_TIMEOUT  = 30  # seconden; verhoog bij grote collecties of trage lokale API
 
 # Bijlage-types die we overslaan
 SKIP_TYPES = {"attachment", "note"}
@@ -34,7 +35,7 @@ def api_get(path: str) -> Any:
     """Haalt JSON op van de lokale Zotero API."""
     url = f"{ZOTERO_API}{path}"
     try:
-        with urllib.request.urlopen(url, timeout=5) as r:
+        with urllib.request.urlopen(url, timeout=API_TIMEOUT) as r:
             return json.loads(r.read())
     except urllib.error.URLError as e:
         print(f"❌  Zotero API niet bereikbaar: {e}")

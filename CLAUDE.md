@@ -147,9 +147,9 @@ De feedreader scoort RSS/YouTube/podcast-feeds automatisch op relevantie en prod
 
 ## Privacyregel: broninhoud blijft lokaal
 
-**Volledige tekst van bronnen (papers, artikelen, transcripten) mag nooit als output van een Bash-commando in Claude's context terechtkomen.** Zodra tekst als tool-output terugkomt, is hij naar de Anthropic API gegaan — ook als de intentie was om hem alleen lokaal te verwerken.
+**Noch de volledige tekst van bronnen (papers, artikelen, transcripten), noch enige door het model gegenereerde tekst op basis daarvan (samenvattingen, parafrases, afgeleide tekst) mag ooit als output van een Bash-commando in Claude's context terechtkomen.** Zodra tekst als tool-output terugkomt, is hij naar de Anthropic API gegaan — ook als de intentie was om hem alleen lokaal te verwerken.
 
-Correcte aanpak voor papers: gebruik `.claude/process_item.py`. Dit is de privacy-preserving subagent die de volledige lokale pipeline uitvoert en alleen een JSON-statusobject teruggeeft:
+Correcte aanpak voor het genereren van literatuurnotities: gebruik `.claude/process_item.py`. Dit is de privacy-preserving subagent die de volledige lokale pipeline uitvoert en alleen een JSON-statusobject teruggeeft:
 
 ```bash
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/process_item.py \
@@ -162,6 +162,18 @@ Correcte aanpak voor papers: gebruik `.claude/process_item.py`. Dit is de privac
 ```
 
 De subagent roept intern `fetch-fulltext.py` en `ollama-generate.py` aan. Geen bron-inhoud bereikt Claude Code als tool-output.
+
+Correcte aanpak voor compacte samenvattingen (fase 2, 📖-items): gebruik `.claude/summarize_item.py`. Zelfde privacy-patroon: de samenvatting wordt naar een lokaal bestand geschreven; alleen het pad wordt teruggegeven:
+
+```bash
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/summarize_item.py \
+  --item-key ITEMKEY \
+  --type paper|youtube|podcast \
+  --title "Titel" --authors "Achternaam, V." --year 2024
+# → {"status": "ok", "path": "inbox/_summary_ITEMKEY.md"}
+```
+
+Claude Code toont het pad; de gebruiker leest het bestand en geeft Go of No-go.
 
 Voor losse stappen of speciale gevallen (transcripten, snapshots): gebruik `.claude/fetch-fulltext.py` direct:
 

@@ -17,13 +17,15 @@ Configuratie:
     MIN_POSITIVES   — minimum aantal positieven voor een drempeladvies
 """
 
+import fcntl
 import json
 import os
-import shutil
 import sqlite3
-import tempfile
+import sys
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+
+from zotero_utils import make_sqlite_copy
 
 # ── Configuratie ──────────────────────────────────────────────────────────────
 
@@ -36,12 +38,6 @@ LABEL_AFTER_DAYS = 3   # items ouder dan N dagen zonder match krijgen added_to_z
 MIN_POSITIVES    = 30  # minimum positieven voor drempeladvies
 
 # ── Hulpfuncties ──────────────────────────────────────────────────────────────
-
-def make_sqlite_copy(source: Path) -> Path:
-    tmp = tempfile.mktemp(suffix=".sqlite")
-    shutil.copy2(source, tmp)
-    return Path(tmp)
-
 
 def get_zotero_urls(conn: sqlite3.Connection) -> set[str]:
     """Haalt alle bekende URLs op uit Zotero (bijlagen)."""
@@ -62,33 +58,50 @@ def load_log(path: Path) -> list[dict]:
     if not path.exists():
         return []
     entries = []
-    for line in path.read_text().splitlines():
+    with path.open("r", encoding="utf-8") as f:
+        fcntl.flock(f, fcntl.LOCK_SH)
         try:
-            entries.append(json.loads(line))
-        except json.JSONDecodeError:
-            pass
+            for line in f:
+                try:
+                    entries.append(json.loads(line))
+                except json.JSONDecodeError:
+                    pass
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
     return entries
 
 
 def save_log(path: Path, entries: list[dict]) -> None:
     with path.open("w", encoding="utf-8") as f:
-        for entry in entries:
-            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        fcntl.flock(f, fcntl.LOCK_EX)
+        try:
+            for entry in entries:
+                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
 
 
 def process_skip_queue(entries: list[dict]) -> int:
     """
     Verwerkt skip_queue.jsonl: zoekt elk URL op in entries en zet skipped=True.
-    Leegt de queue daarna (items zijn verwerkt).
+    Leegt de queue atomair (lezen + truncate binnen één exclusieve lock) zodat
+    geen skip-signalen verloren gaan als feedreader-server.py gelijktijdig schrijft.
     """
     if not SKIP_QUEUE.exists():
         return 0
     queue = []
-    for line in SKIP_QUEUE.read_text(encoding="utf-8").splitlines():
+    with SKIP_QUEUE.open("r+", encoding="utf-8") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
         try:
-            queue.append(json.loads(line))
-        except json.JSONDecodeError:
-            pass
+            for line in f:
+                try:
+                    queue.append(json.loads(line))
+                except json.JSONDecodeError:
+                    pass
+            f.seek(0)
+            f.truncate()
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
     if not queue:
         return 0
     skip_urls = {e["url"] for e in queue if "url" in e}
@@ -97,7 +110,6 @@ def process_skip_queue(entries: list[dict]) -> int:
         if entry.get("url") in skip_urls and not entry.get("skipped"):
             entry["skipped"] = True
             count += 1
-    SKIP_QUEUE.write_text("", encoding="utf-8")  # queue leegmaken na verwerking
     return count
 
 
@@ -243,8 +255,8 @@ def cleanup_transcript_cache(max_age_days: int = 90) -> None:
                 if mtime < cutoff:
                     cache_file.unlink()
                     removed += 1
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"⚠️  cache-bestand overgeslagen: {cache_file.name}: {e}", file=sys.stderr)
     if removed:
         print(f"[cache] {removed} cache-bestand(en) verwijderd (ouder dan {max_age_days} dagen)")
 
