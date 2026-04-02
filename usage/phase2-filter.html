@@ -201,11 +201,12 @@
 <p>The treatment depends on the item's Zotero tag and its relevance score.</p>
 <h3 id="tag-based-treatment"><a class="header" href="#tag-based-treatment">Tag-based treatment</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>Zotero tag</th><th>What Claude Code does</th></tr></thead><tbody>
-<tr><td><code>✅</code></td><td>Previously approved — skip the Go/No-go question and go directly to Phase 3</td></tr>
-<tr><td><code>📖</code></td><td>You have already read it — only ask Go/No-go, no summary generated</td></tr>
+<tr><td><code>✅</code></td><td>Marked as certain Go in Phase 1 — skip the Go/No-go question and process directly in Phase 3</td></tr>
+<tr><td><code>📖</code></td><td>Needs more evaluation — generate a compact summary via <code>summarize_item.py</code> (local, privacy-safe); show path; wait for Go/No-go</td></tr>
 <tr><td>No tag, <code>/unread</code>, or any other tag</td><td>Score-based treatment (see below)</td></tr>
 </tbody></table>
 </div>
+<p><strong>The <code>📖</code> tag</strong> is set in Phase 1 when you need more information before deciding. In Phase 2, <code>summarize_item.py</code> generates a compact summary (Introduction · Key findings · Relevance) locally via Qwen3.5:9b and writes it to <code>inbox/_summary_ITEMKEY.md</code>. Claude Code shows you the path; you read the file and give your decision. No summary text reaches the Anthropic API.</p>
 <h3 id="score-based-treatment-for-untagged-items"><a class="header" href="#score-based-treatment-for-untagged-items">Score-based treatment (for untagged items)</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>Score</th><th>Treatment</th></tr></thead><tbody>
 <tr><td>🟢 ≥70</td><td>Show title + score; ask Go/No-go directly — strong match, no summary needed</td></tr>
