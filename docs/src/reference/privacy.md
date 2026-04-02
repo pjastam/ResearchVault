@@ -25,7 +25,7 @@ Claude Code communicates with the Anthropic API in every session. This is unavoi
 
 ```bash
 # One command: fetch, generate, prepend frontmatter, clean up — only JSON status returned
-~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/skills/process_item.py \
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/process_item.py \
   --item-key ITEMKEY \
   --title "Title of paper" \
   --authors "Smith, John" \

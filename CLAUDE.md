@@ -149,10 +149,10 @@ De feedreader scoort RSS/YouTube/podcast-feeds automatisch op relevantie en prod
 
 **Volledige tekst van bronnen (papers, artikelen, transcripten) mag nooit als output van een Bash-commando in Claude's context terechtkomen.** Zodra tekst als tool-output terugkomt, is hij naar de Anthropic API gegaan — ook als de intentie was om hem alleen lokaal te verwerken.
 
-Correcte aanpak voor papers: gebruik `.claude/skills/process_item.py`. Dit is de privacy-preserving subagent die de volledige lokale pipeline uitvoert en alleen een JSON-statusobject teruggeeft:
+Correcte aanpak voor papers: gebruik `.claude/process_item.py`. Dit is de privacy-preserving subagent die de volledige lokale pipeline uitvoert en alleen een JSON-statusobject teruggeeft:
 
 ```bash
-~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/skills/process_item.py \
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/process_item.py \
   --item-key ITEMKEY \
   --title "Titel" --authors "Achternaam, V." --year 2024 \
   --journal "..." --citation-key auteur2024kw \

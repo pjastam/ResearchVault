@@ -7,7 +7,7 @@ genereert een gestructureerde literatuurnotitie via Qwen3.5:9b (Ollama),
 schrijft het .md-bestand naar literature/ en retourneert een JSON-statusobject.
 
 Gebruik:
-    python3 .claude/skills/process_item.py \
+    python3 .claude/process_item.py \
         --item-key ITEMKEY \
         --title "Volledige titel" \
         --authors "Achternaam, Voornaam" \
@@ -20,7 +20,7 @@ Gebruik:
 
 Optioneel: geef metadata als JSON-string via --meta-json voor eenvoudige
 aanroep vanuit Claude Code:
-    python3 .claude/skills/process_item.py \
+    python3 .claude/process_item.py \
         --item-key ITEMKEY \
         --meta-json '{"title": "...", "authors": [...], "year": 2024, ...}'
 

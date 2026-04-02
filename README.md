@@ -61,13 +61,13 @@ ResearchVault/
     ├── feedreader-server.py    # Local HTTP server (port 8765) + POST /skip + GET /article/{video_id}
     ├── feedreader-learn.py     # Learning loop: processes skip queue + threshold calibration
     ├── feedreader-list.txt     # List of RSS feed URLs (web, YouTube, podcast)
+    ├── process_item.py         # Privacy-preserving subagent: item key + metadata → literature note
     ├── score_log.jsonl         # Running log of scored feed items (incl. source_type, skipped flag)
     ├── skip_queue.jsonl        # Queue of explicitly rejected items (👎); processed daily
     ├── transcript_cache/       # Transcript & show-notes cache (YouTube: {video_id}.json; podcast: podcast_{episode_id}.json)
     ├── article_cache/          # Generated article cache (YouTube: {video_id}.html; podcast: podcast_{episode_id}.html)
     └── skills/
-        ├── research-workflow-skill-v1.17.md  # Workflow skill (loaded each session)
-        └── process_item.py                   # Privacy-preserving subagent: item key + metadata → literature note
+        └── research-workflow-skill-v1.17.md  # Workflow skill (loaded each session)
 ```
 
 ---

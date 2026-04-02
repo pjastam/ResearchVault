@@ -208,7 +208,7 @@ Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laa
    - Vraag: **Go** (verwerken naar literatuurnotitie) of **No-go**?
 6. **Go-items:** verplaats naar de juiste collectie en verwerk via de subagent:
    ```bash
-   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/skills/process_item.py \
+   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/process_item.py \
      --item-key ITEMKEY \
      --title "Volledige titel" \
      --authors "Achternaam, Voornaam" \
@@ -236,7 +236,7 @@ Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laa
 3. Toon lijst met titels — vraag welke verwerkt moeten worden
 4. Per paper: haal metadata op (alleen titel, auteurs, jaar, journal, citation key, tags — geen volledige tekst). Roep de subagent aan:
    ```bash
-   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/skills/process_item.py \
+   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/process_item.py \
      --item-key ITEMKEY \
      --title "Volledige titel" \
      --authors "Achternaam, Voornaam" \
