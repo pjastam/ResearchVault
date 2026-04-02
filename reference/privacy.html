@@ -199,7 +199,7 @@
 <p><strong>The rule:</strong> source content (full text of papers, article HTML, transcripts) must never be returned as output of a Bash command. The moment text appears as tool output, it has reached the Anthropic API.</p>
 <p><strong>The safe pipeline — single subagent call:</strong></p>
 <pre><code class="language-bash"># One command: fetch, generate, prepend frontmatter, clean up — only JSON status returned
-~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/skills/process_item.py \
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/process_item.py \
   --item-key ITEMKEY \
   --title "Title of paper" \
   --authors "Smith, John" \
