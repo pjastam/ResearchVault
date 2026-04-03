@@ -274,22 +274,36 @@ def _make_atom_content_html(item: dict) -> str:
             if para:
                 parts.append(f"<p>{html.escape(para)}</p>")
 
-    # Actieknoppen onderin
+    # Actieknoppen onderin — via fetch() zodat er geen browsertabblad opent
     title_enc = urllib.parse.quote(item.get("title", ""), safe="")
     stype_enc = urllib.parse.quote(source_type, safe="")
-    base = (
+    action_base = (
         f"http://localhost:8765/action"
-        f"?url={url_enc}&amp;title={title_enc}&amp;stype={stype_enc}&amp;type="
+        f"?url={url_enc}&title={title_enc}&stype={stype_enc}&type="
+    )
+    btn_style = (
+        "cursor:pointer;border:1px solid #ccc;border-radius:5px;"
+        "background:#f5f5f5;padding:.25rem .6rem;font-size:.85em;"
+    )
+    script = (
+        f'<script>'
+        f'function rvAct(t,b){{'
+        f'b.disabled=true;b.style.opacity=".5";'
+        f'fetch("{action_base}"+t)'
+        f'.then(function(r){{b.textContent=r.ok?"✓ Klaar":"⚠️ Fout";}}) '
+        f'.catch(function(){{b.textContent="⚠️ Fout";}});'
+        f'}}'
+        f'</script>'
     )
     parts.append(
         '<hr style="margin:1.5em 0;border:none;border-top:1px solid #ccc">'
         '<p style="font-size:.85em;color:#666">'
-        f'<a href="{base}zotero" style="text-decoration:none">✅ Zotero</a>'
-        '&nbsp;&nbsp;&nbsp;'
-        f'<a href="{base}read" style="text-decoration:none">📖 Later lezen</a>'
-        '&nbsp;&nbsp;&nbsp;'
-        f'<a href="{base}skip" style="text-decoration:none">👎 Overslaan</a>'
-        '</p>'
+        f'<button style="{btn_style}" onclick="rvAct(\'zotero\',this)">✅ Zotero</button>'
+        '&nbsp;'
+        f'<button style="{btn_style}" onclick="rvAct(\'read\',this)">📖 Later lezen</button>'
+        '&nbsp;'
+        f'<button style="{btn_style}" onclick="rvAct(\'skip\',this)">👎 Overslaan</button>'
+        f'</p>{script}'
     )
 
     content = "\n".join(parts)
