@@ -865,7 +865,7 @@ def main():
     for source_type, filename, label, emoji in [
         ("youtube", "youtube",  "YouTube-video's", "▶️"),
         ("podcast", "podcast",  "Podcasts",        "🎙️"),
-        ("web",     "webpage",  "Webaartikelen",   "📄"),
+        ("web",     "webpage",  "Webartikelen",   "📄"),
     ]:
         subset = [i for i in all_items if i["source_type"] == source_type]
         path   = SERVE_DIR / f"filtered-{filename}.xml"
