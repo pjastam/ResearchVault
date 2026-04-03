@@ -261,7 +261,7 @@ def _make_atom_content(item: dict) -> str | None:
     return None
 
 
-def generate_atom(items: list[dict], generated_at: datetime) -> str:
+def generate_atom(items: list[dict], generated_at: datetime, feed_title: str = "Feedreader — Gefilterde RSS-feed") -> str:
     """Genereert een Atom 1.0 feed als string.
 
     Bevat per item:
@@ -302,7 +302,7 @@ def generate_atom(items: list[dict], generated_at: datetime) -> str:
     return f"""<?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom"
       xmlns:rv="urn:researchvault:feedreader:1">
-  <title>Feedreader — Gefilterde RSS-feed</title>
+  <title>{atom_escape(feed_title)}</title>
   <id>urn:feedreader:filtered-feed</id>
   <updated>{ts}</updated>
   <author><name>feedreader-score.py</name></author>
@@ -856,9 +856,23 @@ def main():
 
     # 5. Atom-feed en HTML-pagina schrijven
     print("[5/5] Atom-feed en HTML-pagina genereren...")
-    atom_xml  = generate_atom(all_items, now)
+
+    # Volledige feed
     feed_path = SERVE_DIR / "filtered.xml"
-    feed_path.write_text(atom_xml, encoding="utf-8")
+    feed_path.write_text(generate_atom(all_items, now), encoding="utf-8")
+
+    # Type-gefilterde feeds voor NetNewsWire
+    for source_type, label, emoji in [
+        ("youtube",  "YouTube-video's",  "▶️"),
+        ("podcast",  "Podcasts",         "🎙️"),
+        ("web",      "Webaartikelen",     "📄"),
+    ]:
+        subset = [i for i in all_items if i["source_type"] == source_type]
+        path   = SERVE_DIR / f"filtered-{source_type}.xml"
+        path.write_text(
+            generate_atom(subset, now, feed_title=f"Feedreader {emoji} {label}"),
+            encoding="utf-8",
+        )
 
     html_str  = generate_html(all_items, now)
     html_path = SERVE_DIR / "filtered.html"
@@ -877,8 +891,11 @@ def main():
     print(f"✅  {len(all_items)} items verwerkt")
     print(f"🟢 {green} sterk  🟡 {yellow} mogelijk  🔴 {red} zwak")
     print(f"📝 {len(new_log_entries)} nieuwe items toegevoegd aan score_log.jsonl")
-    print(f"\n   XML:  http://localhost:8765/filtered.xml  (NetNewsWire)")
-    print(f"   HTML: http://localhost:8765/filtered.html (browser)\n")
+    print(f"\n   XML (alles):   http://localhost:8765/filtered.xml")
+    print(f"   XML YouTube:   http://localhost:8765/filtered-youtube.xml")
+    print(f"   XML Podcasts:  http://localhost:8765/filtered-podcast.xml")
+    print(f"   XML Web:       http://localhost:8765/filtered-web.xml")
+    print(f"   HTML:          http://localhost:8765/filtered.html\n")
 
 
 if __name__ == "__main__":
