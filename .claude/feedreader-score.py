@@ -49,6 +49,8 @@ from feedreader_core import (
     compute_weighted_profile,
     score_label,
     detect_source_type,
+    extract_snippet,
+    make_item_summary,
 )
 from zotero_utils import make_sqlite_copy, get_library_keys_with_weights
 
@@ -216,24 +218,6 @@ def cache_podcast_shownotes(
         }, ensure_ascii=False))
 
 
-def extract_snippet(text: str, max_len: int = 250) -> str:
-    """Return first meaningful prose from a description, skipping link-heavy lines."""
-    if not text:
-        return ""
-    prose = []
-    for line in text.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        url_count = len(re.findall(r'https?://', line))
-        word_count = len(line.split())
-        if url_count >= 2 or (url_count == 1 and word_count <= 5):
-            continue
-        prose.append(line)
-        if sum(len(l) for l in prose) >= max_len:
-            break
-    return " ".join(prose)[:max_len]
-
 
 def atom_escape(text: str) -> str:
     """Escapet tekst voor gebruik in XML."""
@@ -255,8 +239,37 @@ def score_to_fake_date(score: int, generated_at: datetime) -> str:
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _make_atom_content(item: dict) -> str | None:
+    """
+    Geeft volledige tekst terug voor het Atom <content>-element, per brontype:
+      youtube  → transcript-fragment (max 2000 tekens)
+      podcast  → volledige show notes (als ≥ SHOWNOTES_MIN_LENGTH)
+      web      → volledige beschrijving (alleen als die substantieel langer is dan de summary)
+    Geeft None als er geen zinvolle extra tekst is.
+    """
+    source_type = item.get("source_type", "web")
+    if source_type == "youtube":
+        if item.get("has_transcript"):
+            return item.get("transcript_snippet", "") or None  # al max 2000 tekens
+    elif source_type == "podcast":
+        if item.get("has_shownotes"):
+            return item.get("description", "") or None
+    else:  # web
+        desc = item.get("description", "")
+        if len(desc) > 600:
+            return desc
+    return None
+
+
 def generate_atom(items: list[dict], generated_at: datetime) -> str:
-    """Genereert een Atom 1.0 feed als string."""
+    """Genereert een Atom 1.0 feed als string.
+
+    Bevat per item:
+      <summary>  — schone teaser per brontype (transcript, show notes of gefilterde tekst)
+      <content>  — volledigere tekst indien beschikbaar
+      <rv:score> — relevantiescore (0–100)
+      <rv:type>  — brontype (youtube | podcast | web)
+    """
     ts = generated_at.strftime("%Y-%m-%dT%H:%M:%SZ")
     entries = []
     for item in items:
@@ -264,9 +277,15 @@ def generate_atom(items: list[dict], generated_at: datetime) -> str:
         title     = atom_escape(f"{label} {item['score']:3d} | {item['title']}")
         link      = atom_escape(item["url"])
         feed_name = atom_escape(item["feed_name"])
-        summary   = atom_escape(item.get("description", "")[:500])
+        summary   = atom_escape(make_item_summary(item, max_len=400))
         entry_id  = atom_escape(item.get("url", str(uuid.uuid4())))
         updated   = score_to_fake_date(item["score"], generated_at)
+        source_type = item.get("source_type", "web")
+
+        content_xml = ""
+        content_text = _make_atom_content(item)
+        if content_text:
+            content_xml = f"\n    <content type=\"text\">{atom_escape(content_text)}</content>"
 
         entries.append(f"""  <entry>
     <title>{title}</title>
@@ -274,12 +293,15 @@ def generate_atom(items: list[dict], generated_at: datetime) -> str:
     <id>{entry_id}</id>
     <updated>{updated}</updated>
     <category term="{feed_name}"/>
-    <summary>{summary}</summary>
+    <rv:score>{item['score']}</rv:score>
+    <rv:type>{source_type}</rv:type>
+    <summary>{summary}</summary>{content_xml}
   </entry>""")
 
     entries_xml = "\n".join(entries)
     return f"""<?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom">
+<feed xmlns="http://www.w3.org/2005/Atom"
+      xmlns:rv="urn:researchvault:feedreader:1">
   <title>Feedreader — Gefilterde RSS-feed</title>
   <id>urn:feedreader:filtered-feed</id>
   <updated>{ts}</updated>
@@ -305,7 +327,7 @@ def generate_html(items: list[dict], generated_at: datetime) -> str:
             "label":     score_label(item["score"]),
             "source":    item["feed_name"],
             "type":      item["source_type"],
-            "snippet":   extract_snippet(item.get("description", "")) or item.get("transcript_snippet", ""),
+            "snippet":   make_item_summary(item, max_len=250),
             "published": item.get("published", ""),
         }
         for item in items
@@ -772,7 +794,7 @@ def main():
                     if transcript:
                         score_text += " " + transcript[:3000]
                         has_transcript = True
-                        transcript_snippet = transcript[:250]
+                        transcript_snippet = transcript[:2000]
 
             # Podcast show notes cachen voor artikelgeneratie
             episode_id = None

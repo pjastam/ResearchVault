@@ -6,6 +6,8 @@ zodat ze herbruikbaar zijn vanuit feedreader-score.py, feedreader-learn.py en
 toekomstige scripts.
 """
 
+import re
+
 import numpy as np
 
 THRESHOLD_GREEN  = 50
@@ -44,6 +46,44 @@ def score_label(score: int) -> str:
     elif score >= THRESHOLD_YELLOW:
         return "🟡"
     return "🔴"
+
+
+def extract_snippet(text: str, max_len: int = 250) -> str:
+    """Return first meaningful prose from a description, skipping link-heavy lines."""
+    if not text:
+        return ""
+    prose = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        url_count = len(re.findall(r'https?://', line))
+        word_count = len(line.split())
+        if url_count >= 2 or (url_count == 1 and word_count <= 5):
+            continue
+        prose.append(line)
+        if sum(len(l) for l in prose) >= max_len:
+            break
+    return " ".join(prose)[:max_len]
+
+
+def make_item_summary(item: dict, max_len: int = 400) -> str:
+    """Kiest de beste samenvattingstekst per brontype.
+
+    - youtube : transcript-fragment heeft voorkeur boven URL-rijke beschrijving
+    - podcast : gefilterde show notes
+    - web     : eerste zinvolle tekst uit de beschrijving
+    """
+    source_type = item.get("source_type", "web")
+    if source_type == "youtube":
+        snippet = item.get("transcript_snippet", "")
+        if not snippet:
+            snippet = extract_snippet(item.get("description", ""), max_len)
+        return snippet[:max_len]
+    elif source_type == "podcast":
+        return extract_snippet(item.get("description", ""), max_len=max(max_len, 500))
+    else:
+        return extract_snippet(item.get("description", ""), max_len=max_len)
 
 
 def detect_source_type(feed_url: str, entry: dict) -> str:
