@@ -292,9 +292,10 @@ def _make_atom_content_html(item: dict) -> str:
         f'<script>'
         f'function rvAct(t,b){{'
         f'b.disabled=true;b.style.opacity=".5";'
-        f'fetch("{action_base}"+t)'
-        f'.then(function(r){{b.textContent=r.ok?"✓ Klaar":"⚠️ Fout";}}) '
-        f'.catch(function(){{b.textContent="⚠️ Fout";}});'
+        f'var i=new Image();'
+        f'i.onload=function(){{b.textContent="✓ Klaar";}};'
+        f'i.onerror=function(){{b.textContent="⚠️ Fout";}};'
+        f'i.src="{action_base}"+t;'
         f'}}'
         f'</script>'
     )

@@ -131,18 +131,11 @@ class Phase0Handler(http.server.SimpleHTTPRequestHandler):
 
         if action == "skip":
             self._append_queue(SKIP_QUEUE, {"url": url, "title": title, "timestamp": ts})
-            self._respond_action_page("👎 Overgeslagen", url, "#c0392b")
+            self._respond_pixel(200)
 
         elif action in ("zotero", "read"):
-            ok, result = _add_to_zotero_inbox(url, title, source_type, action, source, date)
-            if ok:
-                msg   = "✅ Toegevoegd aan Zotero _inbox" if action == "zotero" else "📖 Toegevoegd aan Zotero _inbox"
-                color = "#1a7f4b"
-                self._respond_action_page(msg, url, color, zotero_key=result)
-            else:
-                self._respond_action_page(
-                    f"⚠️ Zotero API fout: {result}", url, "#c0392b", show_url=True
-                )
+            ok, _result = _add_to_zotero_inbox(url, title, source_type, action, source, date)
+            self._respond_pixel(200 if ok else 500)
 
     @staticmethod
     def _append_queue(path: Path, entry: dict):
@@ -176,6 +169,18 @@ class Phase0Handler(http.server.SimpleHTTPRequestHandler):
 <p style="margin-top:2em;font-size:.8em;color:#999">Je kunt dit tabblad sluiten.</p>
 </body></html>"""
         self._respond_html(200, body)
+
+    def _respond_pixel(self, code: int):
+        """Retourneert een 1×1 transparante GIF — onload = succes, onerror = fout."""
+        gif = (b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00'
+               b'\xff\xff\xff\x00\x00\x00\x21\xf9\x04\x00\x00\x00\x00\x00'
+               b'\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01\x00\x3b')
+        self.send_response(code)
+        self.send_header("Content-Type", "image/gif")
+        self.send_header("Content-Length", str(len(gif)))
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.wfile.write(gif)
 
     def _respond_html(self, code: int, body: str):
         encoded = body.encode("utf-8")
