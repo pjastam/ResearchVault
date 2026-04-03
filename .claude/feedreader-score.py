@@ -365,31 +365,34 @@ def generate_atom(items: list[dict], generated_at: datetime, feed_title: str = "
 
 
 def generate_html(items: list[dict], generated_at: datetime) -> str:
-    """Genereert een zelfstandige HTML-pagina met score- en bronweergave."""
+    """Genereert een HTML-pagina met twee-paneel layout (lijst + lezer), à la NetNewsWire."""
     import json as _json
 
     date_str = generated_at.strftime("%-d %b %Y, %H:%M")
 
-    # Gegevens als JSON voor JavaScript — alleen wat de UI nodig heeft
     data = _json.dumps([
         {
-            "url":       item["url"],
-            "href":      item["url"],
-            "title":     item["title"],
-            "score":     item["score"],
-            "label":     score_label(item["score"]),
-            "source":    item["feed_name"],
-            "type":      item["source_type"],
-            "snippet":   make_item_summary(item, max_len=250),
-            "published": item.get("published", ""),
+            "url":        item["url"],
+            "href":       item["url"],
+            "title":      item["title"],
+            "score":      item["score"],
+            "label":      score_label(item["score"]),
+            "source":     item["feed_name"],
+            "type":       item["source_type"],
+            "snippet":    make_item_summary(item, max_len=250),
+            "content":    (item.get("transcript_snippet") or item.get("description", ""))
+                          if item["source_type"] == "youtube"
+                          else item.get("description", ""),
+            "published":  item.get("published", ""),
+            "video_id":   item.get("video_id") or "",
+            "episode_id": item.get("episode_id") or "",
         }
         for item in items
-    ], ensure_ascii=False)
+    ], ensure_ascii=False).replace("</", "<\\/")
 
     green  = sum(1 for i in items if i["score"] >= THRESHOLD_GREEN)
     yellow = sum(1 for i in items if THRESHOLD_YELLOW <= i["score"] < THRESHOLD_GREEN)
     red    = sum(1 for i in items if i["score"] < THRESHOLD_YELLOW)
-    total  = len(items)
 
     return f"""<!DOCTYPE html>
 <html lang="nl">
@@ -407,7 +410,7 @@ def generate_html(items: list[dict], generated_at: datetime) -> str:
     --border: #e0e0da;
     --text:   #1a1a1a;
     --muted:  #6b6b6b;
-    --read-op: 0.35;
+    --read-op: 0.45;
   }}
   @media (prefers-color-scheme: dark) {{
     :root {{
@@ -458,40 +461,91 @@ def generate_html(items: list[dict], generated_at: datetime) -> str:
     font-size: .8rem; color: var(--muted);
     background: none; border: none; cursor: pointer; text-decoration: underline;
   }}
+  /* ── two-panel layout ── */
   #layout {{
-    display: flex; height: calc(100vh - 48px);
+    display: flex; height: calc(100vh - 44px);
   }}
-  #content-panel {{
+  #list-panel {{
+    width: 300px; flex-shrink: 0; overflow-y: auto;
+    border-right: 1px solid var(--border);
+  }}
+  #reader-panel {{
     flex: 1; overflow-y: auto; min-width: 0;
+    background: var(--card);
+    padding: 1.5rem 2rem;
   }}
+  #reader-empty {{
+    height: 100%; display: flex; align-items: center; justify-content: center;
+    color: var(--muted); font-size: .9rem;
+  }}
+  #reader-content {{ display: none; max-width: 680px; margin: 0 auto; }}
+  #reader-content.visible {{ display: block; }}
+  #reader-title {{
+    font-size: 1.15rem; font-weight: 700; line-height: 1.4; margin-bottom: .5rem;
+  }}
+  #reader-title a {{ color: var(--text); text-decoration: none; }}
+  #reader-title a:hover {{ text-decoration: underline; }}
+  #reader-meta {{
+    font-size: .8rem; color: var(--muted); margin-bottom: 1rem;
+    display: flex; align-items: center; gap: .4rem; flex-wrap: wrap;
+  }}
+  .reader-badge {{
+    font-size: .72rem; font-weight: 700; padding: .1rem .3rem; border-radius: 4px;
+  }}
+  .reader-badge.green  {{ background: #d4f0e2; color: var(--green); }}
+  .reader-badge.yellow {{ background: #fef3cd; color: var(--yellow); }}
+  .reader-badge.red    {{ background: #fde8e8; color: var(--red); }}
+  @media (prefers-color-scheme: dark) {{
+    .reader-badge.green  {{ background: #0d3d25; }}
+    .reader-badge.yellow {{ background: #3d2e00; }}
+    .reader-badge.red    {{ background: #3d0f0f; }}
+  }}
+  #reader-body {{
+    font-size: .9rem; line-height: 1.65;
+    white-space: pre-wrap; word-break: break-word;
+    border-top: 1px solid var(--border); padding-top: 1rem; margin-bottom: .75rem;
+  }}
+  #reader-actions {{
+    display: flex; gap: .4rem; flex-wrap: wrap;
+    border-top: 1px solid var(--border); padding-top: .75rem;
+  }}
+  #reader-actions button {{
+    border: 1px solid var(--border); border-radius: 6px;
+    background: var(--bg); color: var(--text);
+    padding: .3rem .65rem; font-size: .82rem; cursor: pointer;
+  }}
+  #reader-actions button:hover {{ background: var(--border); }}
+  /* ── terminal panel ── */
   #terminal-panel {{
     display: none; flex-shrink: 0; width: 45%;
-    border-left: 1px solid var(--border);
-    background: #1e1e1e;
+    border-left: 1px solid var(--border); background: #1e1e1e;
   }}
   #terminal-panel.visible {{ display: flex; flex-direction: column; }}
-  #terminal-panel iframe {{
-    flex: 1; border: none; width: 100%; height: 100%;
-  }}
+  #terminal-panel iframe {{ flex: 1; border: none; width: 100%; height: 100%; }}
   @media (max-width: 800px) {{
     #layout {{ flex-direction: column; height: auto; }}
-    #terminal-panel {{ width: 100%; height: 60vh; border-left: none; border-top: 1px solid var(--border); }}
+    body {{ overflow: auto; }}
+    #list-panel {{ width: 100%; height: 55vh; border-right: none; border-bottom: 1px solid var(--border); }}
+    #reader-panel {{ min-height: 50vh; padding: 1rem; }}
+    #terminal-panel {{ width: 100%; height: 55vh; border-left: none; border-top: 1px solid var(--border); }}
   }}
-  .view {{ display: none; padding: .75rem 1rem; max-width: 720px; margin: 0 auto; }}
+  .view {{ display: none; padding: .5rem .6rem; }}
   .view.active {{ display: block; }}
-  .source-group {{ margin-bottom: 1.5rem; }}
+  .source-group {{ margin-bottom: 1.25rem; }}
   .source-heading {{
-    font-size: .75rem; font-weight: 600; text-transform: uppercase;
+    font-size: .7rem; font-weight: 600; text-transform: uppercase;
     letter-spacing: .05em; color: var(--muted);
-    padding: .5rem 0 .25rem; border-bottom: 1px solid var(--border);
-    margin-bottom: .5rem;
+    padding: .4rem .25rem .2rem; border-bottom: 1px solid var(--border);
+    margin-bottom: .35rem;
   }}
   .item {{
-    display: flex; gap: .6rem; align-items: flex-start;
-    padding: .55rem .5rem; border-radius: 8px;
+    display: flex; gap: .5rem; align-items: flex-start;
+    padding: .4rem .35rem; border-radius: 7px;
     cursor: pointer; transition: background .1s;
   }}
   .item:hover {{ background: var(--border); }}
+  .item.selected {{ background: var(--border); }}
+  .item.read .item-title {{ font-weight: 400; }}
   .item.read {{ opacity: var(--read-op); }}
   .item.read.hidden {{ display: none; }}
   .item.skipped {{ opacity: var(--read-op); }}
@@ -499,18 +553,17 @@ def generate_html(items: list[dict], generated_at: datetime) -> str:
   .item.skipped.hidden {{ display: none; }}
   .skip-btn {{
     flex-shrink: 0; background: none; border: none;
-    cursor: pointer; font-size: .85rem;
-    padding: .25rem .4rem; border-radius: 5px;
-    opacity: 0.2; line-height: 1;
-    transition: opacity .15s;
+    cursor: pointer; font-size: .8rem;
+    padding: .2rem .3rem; border-radius: 5px;
+    opacity: 0.15; line-height: 1; transition: opacity .15s;
   }}
   .skip-btn:hover {{ opacity: 0.9; background: var(--border); }}
   .item.skipped .skip-btn {{ display: none; }}
   .badge {{
-    flex-shrink: 0; min-width: 2.4rem;
-    font-size: .75rem; font-weight: 700;
-    padding: .15rem .35rem; border-radius: 5px;
-    text-align: center; margin-top: .1rem;
+    flex-shrink: 0; min-width: 2.1rem;
+    font-size: .7rem; font-weight: 700;
+    padding: .12rem .28rem; border-radius: 5px;
+    text-align: center; margin-top: .15rem;
   }}
   .badge.green  {{ background: #d4f0e2; color: var(--green); }}
   .badge.yellow {{ background: #fef3cd; color: var(--yellow); }}
@@ -522,24 +575,17 @@ def generate_html(items: list[dict], generated_at: datetime) -> str:
   }}
   .item-body {{ flex: 1; min-width: 0; }}
   .item-title {{
-    font-size: .9rem; line-height: 1.35;
+    font-size: .85rem; line-height: 1.3; font-weight: 600;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }}
-  .item-meta {{ font-size: .75rem; color: var(--muted); margin-top: .1rem; }}
-  .item-snippet {{
-    font-size: .75rem; color: var(--muted); margin-top: .2rem;
-    line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical; overflow: hidden;
-  }}
+  .item-meta {{ font-size: .7rem; color: var(--muted); margin-top: .1rem; }}
   a {{ color: inherit; text-decoration: none; }}
 </style>
 </head>
 <body>
 <header>
   <h1>Phase 0</h1>
-  <span class="stats">
-    🟢 {green} &nbsp;🟡 {yellow} &nbsp;🔴 {red} &nbsp;·&nbsp; {date_str}
-  </span>
+  <span class="stats">🟢 {green} &nbsp;🟡 {yellow} &nbsp;🔴 {red} &nbsp;·&nbsp; {date_str}</span>
   <div class="type-filter">
     <button class="active" onclick="setType('all', this)">Alles</button>
     <button onclick="setType('web', this)" title="RSS">📄</button>
@@ -556,10 +602,19 @@ def generate_html(items: list[dict], generated_at: datetime) -> str:
 </header>
 
 <div id="layout">
-  <div id="content-panel">
+  <div id="list-panel">
     <div id="view-score" class="view active"></div>
     <div id="view-source" class="view"></div>
     <div id="view-date" class="view"></div>
+  </div>
+  <div id="reader-panel">
+    <div id="reader-empty">← Selecteer een item om te lezen</div>
+    <div id="reader-content">
+      <div id="reader-title"></div>
+      <div id="reader-meta"></div>
+      <div id="reader-body"></div>
+      <div id="reader-actions"></div>
+    </div>
   </div>
   <div id="terminal-panel">
     <iframe id="term-iframe" src="about:blank"></iframe>
@@ -568,7 +623,9 @@ def generate_html(items: list[dict], generated_at: datetime) -> str:
 
 <script>
 const ITEMS = {data};
-const READ_KEY = "feedreader_read";
+const READ_KEY  = "feedreader_read";
+const SKIP_KEY  = "feedreader_skipped";
+const ACT_BASE  = "http://localhost:8765/action";
 
 function getRead() {{
   try {{ return new Set(JSON.parse(localStorage.getItem(READ_KEY) || "[]")); }}
@@ -578,7 +635,6 @@ function markRead(url) {{
   const s = getRead(); s.add(url);
   localStorage.setItem(READ_KEY, JSON.stringify([...s]));
 }}
-const SKIP_KEY = "feedreader_skipped";
 function getSkipped() {{
   try {{ return new Set(JSON.parse(localStorage.getItem(SKIP_KEY) || "[]")); }}
   catch {{ return new Set(); }}
@@ -587,161 +643,233 @@ function markSkippedLocal(url) {{
   const s = getSkipped(); s.add(url);
   localStorage.setItem(SKIP_KEY, JSON.stringify([...s]));
 }}
-function skipItem(url, title, el) {{
-  markSkippedLocal(url);
-  el.classList.add("skipped");
-  if (hideRead) el.classList.add("hidden");
-  fetch("/skip", {{
-    method: "POST",
-    headers: {{"Content-Type": "application/json"}},
-    body: JSON.stringify({{url, title, timestamp: new Date().toISOString()}})
-  }}).catch(() => {{}});
-}}
 
 let currentType = "all";
+let selectedUrl = null;
+let hideRead    = false;
+
 function setType(type, btn) {{
   currentType = type;
   document.querySelectorAll(".type-filter button").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
-  renderScore();
-  renderSource();
-  renderDate();
+  renderAll();
 }}
-
 function visibleItems() {{
   return currentType === "all" ? ITEMS : ITEMS.filter(i => i.type === currentType);
 }}
-
 function fmtDate(iso) {{
   if (!iso) return "";
   const d = new Date(iso);
   if (isNaN(d)) return "";
   return d.toLocaleDateString("nl-NL", {{ day: "numeric", month: "short", year: "numeric" }});
 }}
-
 function badgeClass(score) {{
   if (score >= {THRESHOLD_GREEN}) return "green";
   if (score >= {THRESHOLD_YELLOW}) return "yellow";
   return "red";
 }}
+function escHtml(s) {{
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}}
 
+/* ── Reader ── */
+function rvAct(type, item, btn) {{
+  btn.disabled = true; btn.style.opacity = ".5";
+  var src = ACT_BASE
+    + "?url="    + encodeURIComponent(item.url)
+    + "&title="  + encodeURIComponent(item.title)
+    + "&stype="  + encodeURIComponent(item.type)
+    + "&source=" + encodeURIComponent(item.source)
+    + "&date="   + encodeURIComponent((item.published || "").substring(0, 10))
+    + "&type="   + type;
+  var img = new Image();
+  img.onload = function() {{ btn.textContent = "✓ Klaar"; }};
+  img.onerror = function() {{ btn.textContent = "⚠️ Fout"; }};
+  img.src = src;
+  if (type === "skip") {{
+    document.querySelectorAll(".item[data-url]").forEach(function(el) {{
+      if (el.dataset.url === item.url) {{
+        el.classList.add("skipped");
+        if (hideRead) el.classList.add("hidden");
+      }}
+    }});
+    markSkippedLocal(item.url);
+    fetch("/skip", {{
+      method: "POST",
+      headers: {{"Content-Type": "application/json"}},
+      body: JSON.stringify({{url: item.url, title: item.title, timestamp: new Date().toISOString()}})
+    }}).catch(function() {{}});
+  }}
+}}
+
+function showReader(item) {{
+  selectedUrl = item.url;
+  document.querySelectorAll(".item").forEach(function(el) {{
+    el.classList.toggle("selected", el.dataset.url === item.url);
+  }});
+  document.getElementById("reader-empty").style.display = "none";
+  var rc = document.getElementById("reader-content");
+  rc.classList.add("visible");
+
+  var titleEl = document.getElementById("reader-title");
+  titleEl.innerHTML = "";
+  var a = document.createElement("a");
+  a.href = item.url; a.target = "_blank"; a.rel = "noopener";
+  a.textContent = item.title;
+  titleEl.appendChild(a);
+
+  var metaEl = document.getElementById("reader-meta");
+  metaEl.innerHTML = "";
+  var bc = badgeClass(item.score);
+  metaEl.innerHTML = escHtml(item.source)
+    + (item.published ? " &nbsp;&middot;&nbsp; " + escHtml(fmtDate(item.published)) : "")
+    + " &nbsp;&middot;&nbsp; <span class='reader-badge " + bc + "'>" + item.score + "</span>";
+
+  document.getElementById("reader-body").textContent = item.content || item.snippet || "";
+
+
+  var actEl = document.getElementById("reader-actions");
+  actEl.innerHTML = "";
+  [["zotero","✅ Zotero"],["read","📖 Later lezen"],["skip","👎 Overslaan"]].forEach(function(pair) {{
+    var btn = document.createElement("button");
+    btn.textContent = pair[1];
+    btn.addEventListener("click", (function(t, b) {{
+      return function() {{ rvAct(t, item, b); }};
+    }})(pair[0], btn));
+    actEl.appendChild(btn);
+  }});
+
+  var btnU = document.createElement("button");
+  btnU.textContent = "↩ Ongelezen";
+  btnU.addEventListener("click", function() {{
+    var s = getRead(); s.delete(item.url);
+    localStorage.setItem(READ_KEY, JSON.stringify([...s]));
+    document.querySelectorAll(".item[data-url]").forEach(function(el) {{
+      if (el.dataset.url === item.url) el.classList.remove("read");
+    }});
+  }});
+  actEl.appendChild(btnU);
+}}
+
+/* ── List rendering ── */
 function makeItem(item, read, skipped) {{
   const isRead    = read.has(item.url);
   const isSkipped = skipped.has(item.url);
   const div = document.createElement("div");
-  div.className = "item" + (isRead ? " read" : "") + (isSkipped ? " skipped" : "");
+  div.className = "item"
+    + (isRead    ? " read"     : "")
+    + (isSkipped ? " skipped"  : "")
+    + (item.url === selectedUrl ? " selected" : "");
   div.dataset.url = item.url;
-  div.innerHTML = `
-    <span class="badge ${{badgeClass(item.score)}}">${{item.score}}</span>
-    <div class="item-body">
-      <div class="item-title">
-        <a href="${{item.href}}" target="_blank" rel="noopener">${{escHtml(item.title)}}</a>
-      </div>
-      <div class="item-meta">${{escHtml(item.source)}}${{item.published ? " · " + fmtDate(item.published) : ""}}</div>
-      ${{item.snippet ? `<div class="item-snippet">${{escHtml(item.snippet)}}</div>` : ""}}
-    </div>`;
-  div.querySelector("a").addEventListener("click", (e) => {{
+
+  var badge = document.createElement("span");
+  badge.className = "badge " + badgeClass(item.score);
+  badge.textContent = item.score;
+  div.appendChild(badge);
+
+  var body = document.createElement("div");
+  body.className = "item-body";
+  var titleDiv = document.createElement("div");
+  titleDiv.className = "item-title";
+  titleDiv.textContent = item.title;
+  body.appendChild(titleDiv);
+  var metaDiv = document.createElement("div");
+  metaDiv.className = "item-meta";
+  metaDiv.textContent = item.source + (item.published ? " · " + fmtDate(item.published) : "");
+  body.appendChild(metaDiv);
+  div.appendChild(body);
+
+  var skipBtn = document.createElement("button");
+  skipBtn.className = "skip-btn";
+  skipBtn.title = "Overslaan";
+  skipBtn.textContent = "👎";
+  skipBtn.addEventListener("click", function(e) {{
     e.stopPropagation();
-    div.classList.add("read");
-    markRead(item.url);
+    markSkippedLocal(item.url);
+    div.classList.add("skipped");
+    if (hideRead) div.classList.add("hidden");
+    fetch("/skip", {{
+      method: "POST",
+      headers: {{"Content-Type": "application/json"}},
+      body: JSON.stringify({{url: item.url, title: item.title, timestamp: new Date().toISOString()}})
+    }}).catch(function() {{}});
   }});
-  const btn = document.createElement("button");
-  btn.className = "skip-btn";
-  btn.title = "Niet interessant";
-  btn.textContent = "👎";
-  btn.addEventListener("click", (e) => {{
-    e.stopPropagation();
-    skipItem(item.url, item.title, div);
-  }});
-  div.appendChild(btn);
-  div.addEventListener("click", () => {{
+  div.appendChild(skipBtn);
+
+  div.addEventListener("click", function() {{
     if (!div.classList.contains("skipped")) {{
       div.classList.add("read");
       markRead(item.url);
-      window.open(item.href, "_blank", "noopener");
+      showReader(item);
     }}
   }});
   return div;
 }}
 
-function escHtml(s) {{
-  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-}}
-
 function renderScore() {{
-  const el = document.getElementById("view-score");
+  var el = document.getElementById("view-score");
   el.innerHTML = "";
-  const read    = getRead();
-  const skipped = getSkipped();
-  visibleItems().forEach(item => el.appendChild(makeItem(item, read, skipped)));
+  var read = getRead(), skipped = getSkipped();
+  visibleItems().forEach(function(item) {{ el.appendChild(makeItem(item, read, skipped)); }});
 }}
-
 function renderSource() {{
-  const el = document.getElementById("view-source");
+  var el = document.getElementById("view-source");
   el.innerHTML = "";
-  const read    = getRead();
-  const skipped = getSkipped();
-  const groups  = {{}};
-  visibleItems().forEach(item => {{
+  var read = getRead(), skipped = getSkipped(), groups = {{}};
+  visibleItems().forEach(function(item) {{
     if (!groups[item.source]) groups[item.source] = [];
     groups[item.source].push(item);
   }});
-  Object.entries(groups).sort().forEach(([src, items]) => {{
-    const grp = document.createElement("div");
+  Object.keys(groups).sort().forEach(function(src) {{
+    var grp = document.createElement("div");
     grp.className = "source-group";
-    const h = document.createElement("div");
+    var h = document.createElement("div");
     h.className = "source-heading";
-    h.textContent = src + " (" + items.length + ")";
+    h.textContent = src + " (" + groups[src].length + ")";
     grp.appendChild(h);
-    items.forEach(item => grp.appendChild(makeItem(item, read, skipped)));
+    groups[src].forEach(function(item) {{ grp.appendChild(makeItem(item, read, skipped)); }});
     el.appendChild(grp);
   }});
 }}
-
 function renderDate() {{
-  const el = document.getElementById("view-date");
+  var el = document.getElementById("view-date");
   el.innerHTML = "";
-  const read    = getRead();
-  const skipped = getSkipped();
-  const sorted  = [...visibleItems()].sort((a, b) => {{
+  var read = getRead(), skipped = getSkipped();
+  var sorted = visibleItems().slice().sort(function(a, b) {{
     if (!a.published) return 1;
     if (!b.published) return -1;
     return b.published.localeCompare(a.published);
   }});
-  sorted.forEach(item => el.appendChild(makeItem(item, read, skipped)));
+  sorted.forEach(function(item) {{ el.appendChild(makeItem(item, read, skipped)); }});
 }}
+function renderAll() {{ renderScore(); renderSource(); renderDate(); }}
 
 function switchView(name, btn) {{
-  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
-  document.querySelectorAll(".tabs button").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll(".view").forEach(function(v) {{ v.classList.remove("active"); }});
+  document.querySelectorAll(".tabs button").forEach(function(b) {{ b.classList.remove("active"); }});
   document.getElementById("view-" + name).classList.add("active");
   btn.classList.add("active");
 }}
-
-let hideRead = false;
 function toggleRead() {{
   hideRead = !hideRead;
-  document.querySelectorAll(".item.read, .item.skipped").forEach(el => {{
+  document.querySelectorAll(".item.read, .item.skipped").forEach(function(el) {{
     el.classList.toggle("hidden", hideRead);
   }});
   document.querySelector(".toggle-read").textContent =
     hideRead ? "toon alles" : "verberg gelezen / overgeslagen";
 }}
-
-renderScore();
-renderSource();
-renderDate();
-
 function toggleTerminal() {{
-  const panel = document.getElementById("terminal-panel");
-  const iframe = document.getElementById("term-iframe");
-  const btn    = document.getElementById("term-btn");
-  const open   = panel.classList.toggle("visible");
+  var panel  = document.getElementById("terminal-panel");
+  var iframe = document.getElementById("term-iframe");
+  var btn    = document.getElementById("term-btn");
+  var open   = panel.classList.toggle("visible");
   btn.style.fontWeight = open ? "700" : "";
   if (open && iframe.src === "about:blank") {{
     iframe.src = "http://" + window.location.hostname + ":7681/?";
   }}
 }}
+
+renderAll();
 </script>
 </body>
 </html>
