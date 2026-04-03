@@ -50,7 +50,7 @@ _ITEM_TYPE_MAP = {
 }
 
 
-def _add_to_zotero_inbox(url: str, title: str, source_type: str) -> tuple[bool, str]:
+def _add_to_zotero_inbox(url: str, title: str, source_type: str, action: str = "zotero") -> tuple[bool, str]:
     """
     Voegt een item toe aan Zotero _inbox via de Web API.
     Geeft (True, item_key) terug bij succes, (False, foutmelding) bij mislukking.
@@ -64,7 +64,7 @@ def _add_to_zotero_inbox(url: str, title: str, source_type: str) -> tuple[bool, 
         "title":       title or url,
         "url":         url,
         "collections": [ZOTERO_INBOX_KEY],
-        "tags":        [],
+        "tags":        [{"tag": "✅" if action == "zotero" else "📖"}],
     }]).encode("utf-8")
 
     req = urllib.request.Request(
@@ -116,7 +116,7 @@ class Phase0Handler(http.server.SimpleHTTPRequestHandler):
             self._respond_action_page("👎 Overgeslagen", url, "#c0392b")
 
         elif action in ("zotero", "read"):
-            ok, result = _add_to_zotero_inbox(url, title, source_type)
+            ok, result = _add_to_zotero_inbox(url, title, source_type, action)
             if ok:
                 msg   = "✅ Toegevoegd aan Zotero _inbox" if action == "zotero" else "📖 Toegevoegd aan Zotero _inbox"
                 color = "#1a7f4b"
