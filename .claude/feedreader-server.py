@@ -50,7 +50,10 @@ _ITEM_TYPE_MAP = {
 }
 
 
-def _add_to_zotero_inbox(url: str, title: str, source_type: str, action: str = "zotero") -> tuple[bool, str]:
+def _add_to_zotero_inbox(
+    url: str, title: str, source_type: str,
+    action: str = "zotero", source: str = "", date: str = "",
+) -> tuple[bool, str]:
     """
     Voegt een item toe aan Zotero _inbox via de Web API.
     Geeft (True, item_key) terug bij succes, (False, foutmelding) bij mislukking.
@@ -59,13 +62,26 @@ def _add_to_zotero_inbox(url: str, title: str, source_type: str, action: str = "
         return False, "ZOTERO_API_KEY niet ingesteld"
 
     item_type = _ITEM_TYPE_MAP.get(source_type, "webpage")
-    payload = json.dumps([{
-        "itemType":    item_type,
-        "title":       title or url,
-        "url":         url,
-        "collections": [ZOTERO_INBOX_KEY],
-        "tags":        [{"tag": "✅" if action == "zotero" else "📖"}],
-    }]).encode("utf-8")
+
+    # Creator-type en publisher-veld per itemtype
+    creator_type, publisher_field = {
+        "videoRecording": ("director",   "studio"),
+        "audioRecording": ("performer",  "label"),
+    }.get(item_type, ("author", "websiteTitle"))
+
+    item: dict = {
+        "itemType":      item_type,
+        "title":         title or url,
+        "url":           url,
+        "date":          date,
+        "collections":   [ZOTERO_INBOX_KEY],
+        "tags":          [{"tag": "✅" if action == "zotero" else "📖"}],
+    }
+    if source:
+        item[publisher_field] = source
+        item["creators"] = [{"creatorType": creator_type, "name": source}]
+
+    payload = json.dumps([item]).encode("utf-8")
 
     req = urllib.request.Request(
         f"{ZOTERO_API_BASE}/items",
@@ -100,10 +116,12 @@ class Phase0Handler(http.server.SimpleHTTPRequestHandler):
 
     def _handle_action(self, query_string: str):
         params      = urllib.parse.parse_qs(query_string)
-        url         = params.get("url",   [""])[0]
-        action      = params.get("type",  [""])[0]
-        title       = params.get("title", [""])[0]
-        source_type = params.get("stype", ["web"])[0]
+        url         = params.get("url",    [""])[0]
+        action      = params.get("type",   [""])[0]
+        title       = params.get("title",  [""])[0]
+        source_type = params.get("stype",  ["web"])[0]
+        source      = params.get("source", [""])[0]
+        date        = params.get("date",   [""])[0]
 
         if not url or action not in ("zotero", "read", "skip"):
             self._respond_html(400, "<p>Ongeldige aanvraag.</p>")
@@ -116,7 +134,7 @@ class Phase0Handler(http.server.SimpleHTTPRequestHandler):
             self._respond_action_page("👎 Overgeslagen", url, "#c0392b")
 
         elif action in ("zotero", "read"):
-            ok, result = _add_to_zotero_inbox(url, title, source_type, action)
+            ok, result = _add_to_zotero_inbox(url, title, source_type, action, source, date)
             if ok:
                 msg   = "✅ Toegevoegd aan Zotero _inbox" if action == "zotero" else "📖 Toegevoegd aan Zotero _inbox"
                 color = "#1a7f4b"

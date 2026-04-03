@@ -275,11 +275,14 @@ def _make_atom_content_html(item: dict) -> str:
                 parts.append(f"<p>{html.escape(para)}</p>")
 
     # Actieknoppen onderin — via fetch() zodat er geen browsertabblad opent
-    title_enc = urllib.parse.quote(item.get("title", ""), safe="")
-    stype_enc = urllib.parse.quote(source_type, safe="")
+    title_enc  = urllib.parse.quote(item.get("title", ""), safe="")
+    stype_enc  = urllib.parse.quote(source_type, safe="")
+    source_enc = urllib.parse.quote(item.get("feed_name", ""), safe="")
+    date_enc   = urllib.parse.quote(item.get("published", "")[:10], safe="")  # YYYY-MM-DD
     action_base = (
         f"http://localhost:8765/action"
-        f"?url={url_enc}&title={title_enc}&stype={stype_enc}&type="
+        f"?url={url_enc}&title={title_enc}&stype={stype_enc}"
+        f"&source={source_enc}&date={date_enc}&type="
     )
     btn_style = (
         "cursor:pointer;border:1px solid #ccc;border-radius:5px;"
