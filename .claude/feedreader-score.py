@@ -862,13 +862,13 @@ def main():
     feed_path.write_text(generate_atom(all_items, now), encoding="utf-8")
 
     # Type-gefilterde feeds voor NetNewsWire
-    for source_type, label, emoji in [
-        ("youtube",  "YouTube-video's",  "▶️"),
-        ("podcast",  "Podcasts",         "🎙️"),
-        ("web",      "Webaartikelen",     "📄"),
+    for source_type, filename, label, emoji in [
+        ("youtube", "youtube",  "YouTube-video's", "▶️"),
+        ("podcast", "podcast",  "Podcasts",        "🎙️"),
+        ("web",     "webpage",  "Webaartikelen",   "📄"),
     ]:
         subset = [i for i in all_items if i["source_type"] == source_type]
-        path   = SERVE_DIR / f"filtered-{source_type}.xml"
+        path   = SERVE_DIR / f"filtered-{filename}.xml"
         path.write_text(
             generate_atom(subset, now, feed_title=f"Feedreader {emoji} {label}"),
             encoding="utf-8",
@@ -894,7 +894,7 @@ def main():
     print(f"\n   XML (alles):   http://localhost:8765/filtered.xml")
     print(f"   XML YouTube:   http://localhost:8765/filtered-youtube.xml")
     print(f"   XML Podcasts:  http://localhost:8765/filtered-podcast.xml")
-    print(f"   XML Web:       http://localhost:8765/filtered-web.xml")
+    print(f"   XML Web:       http://localhost:8765/filtered-webpage.xml")
     print(f"   HTML:          http://localhost:8765/filtered.html\n")
 
 
