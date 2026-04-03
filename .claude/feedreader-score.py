@@ -292,6 +292,7 @@ def generate_atom(items: list[dict], generated_at: datetime, feed_title: str = "
     <link href="{link}"/>
     <id>{entry_id}</id>
     <updated>{updated}</updated>
+    <author><name>{feed_name}</name></author>
     <category term="{feed_name}"/>
     <rv:score>{item['score']}</rv:score>
     <rv:type>{source_type}</rv:type>
