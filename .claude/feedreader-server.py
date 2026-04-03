@@ -12,16 +12,64 @@ Gebruik (via launchd):
 import html
 import http.server
 import json
+import os
 import urllib.parse
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
 SERVE_DIR    = Path.home() / ".local" / "share" / "feedreader-serve"
 SCRIPT_DIR   = Path(__file__).parent
 SKIP_QUEUE   = SCRIPT_DIR / "skip_queue.jsonl"
-READ_QUEUE   = SCRIPT_DIR / "read_queue.jsonl"
-ZOTERO_QUEUE = SCRIPT_DIR / "zotero_queue.jsonl"
 PORT         = 8765
+
+# ── Zotero Web API ─────────────────────────────────────────────────────────────
+ZOTERO_API_KEY      = os.environ.get("ZOTERO_API_KEY", "")
+ZOTERO_USER_ID      = "24775"
+ZOTERO_INBOX_KEY    = "N4MP46Y5"
+ZOTERO_API_BASE     = f"https://api.zotero.org/users/{ZOTERO_USER_ID}"
+
+_ITEM_TYPE_MAP = {
+    "youtube":  "videoRecording",
+    "podcast":  "audioRecording",
+    "web":      "webpage",
+}
+
+
+def _add_to_zotero_inbox(url: str, title: str, source_type: str) -> tuple[bool, str]:
+    """
+    Voegt een item toe aan Zotero _inbox via de Web API.
+    Geeft (True, item_key) terug bij succes, (False, foutmelding) bij mislukking.
+    """
+    if not ZOTERO_API_KEY:
+        return False, "ZOTERO_API_KEY niet ingesteld"
+
+    item_type = _ITEM_TYPE_MAP.get(source_type, "webpage")
+    payload = json.dumps([{
+        "itemType":    item_type,
+        "title":       title or url,
+        "url":         url,
+        "collections": [ZOTERO_INBOX_KEY],
+        "tags":        [],
+    }]).encode("utf-8")
+
+    req = urllib.request.Request(
+        f"{ZOTERO_API_BASE}/items",
+        data=payload,
+        headers={
+            "Zotero-API-Key":  ZOTERO_API_KEY,
+            "Content-Type":    "application/json",
+            "Zotero-API-Version": "3",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            body = json.loads(resp.read())
+            key  = next(iter(body.get("successful", {}).values()), {}).get("key", "")
+            return True, key
+    except Exception as e:
+        return False, str(e)
 
 
 class Phase0Handler(http.server.SimpleHTTPRequestHandler):
@@ -37,38 +85,54 @@ class Phase0Handler(http.server.SimpleHTTPRequestHandler):
             super().do_GET()
 
     def _handle_action(self, query_string: str):
-        params = urllib.parse.parse_qs(query_string)
-        url    = params.get("url", [""])[0]
-        action = params.get("type", [""])[0]
+        params      = urllib.parse.parse_qs(query_string)
+        url         = params.get("url",   [""])[0]
+        action      = params.get("type",  [""])[0]
+        title       = params.get("title", [""])[0]
+        source_type = params.get("stype", ["web"])[0]
 
         if not url or action not in ("zotero", "read", "skip"):
             self._respond_html(400, "<p>Ongeldige aanvraag.</p>")
             return
 
-        ts    = datetime.now(timezone.utc).isoformat()
-        entry = {"url": url, "timestamp": ts}
+        ts = datetime.now(timezone.utc).isoformat()
 
         if action == "skip":
-            self._append_queue(SKIP_QUEUE, entry)
+            self._append_queue(SKIP_QUEUE, {"url": url, "title": title, "timestamp": ts})
             self._respond_action_page("👎 Overgeslagen", url, "#c0392b")
-        elif action == "read":
-            self._append_queue(READ_QUEUE, entry)
-            self._respond_action_page("📖 Toegevoegd aan leeslijst", url, "#1a7f4b")
-        elif action == "zotero":
-            self._append_queue(ZOTERO_QUEUE, entry)
-            self._respond_action_page("✅ Gemarkeerd voor Zotero", url, "#2980b9", show_url=True)
 
-    def _append_queue(self, path: Path, entry: dict):
+        elif action in ("zotero", "read"):
+            ok, result = _add_to_zotero_inbox(url, title, source_type)
+            if ok:
+                msg   = "✅ Toegevoegd aan Zotero _inbox" if action == "zotero" else "📖 Toegevoegd aan Zotero _inbox"
+                color = "#1a7f4b"
+                self._respond_action_page(msg, url, color, zotero_key=result)
+            else:
+                self._respond_action_page(
+                    f"⚠️ Zotero API fout: {result}", url, "#c0392b", show_url=True
+                )
+
+    @staticmethod
+    def _append_queue(path: Path, entry: dict):
         with path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
-    def _respond_action_page(self, message: str, url: str, color: str, show_url: bool = False):
+    def _respond_action_page(self, message: str, url: str, color: str,
+                              show_url: bool = False, zotero_key: str = ""):
         escaped_url = html.escape(url)
-        url_block = (
-            f'<p style="margin-top:1em;font-size:.85em;color:#555">'
-            f'Voeg toe via de Zotero-extensie: '
-            f'<a href="{escaped_url}" style="color:#2980b9">{escaped_url}</a></p>'
-        ) if show_url else ""
+        extra = ""
+        if zotero_key:
+            zotero_link = f"zotero://select/library/items/{zotero_key}"
+            extra = (
+                f'<p style="margin-top:.75em;font-size:.85em;color:#555">'
+                f'<a href="{html.escape(zotero_link)}" style="color:#2980b9">'
+                f'Open in Zotero →</a></p>'
+            )
+        elif show_url:
+            extra = (
+                f'<p style="margin-top:.75em;font-size:.85em;color:#555">'
+                f'<a href="{escaped_url}" style="color:#2980b9">{escaped_url}</a></p>'
+            )
         body = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -76,7 +140,7 @@ class Phase0Handler(http.server.SimpleHTTPRequestHandler):
 <style>body{{font-family:-apple-system,sans-serif;padding:2rem;max-width:500px;margin:auto}}</style>
 </head><body>
 <p style="font-size:1.4em;font-weight:600;color:{color}">{html.escape(message)}</p>
-{url_block}
+{extra}
 <p style="margin-top:2em;font-size:.8em;color:#999">Je kunt dit tabblad sluiten.</p>
 </body></html>"""
         self._respond_html(200, body)

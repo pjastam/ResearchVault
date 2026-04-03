@@ -275,7 +275,12 @@ def _make_atom_content_html(item: dict) -> str:
                 parts.append(f"<p>{html.escape(para)}</p>")
 
     # Actieknoppen onderin
-    base = f"http://localhost:8765/action?url={url_enc}&amp;type="
+    title_enc = urllib.parse.quote(item.get("title", ""), safe="")
+    stype_enc = urllib.parse.quote(source_type, safe="")
+    base = (
+        f"http://localhost:8765/action"
+        f"?url={url_enc}&amp;title={title_enc}&amp;stype={stype_enc}&amp;type="
+    )
     parts.append(
         '<hr style="margin:1.5em 0;border:none;border-top:1px solid #ccc">'
         '<p style="font-size:.85em;color:#666">'
