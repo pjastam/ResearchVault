@@ -31,6 +31,7 @@ import os
 import re
 import sqlite3
 import sys
+import urllib.parse
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -239,26 +240,56 @@ def score_to_fake_date(score: int, generated_at: datetime) -> str:
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def _make_atom_content(item: dict) -> str | None:
+def _make_atom_content_html(item: dict) -> str:
     """
-    Geeft volledige tekst terug voor het Atom <content>-element, per brontype:
-      youtube  → transcript-fragment (max 2000 tekens)
-      podcast  → volledige show notes (als ≥ SHOWNOTES_MIN_LENGTH)
-      web      → volledige beschrijving (alleen als die substantieel langer is dan de summary)
-    Geeft None als er geen zinvolle extra tekst is.
+    Genereert HTML-content voor het Atom <content type="html">-element.
+
+    Structuur:
+      - Tekst per brontype (transcript, show notes of lange beschrijving)
+      - Scheidingslijn
+      - Actieknoppen: ✅ Zotero · 📖 Later lezen · 👎 Overslaan
+        (links naar GET /action op de lokale server)
+
+    De content wordt als CDATA ingebed zodat geen dubbele XML-escaping nodig is.
     """
+    url_enc     = urllib.parse.quote(item["url"], safe="")
     source_type = item.get("source_type", "web")
-    if source_type == "youtube":
-        if item.get("has_transcript"):
-            return item.get("transcript_snippet", "") or None  # al max 2000 tekens
-    elif source_type == "podcast":
-        if item.get("has_shownotes"):
-            return item.get("description", "") or None
-    else:  # web
+
+    parts = []
+
+    # Tekst content per brontype
+    text_content = None
+    if source_type == "youtube" and item.get("has_transcript"):
+        text_content = item.get("transcript_snippet", "") or None
+    elif source_type == "podcast" and item.get("has_shownotes"):
+        text_content = item.get("description", "") or None
+    else:
         desc = item.get("description", "")
         if len(desc) > 600:
-            return desc
-    return None
+            text_content = desc
+
+    if text_content:
+        for para in text_content.split("\n\n"):
+            para = para.strip()
+            if para:
+                parts.append(f"<p>{html.escape(para)}</p>")
+
+    # Actieknoppen onderin
+    base = f"http://localhost:8765/action?url={url_enc}&amp;type="
+    parts.append(
+        '<hr style="margin:1.5em 0;border:none;border-top:1px solid #ccc">'
+        '<p style="font-size:.85em;color:#666">'
+        f'<a href="{base}zotero" style="text-decoration:none">✅ Zotero</a>'
+        '&nbsp;&nbsp;&nbsp;'
+        f'<a href="{base}read" style="text-decoration:none">📖 Later lezen</a>'
+        '&nbsp;&nbsp;&nbsp;'
+        f'<a href="{base}skip" style="text-decoration:none">👎 Overslaan</a>'
+        '</p>'
+    )
+
+    content = "\n".join(parts)
+    # ]]> mag niet voorkomen in CDATA
+    return content.replace("]]>", "]]&gt;")
 
 
 def generate_atom(items: list[dict], generated_at: datetime, feed_title: str = "Feedreader — Gefilterde RSS-feed") -> str:
@@ -282,10 +313,8 @@ def generate_atom(items: list[dict], generated_at: datetime, feed_title: str = "
         updated   = score_to_fake_date(item["score"], generated_at)
         source_type = item.get("source_type", "web")
 
-        content_xml = ""
-        content_text = _make_atom_content(item)
-        if content_text:
-            content_xml = f"\n    <content type=\"text\">{atom_escape(content_text)}</content>"
+        content_html = _make_atom_content_html(item)
+        content_xml  = f"\n    <content type=\"html\"><![CDATA[{content_html}]]></content>"
 
         entries.append(f"""  <entry>
     <title>{title}</title>
