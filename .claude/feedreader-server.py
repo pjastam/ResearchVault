@@ -24,7 +24,21 @@ SKIP_QUEUE   = SCRIPT_DIR / "skip_queue.jsonl"
 PORT         = 8765
 
 # ── Zotero Web API ─────────────────────────────────────────────────────────────
-ZOTERO_API_KEY      = os.environ.get("ZOTERO_API_KEY", "")
+def _load_api_key() -> str:
+    """Laad de Zotero API key: eerst uit omgevingsvariabele, dan uit ~/.zprofile."""
+    key = os.environ.get("ZOTERO_API_KEY", "")
+    if key:
+        return key
+    # Fallback: lees direct uit ~/.zprofile (voor launchd dat geen shell-env erft)
+    zprofile = Path.home() / ".zprofile"
+    if zprofile.exists():
+        for line in zprofile.read_text().splitlines():
+            line = line.strip()
+            if line.startswith("export ZOTERO_API_KEY="):
+                return line.split("=", 1)[1].strip().strip('"').strip("'")
+    return ""
+
+ZOTERO_API_KEY      = _load_api_key()
 ZOTERO_USER_ID      = "24775"
 ZOTERO_INBOX_KEY    = "N4MP46Y5"
 ZOTERO_API_BASE     = f"https://api.zotero.org/users/{ZOTERO_USER_ID}"
