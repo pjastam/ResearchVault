@@ -749,8 +749,8 @@ note in literature/ with summary, key points, and timestamped quotes.
 <pre><code>podcast https://[url-to-episode]
 </code></pre>
 <p>Claude Code downloads the audio, automatically determines the language based on metadata, runs whisper.cpp, and processes the transcript into a literature note — see also the skill (step "activate skill"). The Zotero <code>_inbox</code> step is skipped: the podcast goes directly to Obsidian. This is intended for episodes you have already evaluated and approved.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="step-12-rss-integration--phase-0-filtering"><a class="header" href="#step-12-rss-integration--phase-0-filtering">Step 12: RSS integration + Phase 0 filtering</a></h1>
-<p>In the 4-phase model, RSS feeds are pre-filtered automatically before you see them (phase 0), so that your feed reader only shows items that are likely relevant to your research. You then browse this curated selection and send interesting items to Zotero <code>_inbox</code> (phase 1). Only in phase 2 do you decide what goes into the vault.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="step-12-rss-integration--feedreader-filtering"><a class="header" href="#step-12-rss-integration--feedreader-filtering">Step 12: RSS integration + feedreader filtering</a></h1>
+<p>In the 3-phase model, RSS feeds are pre-filtered automatically before you see them — the feedreader (<code>feedreader-score.py</code>) is part of phase 1, not a separate phase. It scores feeds daily so that your feed reader only shows items that are likely relevant to your research. You then browse this curated selection and send interesting items to Zotero <code>_inbox</code>. Only in phase 2 do you decide what goes into the vault.</p>
 <h2 id="12a-feedreader--automatic-relevance-filtering"><a class="header" href="#12a-feedreader--automatic-relevance-filtering">12a. Feedreader — Automatic relevance filtering</a></h2>
 <p><code>feedreader-score.py</code> runs daily via launchd and produces a filtered, scored Atom feed and HTML reader from your RSS subscriptions. It uses the same ChromaDB preference profile as <code>index-score.py</code> — items are scored by semantic similarity to your existing library.</p>
 <p><strong>Install dependencies</strong> (if not already present from step 10):</p>
@@ -889,7 +889,7 @@ Use the Obsidian Spaced Repetition format with ? as separator.
 <p><strong>Privacy note:</strong> All cards and review data are stored as local files in your vault. No cloud sync is required.</p>
 </blockquote>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="step-14-set-up-filter-layer-per-source"><a class="header" href="#step-14-set-up-filter-layer-per-source">Step 14: Set up filter layer per source</a></h1>
-<p>This is the core of the 4-phase model: each source has its own pre-filter (phase 0, where applicable) and filter moment (phase 2). Below is a per-source overview of all phases and how you indicate what may enter the vault.</p>
+<p>This is the core of the 3-phase model: each source has its own capture route (phase 1) and filter moment (phase 2). Below is a per-source overview of all phases and how you indicate what may enter the vault.</p>
 <h2 id="papers-zotero"><a class="header" href="#papers-zotero">Papers (Zotero)</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Phase</th><th>What</th></tr></thead><tbody>
 <tr><td>Dump layer</td><td>Zotero <code>_inbox</code> collection — central collection bucket for all sources</td></tr>

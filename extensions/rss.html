@@ -179,8 +179,8 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="step-12-rss-integration--phase-0-filtering"><a class="header" href="#step-12-rss-integration--phase-0-filtering">Step 12: RSS integration + Phase 0 filtering</a></h1>
-<p>In the 4-phase model, RSS feeds are pre-filtered automatically before you see them (phase 0), so that your feed reader only shows items that are likely relevant to your research. You then browse this curated selection and send interesting items to Zotero <code>_inbox</code> (phase 1). Only in phase 2 do you decide what goes into the vault.</p>
+                        <h1 id="step-12-rss-integration--feedreader-filtering"><a class="header" href="#step-12-rss-integration--feedreader-filtering">Step 12: RSS integration + feedreader filtering</a></h1>
+<p>In the 3-phase model, RSS feeds are pre-filtered automatically before you see them — the feedreader (<code>feedreader-score.py</code>) is part of phase 1, not a separate phase. It scores feeds daily so that your feed reader only shows items that are likely relevant to your research. You then browse this curated selection and send interesting items to Zotero <code>_inbox</code>. Only in phase 2 do you decide what goes into the vault.</p>
 <h2 id="12a-feedreader--automatic-relevance-filtering"><a class="header" href="#12a-feedreader--automatic-relevance-filtering">12a. Feedreader — Automatic relevance filtering</a></h2>
 <p><code>feedreader-score.py</code> runs daily via launchd and produces a filtered, scored Atom feed and HTML reader from your RSS subscriptions. It uses the same ChromaDB preference profile as <code>index-score.py</code> — items are scored by semantic similarity to your existing library.</p>
 <p><strong>Install dependencies</strong> (if not already present from step 10):</p>
