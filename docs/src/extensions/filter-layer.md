@@ -1,6 +1,6 @@
 # Step 14: Set up filter layer per source
 
-This is the core of the 4-phase model: each source has its own pre-filter (phase 0, where applicable) and filter moment (phase 2). Below is a per-source overview of all phases and how you indicate what may enter the vault.
+This is the core of the 3-phase model: each source has its own capture route (phase 1) and filter moment (phase 2). Below is a per-source overview of all phases and how you indicate what may enter the vault.
 
 ## Papers (Zotero)
 

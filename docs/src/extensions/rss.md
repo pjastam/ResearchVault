@@ -1,6 +1,6 @@
-# Step 12: RSS integration + Phase 0 filtering
+# Step 12: RSS integration + feedreader filtering
 
-In the 4-phase model, RSS feeds are pre-filtered automatically before you see them (phase 0), so that your feed reader only shows items that are likely relevant to your research. You then browse this curated selection and send interesting items to Zotero `_inbox` (phase 1). Only in phase 2 do you decide what goes into the vault.
+In the 3-phase model, RSS feeds are pre-filtered automatically before you see them — the feedreader (`feedreader-score.py`) is part of phase 1, not a separate phase. It scores feeds daily so that your feed reader only shows items that are likely relevant to your research. You then browse this curated selection and send interesting items to Zotero `_inbox`. Only in phase 2 do you decide what goes into the vault.
 
 ## 12a. Feedreader — Automatic relevance filtering
 
