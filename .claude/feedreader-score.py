@@ -3,8 +3,8 @@
 feedreader-score.py — RSS-feeds scoren en gefilterde Atom-feed genereren
 =========================================================================
 Haalt alle feeds op uit feedreader-list.txt, scoort elk item op relevantie
-aan de hand van het ChromaDB-voorkeursprofiel, en schrijft een gesorteerde
-Atom-feed naar feedreader-serve/filtered.xml.
+aan de hand van het ChromaDB-voorkeursprofiel, en schrijft gesorteerde
+Atom-feeds naar feedreader-serve/ (per type: webpage, youtube, podcast).
 
 Gebruik:
     python3 feedreader-score.py
@@ -14,7 +14,7 @@ Vereisten:
 
 Configuratie (pas aan indien nodig):
     FEEDS_FILE      — pad naar de lijst van feed-URLs
-    SERVE_DIR       — map waar filtered.xml wordt weggeschreven
+    SERVE_DIR       — map waar de gefilterde feeds worden weggeschreven
     LOG_FILE        — pad naar het score-logboek (score_log.jsonl)
     CHROMA_PATH     — pad naar ChromaDB directory
     ZOTERO_SQLITE   — pad naar Zotero SQLite database
@@ -274,7 +274,7 @@ def _make_atom_content_html(item: dict) -> str:
             if para:
                 parts.append(f"<p>{html.escape(para)}</p>")
 
-    # Actieknoppen onderin — via fetch() zodat er geen browsertabblad opent
+    # Actieknoppen onderin — via image-trick (geen browsertabblad, vereist JS)
     title_enc  = urllib.parse.quote(item.get("title", ""), safe="")
     stype_enc  = urllib.parse.quote(source_type, safe="")
     source_enc = urllib.parse.quote(item.get("feed_name", ""), safe="")
@@ -1038,10 +1038,6 @@ def main():
     # 5. Atom-feed en HTML-pagina schrijven
     print("[5/5] Atom-feed en HTML-pagina genereren...")
 
-    # Volledige feed
-    feed_path = SERVE_DIR / "filtered.xml"
-    feed_path.write_text(generate_atom(all_items, now), encoding="utf-8")
-
     # Type-gefilterde feeds voor NetNewsWire
     for source_type, filename, label, emoji in [
         ("youtube", "youtube",  "YouTube-video's", "▶️"),
@@ -1072,8 +1068,7 @@ def main():
     print(f"✅  {len(all_items)} items verwerkt")
     print(f"🟢 {green} sterk  🟡 {yellow} mogelijk  🔴 {red} zwak")
     print(f"📝 {len(new_log_entries)} nieuwe items toegevoegd aan score_log.jsonl")
-    print(f"\n   XML (alles):   http://localhost:8765/filtered.xml")
-    print(f"   XML YouTube:   http://localhost:8765/filtered-youtube.xml")
+    print(f"\n   XML YouTube:   http://localhost:8765/filtered-youtube.xml")
     print(f"   XML Podcasts:  http://localhost:8765/filtered-podcast.xml")
     print(f"   XML Web:       http://localhost:8765/filtered-webpage.xml")
     print(f"   HTML:          http://localhost:8765/filtered.html\n")

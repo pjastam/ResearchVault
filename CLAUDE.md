@@ -110,7 +110,9 @@ De feedreader scoort RSS/YouTube/podcast-feeds automatisch op relevantie en prod
 
 **URLs (lokale HTTP-server op poort 8765):**
 - `http://localhost:8765/filtered.html` — HTML-lezer met score- en bronweergave + type-filterknoppen **Alles / 📄 / ▶️ / 🎙️** + **⌨️ terminal**-knop die een ttyd-terminal als iframe opent (poort 7681; iframe-URL gebaseerd op `window.location.hostname` zodat het ook werkt op iPad via het Mac-IP) (Mac/iPhone/iPad)
-- `http://localhost:8765/filtered.xml` — Atom-feed voor NetNewsWire
+- `http://localhost:8765/filtered-webpage.xml` — Atom-feed webartikelen voor NetNewsWire
+- `http://localhost:8765/filtered-youtube.xml` — Atom-feed YouTube voor NetNewsWire
+- `http://localhost:8765/filtered-podcast.xml` — Atom-feed podcasts voor NetNewsWire
 - `http://localhost:8765/article/{video_id}` — gegenereerd leesartikel voor een YouTube-video (structuur: Inleiding · Kernpunten · Conclusie; taal = originele videotaal)
 - `http://localhost:8765/article/podcast/{episode_id}` — gegenereerd leesartikel voor een podcast-aflevering op basis van show notes (zelfde structuur; alleen voor afleveringen met show notes ≥ 200 tekens)
 

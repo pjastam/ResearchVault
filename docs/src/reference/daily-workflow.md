@@ -9,14 +9,14 @@ The skill is a markdown file that tells Claude Code how to behave during researc
 mkdir -p ~/Documents/ResearchVault/.claude/skills
 
 # Copy the skill file to the vault
-cp research-workflow-skill-v1.16.md ~/Documents/ResearchVault/.claude/skills/
+cp research-workflow-skill-v1.17.md ~/Documents/ResearchVault/.claude/skills/
 ```
 
 Then add the following line to your `CLAUDE.md` (at the bottom):
 
 ```markdown
 ## Active skills
-- Read and follow `.claude/skills/research-workflow-skill-v1.16.md` during every research session.
+- Read and follow `.claude/skills/research-workflow-skill-v1.17.md` during every research session.
 ```
 
 From that point on, the skill is active as soon as you open Claude Code in your vault. You can start the workflow by typing: `/research` or simply "start research workflow".
@@ -27,7 +27,7 @@ From that point on, the skill is active as soon as you open Claude Code in your 
 
 Once everything is set up, the daily workflow is straightforward. The feedreader runs automatically — no action required.
 
-1. **Browse the filtered feed** at `http://localhost:8765/filtered.html` (or in NetNewsWire via `http://localhost:8765/filtered.xml`). Items are sorted by relevance score. Send interesting ones to Zotero `_inbox` via the browser extension or iOS app.
+1. **Browse the filtered feed** at `http://localhost:8765/filtered.html` (or in NetNewsWire via the three type-specific Atom feeds). Items are sorted by relevance score. Send interesting ones to Zotero `_inbox` via the action buttons (✅/📖) or the browser extension.
 2. **Start Zotero** (so the local API is active)
 3. **Open Terminal in your vault:** `cd ~/Documents/ResearchVault && claude`
 4. **Activate the skill:** type `/research` or "start research workflow"

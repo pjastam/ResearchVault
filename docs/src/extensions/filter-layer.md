@@ -102,7 +102,7 @@ Fetch the show notes from [URL] and give a 3-sentence summary.
 | Feedreader (fase 1, bron 1) | `feedreader-score.py` scores all feed items daily; YouTube items are scored using transcript text fetched via `youtube_transcript_api`; podcast items with show notes ≥ 200 chars have their show notes cached; produces filtered Atom feed + HTML reader sorted by relevance at `http://localhost:8765/filtered.html`; clicking a YouTube headline opens a generated article (`/article/{video_id}`) with Zotero tag buttons; clicking a podcast headline (with sufficient show notes) opens a similar article (`/article/podcast/{episode_id}`); both article types inject the full text into the Zotero Abstract field via `rft.description` in COinS |
 | Phase 1 — Dump layer | Browse the filtered feed in the HTML reader or NetNewsWire; interesting items forwarded to Zotero `_inbox` via browser extension or iOS app |
 | Phase 2 — Filter moment | Scan headline and intro of items in `_inbox` |
-| Go (academic) | Item already in Zotero `_inbox` → process via type 0 → type 1 in the skill |
+| Go (academic) | Item already in Zotero `_inbox` → run `index-score.py` and process via the skill |
 | Go (non-academic) | Save via Zotero Connector, or pass `inbox [URL]` to Claude Code |
 | No-go | Mark item as read or delete from NetNewsWire; remove from `_inbox` if already saved |
 

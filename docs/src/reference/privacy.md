@@ -3,12 +3,15 @@
 | Component | Data local? | Notes |
 |---|---|---|
 | Zotero + local API | ✅ Fully | Runs on `localhost`, no cloud |
-| Zotero MCP | ✅ Fully | Local connection; write operations use Zotero web API with your own key |
+| Zotero MCP + Web API | ⚠️ Partially | Read operations local; action buttons (✅/📖) use Zotero Web API — item metadata (URL, title, type) goes to zotero.org |
 | Obsidian vault | ✅ Fully | Regular files on your Mac |
 | Ollama + Qwen3.5:9b | ✅ Fully | Model runs locally on M4; default for all generative tasks |
 | yt-dlp | ✅ Fully | Scraping executed locally |
 | whisper.cpp | ✅ Fully | Transcription locally on M4 via Metal |
 | NetNewsWire | ✅ Fully | RSS data stored locally, no account |
+| FreshRSS (Docker) | ✅ Fully | Self-hosted on Mac mini; read/unread sync stays on LAN |
+| feedreader (score/server/learn) | ✅ Fully | Runs locally; scoring uses local ChromaDB embeddings |
+| ttyd | ✅ Fully | Browser terminal runs locally on Mac mini |
 | Obsidian Spaced Repetition | ✅ Fully | Cards and review data in vault files |
 | Claude Code — orchestration | ⚠️ Partially | Workflow instructions and metadata go to the Anthropic API; **source content must not** |
 | Claude Code — `--hd` mode | ⚠️ Partially | Only on explicit `--hd` request: prompt and source content go to Anthropic API (Claude Sonnet 4.6) |

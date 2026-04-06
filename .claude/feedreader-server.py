@@ -45,7 +45,7 @@ ZOTERO_API_BASE     = f"https://api.zotero.org/users/{ZOTERO_USER_ID}"
 
 _ITEM_TYPE_MAP = {
     "youtube":  "videoRecording",
-    "podcast":  "audioRecording",
+    "podcast":  "podcast",
     "web":      "webpage",
 }
 
@@ -65,8 +65,8 @@ def _add_to_zotero_inbox(
 
     # Creator-type en publisher-veld per itemtype
     creator_type, publisher_field = {
-        "videoRecording": ("director",   "studio"),
-        "audioRecording": ("performer",  "label"),
+        "videoRecording": ("director",  "studio"),
+        "podcast":        ("podcaster", "seriesTitle"),
     }.get(item_type, ("author", "websiteTitle"))
 
     item: dict = {
@@ -181,6 +181,7 @@ class Phase0Handler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(gif)
+
 
     def _respond_html(self, code: int, body: str):
         encoded = body.encode("utf-8")

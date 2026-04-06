@@ -22,7 +22,34 @@ https://www.skipr.nl/feed/
 http://onlinelibrary.wiley.com/rss/journal/10.1002/(ISSN)1099-1050
 ```
 
-**Load the launchd agents** (run once after installation):
+**Create and load the launchd agents** (run once after installation):
+
+Create three plist files in `~/Library/LaunchAgents/`. Example for the HTTP server:
+
+```xml
+<!-- ~/Library/LaunchAgents/nl.researchvault.feedreader-server.plist -->
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>nl.researchvault.feedreader-server</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>-c</string>
+    <string>~/.local/share/uv/tools/zotero-mcp-server/bin/python3 ~/Documents/ResearchVault/.claude/feedreader-server.py >> /tmp/feedreader-server.log 2>&1</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+</dict>
+</plist>
+```
+
+Create similar plists for `nl.researchvault.feedreader-score` (daily at 06:00, `StartCalendarInterval` with `Hour: 6`) and `nl.researchvault.feedreader-learn` (daily at 06:15). Then load all three:
 
 ```bash
 launchctl load ~/Library/LaunchAgents/nl.researchvault.feedreader-server.plist
@@ -38,9 +65,13 @@ This starts a local HTTP server on port 8765 and schedules the daily score run a
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/feedreader-score.py
 ```
 
-**Access the filtered feed:**
+**Access the filtered feeds:**
 - HTML reader (Mac/iPhone/iPad): `http://localhost:8765/filtered.html`
-- Atom feed (NetNewsWire): `http://localhost:8765/filtered.xml`
+- Atom feed — web articles (NetNewsWire): `http://[mac-ip]:8765/filtered-webpage.xml`
+- Atom feed — YouTube (NetNewsWire): `http://[mac-ip]:8765/filtered-youtube.xml`
+- Atom feed — podcasts (NetNewsWire): `http://[mac-ip]:8765/filtered-podcast.xml`
+
+Three separate Atom feeds are produced — one per source type. Each feed only contains items of that type, which lets you organise them into folders in NetNewsWire and apply different reading flows per type. Use the Mac's LAN IP instead of `localhost` so the feeds also work on iPad and iPhone.
 
 The HTML reader includes an **⌨️ terminal** button in the header. Clicking it opens an embedded terminal panel (powered by ttyd — see [Step 17](browser-terminal.md)) alongside the article list, so you can run Phase 2 (Claude Code) without leaving the browser tab. The terminal works both on Mac (via `localhost`) and on iPad (via the Mac's local IP address).
 
@@ -58,7 +89,7 @@ The article page (for both YouTube and podcast) includes three tag buttons — *
 
 ## 12b. RSS feeds via NetNewsWire
 
-NetNewsWire is a free, open-source RSS reader for macOS and iOS, with iCloud sync between both devices. Rather than subscribing to individual feeds, you subscribe to the single filtered feed produced by the feedreader. This way your reading list only contains items that are likely relevant, sorted by relevance score.
+NetNewsWire is a free, open-source RSS reader for macOS and iOS. Rather than subscribing to individual feeds, you subscribe to the three filtered feeds produced by the feedreader. This way your reading list only contains items that are likely relevant, sorted by relevance score.
 
 **Install:**
 
@@ -68,13 +99,36 @@ brew install --cask netnewswire
 
 Or download via [netnewswire.com](https://netnewswire.com).
 
-**Subscribe to the filtered feed** — add this single URL in NetNewsWire:
+**Subscribe to the three type-specific feeds** — add these URLs in NetNewsWire (use the Mac's LAN IP, not `localhost`, so the feeds also work on iPad and iPhone):
 
 ```
-http://localhost:8765/filtered.xml
+http://[mac-ip]:8765/filtered-webpage.xml   ← web articles
+http://[mac-ip]:8765/filtered-youtube.xml   ← YouTube videos
+http://[mac-ip]:8765/filtered-podcast.xml   ← podcast episodes
 ```
 
-Titles are prefixed with score and label (`🟢 54 | Title…`). To sort by relevance, click the **Date** column header → **Newest First**. Phase 0 encodes the score as a synthetic publication date so that higher-scoring items appear at the top.
+Titles are prefixed with score and label (`🟢 54 | Title…`). The feedreader encodes the relevance score as a synthetic publication date so that higher-scoring items appear first in NetNewsWire's **Newest First** sort order.
+
+**Enable JavaScript in NetNewsWire** — required for the action buttons to work:
+
+1. NetNewsWire → **Settings** → **Article Content**
+2. Check **"Enable JavaScript"**
+
+**Action buttons in the article view** — each item in NetNewsWire has three buttons at the bottom of the article:
+
+| Button | Action |
+|--------|--------|
+| **✅ Zotero** | Adds the item to Zotero `_inbox` with tag `✅` (processed) via the Zotero Web API |
+| **📖 Later lezen** | Adds the item to Zotero `_inbox` with tag `📖` (read later) |
+| **👎 Overslaan** | Marks the item as skipped — sends a negative signal to the learning loop |
+
+The buttons fire a silent HTTP request to the local server via `new Image().src` — no browser tab opens. The item's title, URL, source, publication date, and type are sent along so the Zotero entry is complete.
+
+> **Zotero Web API key required:** the action buttons use the Zotero Web API to add items directly. Set your API key in `~/.zprofile`:
+> ```bash
+> export ZOTERO_API_KEY="your-key-here"
+> ```
+> Obtain your key at [zotero.org/settings/keys](https://www.zotero.org/settings/keys) (read/write access to library).
 
 **Add your source feeds** to `.claude/feedreader-list.txt` instead of directly to NetNewsWire. Useful sources:
 - Journal RSS (e.g. BMJ, NEJM, Wiley Health Economics)
@@ -83,18 +137,63 @@ Titles are prefixed with score and label (`🟢 54 | Title…`). To sort by rele
 - Trade blogs (e.g. Zorgvisie, Skipr)
 - Substack: `[name].substack.com/feed`
 
-> **Phase 0 → phase 1:** Items in the filtered feed have not yet been saved — they only exist in your feed reader. You browse through them and scan the scored headlines. Only what is truly relevant gets forwarded to Zotero. That is the phase 1 moment.
+> **Phase 1:** Items in the filtered feed have not yet been saved — they only exist in your feed reader. You browse through them and scan the scored headlines. Only what is truly relevant gets forwarded to Zotero. That is the phase 1 moment.
 
 **From NetNewsWire to the vault (phase 1 → phase 2 → phase 3):**
 
 Interesting articles are saved via two routes:
 
-- **Via Zotero browser extension or iOS app:** open the article, click the Zotero icon → item is saved with metadata to Zotero `_inbox`. Use this route for academic articles where you want to retain BibTeX metadata and annotation capabilities.
-- **Direct to `inbox/`:** pass the URL to Claude Code with the instruction `inbox [URL]` → Claude Code fetches the content and saves it as a Markdown file in `inbox/`, without Zotero. Use this route for non-academic articles, news items, and policy documents.
+- **Via action buttons** (✅ / 📖): click directly in the NNW article view — the item is added to Zotero `_inbox` immediately, with the correct type (webpage / videoRecording / podcast), source, date, and tag.
+- **Via Zotero browser extension or iOS app:** open the article in a browser, click the Zotero icon → item is saved with full metadata to Zotero `_inbox`. Use this route when you want annotation capabilities or need richer metadata.
+- **Direct to `inbox/`:** pass the URL to Claude Code with the instruction `inbox [URL]` → Claude Code fetches the content and saves it as a Markdown file in `inbox/`, without Zotero. Use this route for non-academic articles and policy documents.
 
 > **Privacy note:** NetNewsWire stores feed data locally. No reading habits are sent to external servers.
 
-## 12c. Feedback signals: training the scoring
+## 12c. FreshRSS — read/unread sync across devices
+
+Without FreshRSS, read/unread status in NetNewsWire is device-local: marking an item as read on your Mac is not visible on your iPad. FreshRSS is a self-hosted RSS sync backend that solves this. It runs in Docker on the Mac mini.
+
+**Install Docker Desktop:**
+
+```bash
+brew install --cask docker
+```
+
+Open Docker Desktop from Launchpad and wait until the whale icon in the menu bar stops animating.
+
+**Start FreshRSS:**
+
+```bash
+docker run -d \
+  --name freshrss \
+  -p 8080:80 \
+  --restart unless-stopped \
+  freshrss/freshrss
+```
+
+Open `http://[mac-ip]:8080` in your browser and complete the FreshRSS installation wizard. Create an admin account.
+
+**Set API password** (required for NetNewsWire):
+
+In FreshRSS → click your username top-right → **Profile** → scroll to **API Management** → set an API password.
+
+**Add the three feeds in FreshRSS** (use the Mac mini's LAN IP, not `localhost`):
+
+- `http://[mac-ip]:8765/filtered-webpage.xml`
+- `http://[mac-ip]:8765/filtered-youtube.xml`
+- `http://[mac-ip]:8765/filtered-podcast.xml`
+
+**Connect NetNewsWire** on each device (Mac, iPad, iPhone):
+
+NetNewsWire → Settings → Accounts → **+** → FreshRSS
+- API URL: `http://[mac-ip]:8080/api/greader.php`
+- Username + API password from above
+
+> **Note:** FreshRSS may show a "Niet ingedeeld" (Uncategorised) folder in NetNewsWire alongside any custom categories. This is a known limitation of the Google Reader API integration — the folder is empty and does not affect functionality.
+
+> **Privacy note:** FreshRSS runs entirely on your Mac mini. Read/unread sync stays on the local network.
+
+## 12d. Feedback signals: training the scoring
 
 The HTML reader (`http://localhost:8765/filtered.html`) captures three types of user behaviour that feed into the learning loop:
 
@@ -117,10 +216,10 @@ The HTML reader (`http://localhost:8765/filtered.html`) captures three types of 
 
 ---
 
-## 12d. Academic feeds: from NetNewsWire to Zotero
+## 12e. Academic feeds: from NetNewsWire to Zotero
 
 For academic articles from NetNewsWire, the recommended route is to always add them to Zotero first before having them processed. This way you have BibTeX metadata and annotation capabilities available:
 
-1. Open the article from NetNewsWire in your browser
-2. Click the Zotero icon in your browser (or use the Zotero iOS app) → item is saved to `_inbox`
-3. Process from `_inbox` via type 0 → type 1 in the skill
+1. Click **✅ Zotero** or **📖 Later lezen** in the article view — the item is saved directly to `_inbox`
+2. Or open the article in a browser → click the Zotero icon → item is saved to `_inbox` with richer metadata
+3. In the next research session, run `index-score.py` and process items from `_inbox` via the skill

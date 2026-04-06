@@ -66,7 +66,7 @@ The research workflow skill (`research-workflow-skill-v1.17.md`) will be updated
 
 ### NetNewsWire integration (ongoing, optional)
 
-`filtered.xml` is available in NetNewsWire on iOS. Sharing an item from NetNewsWire to Zotero via the iOS share sheet generates a clean positive calibration signal and contributes to the ongoing threshold refinement — making NetNewsWire a permanent optional calibration channel, not just a calibration-phase tool.
+The three type-specific Atom feeds (`filtered-webpage.xml`, `filtered-youtube.xml`, `filtered-podcast.xml`) are available in NetNewsWire on macOS and iOS. The action buttons (✅/📖/👎) in the NNW article view send items directly to Zotero `_inbox` or to the skip queue, generating clean calibration signals — making NetNewsWire a permanent optional calibration channel, not just a calibration-phase tool.
 
 ---
 

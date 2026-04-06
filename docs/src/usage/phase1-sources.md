@@ -9,7 +9,7 @@ Phase 1 is the collection step. Items from three sources flow into Zotero `_inbo
 `feedreader-score.py` runs daily at 06:00 via launchd. It fetches all feeds from `feedreader-list.txt`, scores each item by semantic similarity to your Zotero library, and produces:
 
 - **HTML reader** (Mac, iPhone, iPad): `http://localhost:8765/filtered.html`
-- **Atom feed** (NetNewsWire): `http://localhost:8765/filtered.xml`
+- **Atom feeds** (NetNewsWire): `http://[mac-ip]:8765/filtered-webpage.xml` · `filtered-youtube.xml` · `filtered-podcast.xml`
 
 ### Reading the item list
 
@@ -71,9 +71,14 @@ Then type `beoordeel inbox` to begin the Go/No-go review.
 
 ### NetNewsWire as an alternative reader
 
-`filtered.xml` can be added as a single subscription in NetNewsWire on macOS or iOS. Titles are prefixed with score and label (`🟢 54 | Title…`). Sorting by **Newest First** equals sorting by relevance (the feedreader encodes scores as synthetic dates).
+The three type-specific feeds can be subscribed to in NetNewsWire on macOS or iOS. Titles are prefixed with score and label (`🟢 54 | Title…`). Sorting by **Newest First** equals sorting by relevance (the feedreader encodes scores as synthetic dates).
 
-When you share an item from NetNewsWire to Zotero via the iOS share sheet, it behaves like **source 2** — a deliberate choice — and contributes a clean positive calibration signal.
+Each article in NNW shows three action buttons (requires JavaScript enabled in NNW Article Content settings):
+- **✅ Zotero** — adds the item to Zotero `_inbox` with tag `✅`
+- **📖 Later lezen** — adds with tag `📖`
+- **👎 Overslaan** — sends a negative signal to the learning loop
+
+Using these buttons directly sends items to `_inbox` — it behaves like **source 2** (a deliberate choice) and contributes a clean positive calibration signal.
 
 ---
 
