@@ -61,6 +61,14 @@ Na de frontmatter bevat elke notitie:
 - Uitvoeren: `~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/index-score.py`
 - Output: gesorteerde lijst met scores 0–100, labels 🟢 (≥70) · 🟡 (40–69) · 🔴 (<40)
 
+## Zotero-hulpscripts
+- `.claude/zotero-inbox.py` — voegt een item toe aan de Zotero `_inbox` collectie via de web API; wordt intern aangeroepen door de feedreader-server bij ✅/📖 acties vanuit de HTML-lezer of NetNewsWire
+- `.claude/zotero-remove-from-inbox.py` — verwijdert een item uit de `_inbox` na verwerking:
+  ```bash
+  ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/zotero-remove-from-inbox.py ITEMKEY
+  ```
+- `.claude/zotero_utils.py` — gedeelde hulpfuncties voor beide scripts (API-sleutel uitlezen uit `~/.zprofile`, collectie-ID opzoeken)
+
 ## YouTube-transcripten (yt-dlp)
 - Transcripten worden opgeslagen in `inbox/` als `.vtt`-bestanden
 - Verwerk een transcript naar een note in `literature/` met de volgende structuur:

@@ -165,6 +165,8 @@ De feedreader draait automatisch via launchd (06:00 dagelijks). Beheer is alleen
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/feedreader-learn.py
 ```
 
+**Actieknoppen:** elk item in de HTML-lezer heeft ✅ (direct verwerken) en 📖 (samenvatting nodig) knoppen die het item via de feedreader-server direct aan de Zotero `_inbox` collectie toevoegen met de bijbehorende tag. Deze knoppen werken ook in de Atom-feed in NetNewsWire.
+
 **👎-knop:** elk item in de HTML-lezer heeft een 👎-knop voor expliciete afwijzing. Klikken op de headline markeert als gelezen. Beide signalen worden opgeslagen in `score_log.jsonl` resp. `skip_queue.jsonl`.
 
 **Drempeladvies opvragen:**
@@ -456,4 +458,4 @@ Na ontvangst van `{"status": "ok", "path": "inbox/_summary_ITEMKEY.md"}`:
 
 ---
 
-*Skill versie 1.19 — april 2026 — summarize_item.py toegevoegd voor 📖-items in Type 0; semantisch onderscheid ✅/📖 verduidelijkt*
+*Skill versie 1.20 — april 2026 — actieknoppen ✅/📖 gedocumenteerd in Type F; CLAUDE.md bijgewerkt met zotero-inbox hulpscripts; release v1.13*
