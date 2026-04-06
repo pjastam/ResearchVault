@@ -1,6 +1,6 @@
 # Skill: Research Workflow Begeleider
-**Bestandsnaam:** `research-workflow-skill-v1.17.md`
-**Locatie in vault:** `ResearchVault/.claude/skills/research-workflow-skill-v1.17.md`
+**Bestandsnaam:** `SKILL.md`
+**Locatie in vault:** `ResearchVault/.claude/skills/SKILL.md`
 **Activeren:** typ `/research` of "start research workflow" in Claude Code
 
 ---

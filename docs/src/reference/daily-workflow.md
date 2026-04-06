@@ -9,14 +9,14 @@ The skill is a markdown file that tells Claude Code how to behave during researc
 mkdir -p ~/Documents/ResearchVault/.claude/skills
 
 # Copy the skill file to the vault
-cp research-workflow-skill-v1.17.md ~/Documents/ResearchVault/.claude/skills/
+cp SKILL.md ~/Documents/ResearchVault/.claude/skills/
 ```
 
 Then add the following line to your `CLAUDE.md` (at the bottom):
 
 ```markdown
 ## Active skills
-- Read and follow `.claude/skills/research-workflow-skill-v1.17.md` during every research session.
+- Read and follow `.claude/skills/SKILL.md` during every research session.
 ```
 
 From that point on, the skill is active as soon as you open Claude Code in your vault. You can start the workflow by typing: `/research` or simply "start research workflow".

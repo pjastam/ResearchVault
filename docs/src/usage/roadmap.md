@@ -62,7 +62,7 @@ The HTML reader stays available as a transparency window and as an ongoing calib
 
 ### Skill update — after autonomous mode
 
-The research workflow skill (`research-workflow-skill-v1.17.md`) will be updated to reflect the fully autonomous feedreader as the default state for source 1, and to document the three-source model more precisely in the daily workflow description.
+The research workflow skill (`SKILL.md`) will be updated to reflect the fully autonomous feedreader as the default state for source 1, and to document the three-source model more precisely in the daily workflow description.
 
 ### NetNewsWire integration (ongoing, optional)
 

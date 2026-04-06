@@ -192,4 +192,4 @@ Daarna verwerken via Ollama:
 Dit geldt ook voor snapshot-HTML, VTT-transcripten en podcast-transcripten: nooit `cat` of `print` op de volledige inhoud uitvoeren als Bash-tool.
 
 ## Actieve skills
-- Lees en volg `.claude/skills/research-workflow-skill-v1.17.md` bij elke research-sessie.
+- Lees en volg `.claude/skills/SKILL.md` bij elke research-sessie.

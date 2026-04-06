@@ -17,8 +17,8 @@ Every source — paper, podcast, video, RSS article — passes through three exp
 The explicit filter step between capture and processing keeps both your feed reader and your vault clean: only sources you have consciously approved end up in the vault, and your feed reader only shows items that are likely relevant.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/architecture-diagram-v1.13-dark.svg">
-  <img src="assets/architecture-diagram-v1.13-light.svg" alt="Architecture diagram">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/architecture-diagram-dark.svg">
+  <img src="assets/architecture-diagram-light.svg" alt="Architecture diagram">
 </picture>
 
 ---
@@ -68,7 +68,7 @@ ResearchVault/
     ├── skip_queue.jsonl        # Queue of explicitly rejected items (👎); processed daily
     ├── transcript_cache/       # Transcript & show-notes cache (YouTube: {video_id}.json; podcast: podcast_{episode_id}.json)
     └── skills/
-        └── research-workflow-skill-v1.17.md  # Workflow skill (loaded each session)
+        └── SKILL.md  # Workflow skill (loaded each session)
 ```
 
 ---
