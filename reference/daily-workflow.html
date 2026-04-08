@@ -198,7 +198,6 @@ cp SKILL.md ~/Documents/ResearchVault/.claude/skills/
 <p>Once everything is set up, the daily workflow is straightforward. The feedreader runs automatically — no action required.</p>
 <ol>
 <li><strong>Browse the filtered feed</strong> at <code>http://localhost:8765/filtered.html</code> (or in NetNewsWire via the three type-specific Atom feeds). Items are sorted by relevance score. Send interesting ones to Zotero <code>_inbox</code> via the action buttons (✅/📖) or the browser extension.</li>
-<li><strong>Start Zotero</strong> (so the local API is active)</li>
 <li><strong>Open Terminal in your vault:</strong> <code>cd ~/Documents/ResearchVault &amp;&amp; claude</code></li>
 <li><strong>Activate the skill:</strong> type <code>/research</code> or "start research workflow"</li>
 <li>Claude Code asks an intake question and guides you interactively from there</li>
@@ -206,29 +205,42 @@ cp SKILL.md ~/Documents/ResearchVault/.claude/skills/
 <p>You do not need to know exactly what you are looking for — the skill is designed to help you with that.</p>
 <h3 id="full-session-flow"><a class="header" href="#full-session-flow">Full session flow</a></h3>
 <ol>
-<li>Browse the filtered feed and forward interesting items to Zotero <code>_inbox</code></li>
-<li>Start Zotero</li>
-<li>Open Terminal, navigate to your vault, and start Claude Code:
+<li>
+<p>Browse the filtered feed and forward interesting items to Zotero <code>_inbox</code></p>
+</li>
+<li>
+<p>Open Terminal, navigate to your vault, and start Claude Code:</p>
 <pre><code class="language-bash">cd ~/Documents/ResearchVault
 claude
 </code></pre>
 </li>
-<li>Activate the research workflow:
-<pre><code>/research
+<li>
+<p>Activate the research workflow:</p>
+<pre><code class="language-text">/research
 </code></pre>
-or just type: <code>start research workflow</code></li>
-<li>Optionally, run <code>index-score.py</code> first to prioritize your review:
+<p>or just type: <code>start research workflow</code></p>
+</li>
+<li>
+<p>Optionally, run <code>index-score.py</code> first to prioritize your review:</p>
 <pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/index-score.py
 </code></pre>
-This ranks all <code>_inbox</code> items by semantic similarity to your existing library (using the ChromaDB embeddings from zotero-mcp), so you know which items to focus on.</li>
-<li>Claude Code retrieves all items from your Zotero <code>_inbox</code> and presents each one with a short summary and relevance assessment — the summary is generated locally by Qwen3.5:9b. You respond <strong>Go</strong> or <strong>No-go</strong> per item.</li>
-<li>For each <strong>Go</strong>: Claude Code writes a structured literature note using the safe pipeline below.</li>
-<li>For each <strong>No-go</strong>: Claude Code removes the item from <code>_inbox</code> (after your confirmation).</li>
-<li>At the end of the session, Claude Code shows a summary: X approved, Y removed. If new papers were added, update the semantic search database:
-<pre><code class="language-bash">zotero-mcp update-db            # quick (metadata only)
-zotero-mcp update-db --fulltext # recommended (includes full text)
+<p>This ranks all <code>_inbox</code> items by semantic similarity to your existing library (using the ChromaDB embeddings from zotero-mcp), so you know which items to focus on.</p>
+</li>
+<li>
+<p>Claude Code retrieves all items from your Zotero <code>_inbox</code> and presents each one with a short summary and relevance assessment — the summary is generated locally by Qwen3.5:9b. You respond <strong>Go</strong> or <strong>No-go</strong> per item.</p>
+</li>
+<li>
+<p>For each <strong>Go</strong>: Claude Code writes a structured literature note using the safe pipeline below.</p>
+</li>
+<li>
+<p>For each <strong>No-go</strong>: Claude Code removes the item from <code>_inbox</code> (after your confirmation).</p>
+</li>
+<li>
+<p>At the end of the session, Claude Code shows a summary: X approved, Y removed. The Zotero semantic search database is updated automatically at 05:45 each day by the <code>nl.researchvault.zotero-update</code> launchd agent — no manual action needed before a session. If you process items later in the day and want the database to reflect them immediately, run:</p>
+<pre><code class="language-bash">zotero-mcp update-db --fulltext # recommended (includes full text, 5–20 min on Apple Silicon)
 </code></pre>
-Or use the alias: <code>update-zotero</code> (equivalent to <code>--fulltext</code>). Check database status with <code>zotero-mcp db-status</code>.</li>
+<p>Or use the alias: <code>update-zotero</code>. Check database status with <code>zotero-mcp db-status</code>.</p>
+</li>
 </ol>
 <hr />
 <h2 id="helper-scripts"><a class="header" href="#helper-scripts">Helper scripts</a></h2>
