@@ -54,6 +54,33 @@ def get_zotero_urls(conn: sqlite3.Connection) -> set[str]:
     return urls
 
 
+def normalize_title(title: str) -> str:
+    """Normaliseert een titel voor vergelijking: lowercase + genormaliseerde whitespace."""
+    return " ".join(title.lower().split())
+
+
+MIN_TITLE_LENGTH = 15  # kortere titels worden niet gebruikt voor titelmatching
+
+
+def get_zotero_titles(conn: sqlite3.Connection) -> set[str]:
+    """Haalt genormaliseerde titels op van alle Zotero-items (geen bijlagen)."""
+    cur = conn.execute("""
+        SELECT DISTINCT idv.value
+        FROM itemData id
+        JOIN fields f ON f.fieldID = id.fieldID
+        JOIN itemDataValues idv ON idv.valueID = id.valueID
+        JOIN items i ON i.itemID = id.itemID
+        WHERE f.fieldName = 'title'
+          AND i.itemTypeID NOT IN (SELECT itemTypeID FROM itemTypes WHERE typeName = 'attachment')
+          AND id.itemID NOT IN (SELECT itemID FROM deletedItems)
+    """)
+    titles = set()
+    for (title,) in cur.fetchall():
+        if title and len(title) >= MIN_TITLE_LENGTH:
+            titles.add(normalize_title(title))
+    return titles
+
+
 def load_log(path: Path) -> list[dict]:
     if not path.exists():
         return []
@@ -141,24 +168,27 @@ def main():
     else:
         print(f"     Geen nieuwe skip-signalen.")
 
-    # Zotero-URLs ophalen
-    print("[2/4] Zotero-URLs ophalen...")
+    # Zotero-URLs en -titels ophalen
+    print("[2/4] Zotero-URLs en -titels ophalen...")
     tmp_db = make_sqlite_copy(ZOTERO_SQLITE)
     conn   = sqlite3.connect(tmp_db)
     try:
-        zotero_urls = get_zotero_urls(conn)
+        zotero_urls   = get_zotero_urls(conn)
+        zotero_titles = get_zotero_titles(conn)
     finally:
         conn.close()
         os.unlink(tmp_db)
     print(f"     {len(zotero_urls)} URL(s) gevonden in Zotero.")
+    print(f"     {len(zotero_titles)} titel(s) gevonden in Zotero.")
 
-    # Logboek labelen (Zotero-matching)
+    # Logboek labelen (Zotero-matching: eerst URL, dan titel)
     print("[3/4] Logboek bijwerken...")
     now      = datetime.now(timezone.utc)
     cutoff   = now - timedelta(days=LABEL_AFTER_DAYS)
 
-    newly_true  = 0
-    newly_false = 0
+    newly_true_url   = 0
+    newly_true_title = 0
+    newly_false      = 0
 
     for entry in entries:
         if entry.get("added_to_zotero") is not None:
@@ -167,19 +197,26 @@ def main():
         url = entry.get("url", "")
         if url in zotero_urls:
             entry["added_to_zotero"] = True
-            newly_true += 1
+            newly_true_url += 1
         else:
-            # Labelen als false zodra de wachttijd verstreken is
-            try:
-                ts = datetime.fromisoformat(entry["timestamp"])
-                if ts < cutoff:
-                    entry["added_to_zotero"] = False
-                    newly_false += 1
-            except (KeyError, ValueError):
-                pass
+            # Tweede pass: titelmatching
+            raw_title = entry.get("title", "")
+            if len(raw_title) >= MIN_TITLE_LENGTH and normalize_title(raw_title) in zotero_titles:
+                entry["added_to_zotero"] = True
+                newly_true_title += 1
+            else:
+                # Labelen als false zodra de wachttijd verstreken is
+                try:
+                    ts = datetime.fromisoformat(entry["timestamp"])
+                    if ts < cutoff:
+                        entry["added_to_zotero"] = False
+                        newly_false += 1
+                except (KeyError, ValueError):
+                    pass
 
     save_log(LOG_FILE, entries)
-    print(f"     ✅ toegevoegd aan Zotero: {newly_true} nieuw gelabeld")
+    print(f"     ✅ via URL:   {newly_true_url} nieuw gelabeld")
+    print(f"     ✅ via titel: {newly_true_title} nieuw gelabeld")
     print(f"     ❌ niet toegevoegd (>{LABEL_AFTER_DAYS}d): {newly_false} nieuw gelabeld")
 
     # Drempeladvies
