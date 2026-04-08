@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.14 — 8 april 2026
+
+### 🔄 Automatische Zotero database-update
+
+- Nieuwe launchd-agent `nl.researchvault.zotero-update` draait dagelijks om 05:45 en voert `zotero-mcp update-db --fulltext` uit vóór de feedreader-score run om 06:00
+- De semantische zoekdatabase is daardoor altijd actueel bij het starten van een sessie — geen handmatige update meer nodig
+
+### 📡 Atom-feeds: leeftijdsfilter en itemlimiet
+
+- `feedreader-score.py` filtert items ouder dan **30 dagen** (webartikelen, podcasts, YouTube) of **365 dagen** (academische feeds) uit de Atom-feeds
+- Elke Atom-feed is beperkt tot maximaal **300 items** (top-N op score)
+
+### 🔢 Sortering op score in NetNewsWire
+
+- Items in de Atom-feeds krijgen een synthetische publicatietijd binnen de huidige dag (hogere score = later tijdstip), zodat NetNewsWire met **Newest First** altijd op relevantiescore sorteert
+- `feedreader-server.py` retourneert nu altijd **HTTP 200** voor feed-verzoeken (nooit 304 Not Modified), zodat NetNewsWire de feed bij elke poll echt ververst
+
+---
+
 ## v1.13 — april 2026
 
 ### 🆕 Feedreader: hernoemd en uitgebreid

@@ -111,8 +111,26 @@ class Phase0Handler(http.server.SimpleHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path == "/action":
             self._handle_action(parsed.query)
+        elif parsed.path.endswith(".xml"):
+            self._serve_xml(parsed.path)
         else:
             super().do_GET()
+
+    def _serve_xml(self, path: str):
+        """Serveert XML-feeds altijd als volledige respons (nooit 304)."""
+        import os
+        file_path = SERVE_DIR / path.lstrip("/")
+        if not file_path.exists():
+            self.send_error(404)
+            return
+        data = file_path.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/xml; charset=utf-8")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+        self.send_header("Pragma", "no-cache")
+        self.end_headers()
+        self.wfile.write(data)
 
     def _handle_action(self, query_string: str):
         params      = urllib.parse.parse_qs(query_string)

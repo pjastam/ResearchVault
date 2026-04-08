@@ -81,9 +81,9 @@ Na de frontmatter bevat elke notitie:
 - Ruwe `.vtt`-bestanden verwijder je uit `inbox/` nadat de note is aangemaakt
 
 ## Zotero database-onderhoud
-- De semantische zoekdatabase moet periodiek worden bijgewerkt na het toevoegen van nieuwe papers
-- Herinner de gebruiker eraan de database bij te werken als er meer dan een week verstreken is sinds de laatste update, of als zoekopdrachten recente toevoegingen missen
-- Gebruik het commando `update-zotero` (alias) of `zotero-mcp update-db --fulltext` voor een volledige update
+- De semantische zoekdatabase wordt automatisch bijgewerkt dagelijks om 05:45 via de launchd-agent `nl.researchvault.zotero-update` (`zotero-mcp update-db --fulltext`) — geen handmatige actie nodig vóór een sessie
+- Herinner de gebruiker eraan de database handmatig bij te werken als zoekopdrachten recente toevoegingen missen die van dezelfde dag zijn (de automatische update draait om 05:45)
+- Gebruik het commando `update-zotero` (alias) of `zotero-mcp update-db --fulltext` voor een handmatige volledige update
 - Check de status met `zotero-status` of `zotero-mcp db-status`
 
 ## Podcast-transcripten (whisper.cpp + yt-dlp)
@@ -138,7 +138,8 @@ De feedreader scoort RSS/YouTube/podcast-feeds automatisch op relevantie en prod
 
 **launchd-agents** (laden bij inloggen):
 - `nl.researchvault.feedreader-server` — HTTP-server permanent actief (poort 8765)
-- `nl.researchvault.feedreader-score` — score-run dagelijks om 06:00
+- `nl.researchvault.zotero-update` — Zotero semantische zoekdatabase bijwerken dagelijks om 05:45 (`zotero-mcp update-db --fulltext`)
+- `nl.researchvault.feedreader-score` — score-run dagelijks om 06:00 (na de database-update)
 - `nl.researchvault.feedreader-learn` — leerloop dagelijks om 06:15
 - `nl.researchvault.ttyd` — browser-terminal permanent actief (poort 7681, `--writable`); log: `/tmp/ttyd.log`
 

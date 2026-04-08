@@ -28,41 +28,48 @@ From that point on, the skill is active as soon as you open Claude Code in your 
 Once everything is set up, the daily workflow is straightforward. The feedreader runs automatically — no action required.
 
 1. **Browse the filtered feed** at `http://localhost:8765/filtered.html` (or in NetNewsWire via the three type-specific Atom feeds). Items are sorted by relevance score. Send interesting ones to Zotero `_inbox` via the action buttons (✅/📖) or the browser extension.
-2. **Start Zotero** (so the local API is active)
-3. **Open Terminal in your vault:** `cd ~/Documents/ResearchVault && claude`
-4. **Activate the skill:** type `/research` or "start research workflow"
-5. Claude Code asks an intake question and guides you interactively from there
+2. **Open Terminal in your vault:** `cd ~/Documents/ResearchVault && claude`
+3. **Activate the skill:** type `/research` or "start research workflow"
+4. Claude Code asks an intake question and guides you interactively from there
 
 You do not need to know exactly what you are looking for — the skill is designed to help you with that.
 
 ### Full session flow
 
 1. Browse the filtered feed and forward interesting items to Zotero `_inbox`
-2. Start Zotero
-3. Open Terminal, navigate to your vault, and start Claude Code:
+2. Open Terminal, navigate to your vault, and start Claude Code:
+
    ```bash
    cd ~/Documents/ResearchVault
    claude
    ```
-4. Activate the research workflow:
-   ```
+
+3. Activate the research workflow:
+
+   ```text
    /research
    ```
+
    or just type: `start research workflow`
-5. Optionally, run `index-score.py` first to prioritize your review:
+
+4. Optionally, run `index-score.py` first to prioritize your review:
+
    ```bash
    ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/index-score.py
    ```
+
    This ranks all `_inbox` items by semantic similarity to your existing library (using the ChromaDB embeddings from zotero-mcp), so you know which items to focus on.
-6. Claude Code retrieves all items from your Zotero `_inbox` and presents each one with a short summary and relevance assessment — the summary is generated locally by Qwen3.5:9b. You respond **Go** or **No-go** per item.
-7. For each **Go**: Claude Code writes a structured literature note using the safe pipeline below.
-8. For each **No-go**: Claude Code removes the item from `_inbox` (after your confirmation).
-9. At the end of the session, Claude Code shows a summary: X approved, Y removed. If new papers were added, update the semantic search database:
+
+5. Claude Code retrieves all items from your Zotero `_inbox` and presents each one with a short summary and relevance assessment — the summary is generated locally by Qwen3.5:9b. You respond **Go** or **No-go** per item.
+6. For each **Go**: Claude Code writes a structured literature note using the safe pipeline below.
+7. For each **No-go**: Claude Code removes the item from `_inbox` (after your confirmation).
+8. At the end of the session, Claude Code shows a summary: X approved, Y removed. The Zotero semantic search database is updated automatically at 05:45 each day by the `nl.researchvault.zotero-update` launchd agent — no manual action needed before a session. If you process items later in the day and want the database to reflect them immediately, run:
+
    ```bash
-   zotero-mcp update-db            # quick (metadata only)
-   zotero-mcp update-db --fulltext # recommended (includes full text)
+   zotero-mcp update-db --fulltext # recommended (includes full text, 5–20 min on Apple Silicon)
    ```
-   Or use the alias: `update-zotero` (equivalent to `--fulltext`). Check database status with `zotero-mcp db-status`.
+
+   Or use the alias: `update-zotero`. Check database status with `zotero-mcp db-status`.
 
 ---
 

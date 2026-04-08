@@ -39,6 +39,11 @@ from pathlib import Path
 import chromadb
 import feedparser
 import numpy as np
+import logging
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+logging.getLogger("transformers").setLevel(logging.ERROR)
+logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
+logging.getLogger("sentence_transformers").setLevel(logging.ERROR)
 from sentence_transformers import SentenceTransformer
 
 from feedreader_core import (
@@ -73,12 +78,44 @@ ZOTERO_SQLITE = Path.home() / "Zotero" / "zotero.sqlite"
 INBOX_ID      = 333
 
 FEED_TIMEOUT = 15  # seconden per feed
+MAX_FEED_ITEMS = 300  # max items per type in de Atom-feed (sortering op score, dus top-N)
+MAX_AGE_DAYS_DEFAULT  = 30   # max leeftijd voor web/podcast/YouTube-items
+MAX_AGE_DAYS_ACADEMIC = 365  # max leeftijd voor academische publicaties
+
+ACADEMIC_FEED_PATTERNS = (
+    "pure.eur.nl",
+    "research.vu.nl",
+    "pubs.aeaweb.org",
+    "healthaffairs.org",
+    "biomedcentral.com",
+    "link.springer.com",
+    "journals.lww.com",
+    "rss.sciencedirect.com",
+    "onlinelibrary.wiley.com",
+    "rand.org/topics/health-and-health-care",
+    "esb.nu",
+    "mejudice.nl",
+)
 TRANSCRIPT_CACHE_DIR = SCRIPT_DIR / "transcript_cache"
 # Minimum show notes length (chars) to be usable for content-based scoring and article generation;
 # shorter entries contain too little context for a meaningful embedding.
 SHOWNOTES_MIN_LENGTH = 200
 
 # ── Hulpfuncties ──────────────────────────────────────────────────────────────
+
+def is_academic_feed(feed_url: str) -> bool:
+    return any(pat in feed_url for pat in ACADEMIC_FEED_PATTERNS)
+
+
+def within_max_age(published: str, max_age_days: int, now: datetime) -> bool:
+    """Geeft True als het item binnen de maximale leeftijd valt, of als er geen datum is."""
+    if not published:
+        return True
+    try:
+        dt = datetime.fromisoformat(published.replace("Z", "+00:00"))
+        return (now - dt).days <= max_age_days
+    except ValueError:
+        return True
 
 class _HTMLStripper(html.parser.HTMLParser):
     """Strips HTML tags; handle_data is called with already-decoded entities."""
@@ -116,11 +153,18 @@ def load_feeds(path: Path) -> list[str]:
 def get_embeddings_for_keys(collection, keys: list[str]) -> dict[str, np.ndarray]:
     if not keys:
         return {}
-    result = collection.get(ids=keys, include=["embeddings"])
-    return {
-        item_id: np.array(emb, dtype=np.float32)
-        for item_id, emb in zip(result["ids"], result["embeddings"])
-    }
+    result = collection.get(ids=keys, include=["embeddings", "documents"])
+    out = {}
+    skipped = 0
+    for item_id, emb, doc in zip(result["ids"], result["embeddings"], result["documents"]):
+        text = (doc or "").strip()
+        if len(text) < 30 or "No authors listed" in text:
+            skipped += 1
+            continue
+        out[item_id] = np.array(emb, dtype=np.float32)
+    if skipped:
+        print(f"     {skipped} items zonder bruikbare tekst uitgesloten van profiel.")
+    return out
 
 
 
@@ -231,13 +275,14 @@ def atom_escape(text: str) -> str:
 
 def score_to_fake_date(score: int, generated_at: datetime) -> str:
     """
-    Zet score (0–100) om naar een nep-publicatiedatum zodat NetNewsWire
-    op datum kan sorteren, wat overeenkomt met sorteren op relevantie.
-    Score 100 → generated_at, score 0 → generated_at - 100 dagen.
+    Zet score (0–100) om naar een tijdstip op de dag van generated_at zodat
+    NetNewsWire op tijdstip kan sorteren (= sorteren op relevantie), terwijl
+    alle items als 'vandaag' worden getoond.
+    Score 100 → 23:59:00, score 0 → 00:00:00.
     """
-    offset_days = 100 - score
-    dt = generated_at - timedelta(days=offset_days)
-    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+    day_start = generated_at.replace(hour=0, minute=0, second=0, microsecond=0)
+    seconds = int(score * 86340 / 100)  # 86340 = 23u59m in seconden
+    return (day_start + timedelta(seconds=seconds)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _make_atom_content_html(item: dict) -> str:
@@ -1035,6 +1080,16 @@ def main():
     # Sorteren op score descending
     all_items.sort(key=lambda x: x["score"], reverse=True)
 
+    # Datumfilter: academisch max 365 dagen, overig max 30 dagen
+    all_items = [
+        i for i in all_items
+        if within_max_age(
+            i["published"],
+            MAX_AGE_DAYS_ACADEMIC if is_academic_feed(i["feed_url"]) else MAX_AGE_DAYS_DEFAULT,
+            now,
+        )
+    ]
+
     # 5. Atom-feed en HTML-pagina schrijven
     print("[5/5] Atom-feed en HTML-pagina genereren...")
 
@@ -1044,7 +1099,7 @@ def main():
         ("podcast", "podcast",  "Podcasts",        "🎙️"),
         ("web",     "webpage",  "Webartikelen",   "📄"),
     ]:
-        subset = [i for i in all_items if i["source_type"] == source_type]
+        subset = [i for i in all_items if i["source_type"] == source_type][:MAX_FEED_ITEMS]
         path   = SERVE_DIR / f"filtered-{filename}.xml"
         path.write_text(
             generate_atom(subset, now, feed_title=f"Feedreader {emoji} {label}"),

@@ -49,15 +49,16 @@ Create three plist files in `~/Library/LaunchAgents/`. Example for the HTTP serv
 </plist>
 ```
 
-Create similar plists for `nl.researchvault.feedreader-score` (daily at 06:00, `StartCalendarInterval` with `Hour: 6`) and `nl.researchvault.feedreader-learn` (daily at 06:15). Then load all three:
+Create similar plists for `nl.researchvault.zotero-update` (daily at 05:45, runs `zotero-mcp update-db --fulltext`), `nl.researchvault.feedreader-score` (daily at 06:00, `StartCalendarInterval` with `Hour: 6`), and `nl.researchvault.feedreader-learn` (daily at 06:15). Then load all four:
 
 ```bash
 launchctl load ~/Library/LaunchAgents/nl.researchvault.feedreader-server.plist
+launchctl load ~/Library/LaunchAgents/nl.researchvault.zotero-update.plist
 launchctl load ~/Library/LaunchAgents/nl.researchvault.feedreader-score.plist
 launchctl load ~/Library/LaunchAgents/nl.researchvault.feedreader-learn.plist
 ```
 
-This starts a local HTTP server on port 8765 and schedules the daily score run at 06:00.
+This starts a local HTTP server on port 8765, schedules the Zotero DB update at 05:45, and schedules the daily score run at 06:00 (after the DB update is complete).
 
 **Run manually** (first time, or on demand):
 
@@ -107,7 +108,9 @@ http://[mac-ip]:8765/filtered-youtube.xml   ← YouTube videos
 http://[mac-ip]:8765/filtered-podcast.xml   ← podcast episodes
 ```
 
-Titles are prefixed with score and label (`🟢 54 | Title…`). The feedreader encodes the relevance score as a synthetic publication date so that higher-scoring items appear first in NetNewsWire's **Newest First** sort order.
+Titles are prefixed with score and label (`🟢 54 | Title…`). Items in each Atom feed are sorted by relevance score: the feedreader assigns a synthetic publication time within today's date (higher score = later time) so that higher-scoring items appear first in NetNewsWire's **Newest First** sort order. The server always responds with HTTP 200 for feed requests (never 304 Not Modified), ensuring NetNewsWire refreshes the feed contents on every poll.
+
+Each Atom feed is limited to the top 300 items by score. Items older than 30 days (web articles, podcasts, YouTube) or 365 days (academic journal feeds) are automatically excluded.
 
 **Enable JavaScript in NetNewsWire** — required for the action buttons to work:
 
