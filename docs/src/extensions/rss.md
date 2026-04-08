@@ -60,6 +60,18 @@ launchctl load ~/Library/LaunchAgents/nl.researchvault.feedreader-learn.plist
 
 This starts a local HTTP server on port 8765, schedules the Zotero DB update at 05:45, and schedules the daily score run at 06:00 (after the DB update is complete).
 
+**macOS sleep/wake settings** — the launchd agents and the HTTP server only work when the Mac is awake. If your Mac mini is idle for most of the day, configure two settings so you can use sleep mode without disrupting the workflow:
+
+1. **Scheduled wake for the launchd jobs** — set a recurring daily wake time 5 minutes before the first scheduled job:
+   ```bash
+   sudo pmset repeat wake MTWRFSU 05:40:00
+   ```
+   The Mac wakes at 05:40, all three jobs run (05:45 – 06:15), and macOS returns to sleep automatically after the inactivity timeout. Check the schedule with `pmset -g sched`; cancel with `sudo pmset repeat cancel`.
+
+2. **Network wake for iPhone/iPad access** — in **System Settings → Energy** (Dutch: *Energie-instellingen*), enable **"Schakel sluimerstand uit voor netwerktoegang"**. Despite the wording ("disable sleep for network access"), this puts the Mac into a lighter sleep state rather than deep sleep, keeping the network interface active so the HTTP server on port 8765 remains reachable from iPhone or iPad. The Mac still saves significant power compared to staying fully awake.
+
+With both settings active you can put the Mac mini to sleep at the end of the day instead of just locking the screen.
+
 **Run manually** (first time, or on demand):
 
 ```bash

@@ -2,6 +2,15 @@
 
 [Introduction](introduction.md)
 
+# Usage
+
+- [How the workflow fits together](usage/overview.md)
+- [Phase 1: sources into Zotero _inbox](usage/phase1-sources.md)
+- [Phase 2: Go/No-go in Claude Code](usage/phase2-filter.md)
+- [Phase 3: processing to the vault](usage/phase3-process.md)
+- [Activating the skill & daily workflow](reference/daily-workflow.md)
+- [Roadmap](usage/roadmap.md)
+
 # Installation
 
 - [Step 1: Homebrew](installation/homebrew.md)
@@ -25,16 +34,7 @@
 - [Step 16: iPad access via SSH terminal](extensions/ipad-ssh.md)
 - [Step 17: In-browser terminal](extensions/browser-terminal.md)
 
-# Usage
-
-- [How the workflow fits together](usage/overview.md)
-- [Phase 1: sources into Zotero _inbox](usage/phase1-sources.md)
-- [Phase 2: Go/No-go in Claude Code](usage/phase2-filter.md)
-- [Phase 3: processing to the vault](usage/phase3-process.md)
-- [Roadmap](usage/roadmap.md)
-
 # Reference
 
-- [Activating the skill & daily workflow](reference/daily-workflow.md)
 - [Troubleshooting](reference/troubleshooting.md)
 - [Privacy overview](reference/privacy.md)
