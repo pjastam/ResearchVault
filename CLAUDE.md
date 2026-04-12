@@ -1,17 +1,28 @@
 # CLAUDE.md — Werkwijze ResearchVault
 
+> **Bevroren specificatie.** Pas dit bestand alleen aan na expliciete beslissing. Elke wijziging verandert het gedrag van alle toekomstige ingests en lint-runs.
+
 ## Obsidian-conventies
 - Alle bestanden zijn Markdown (.md)
 - Gebruik [[dubbele haken]] voor interne links tussen notes
 - Gebruik #tags voor thematische categorisatie
-- Bestandsnamen: gebruik koppeltekens, geen spaties (bijv. `auteur-2024-titel.md`)
+- Bestandsnamen: gebruik koppeltekens, geen spaties (bijv. `auteur-2024-kernwoord1-kernwoord2.md`)
+  - Na het jaar: 2–4 zelfstandige naamwoorden gekozen door Qwen op basis van titel en TLDR
+  - `process_item.py` genereert de bestandsnaam automatisch — niet handmatig opgeven
 
 ## Vault-structuur
-- `literature/` — één note per paper of bron uit Zotero
-- `syntheses/` — thematische syntheses van meerdere bronnen
-- `projects/` — projectspecifieke documentatie
-- `daily/` — dagelijkse notities en logboek
-- `inbox/` — ruwe input die nog verwerkt moet worden
+
+| Map | Paginatype | Inhoud |
+| --- | --- | --- |
+| `literature/` | Source notes | Één note per paper of bron uit Zotero |
+| `syntheses/` | Syntheses | Thematische syntheses van meerdere bronnen |
+| `concepts/` | Concepts | Methodologische concepten (averechtse selectie, moral hazard, risicoverevening, etc.) |
+| `authors/` | Authors | Onderzoekerprofielen met publicatiehistorie en relevantie |
+| `debates/` | Debates | Lopende wetenschappelijke discussies en tegenstellingen tussen studies |
+| `projects/` | Projects | Projectspecifieke documentatie en Talma-koppelingen |
+| `daily/` | — | Dagelijkse notities en logboek |
+| `inbox/` | — | Ruwe input die nog verwerkt moet worden |
+| `meta/candidates/` | — | Staging area: Qwen-drafts vóór promotie naar `literature/` (zie Ingest-procedure) |
 
 ## Literatuurnotities (uit Zotero)
 
@@ -23,7 +34,7 @@ authors: ["Achternaam, Voornaam", ...]
 year: JJJJ
 journal: "Naam tijdschrift of uitgever"
 citation_key: auteur2024kernwoord
-zotero: "zotero://select/library/1/items/ITEMKEY"
+zotero: "zotero://select/library/items/ITEMKEY"
 tags: [thema1, thema2]
 status: unread
 ---
@@ -38,11 +49,13 @@ Vervang `ITEMKEY` door de werkelijke Zotero item key, op te halen via Zotero MCP
 
 Na de frontmatter bevat elke notitie:
 
-* Kernvraag en hoofdargument
+* **TLDR** — kernvraag en hoofdargument in 2–3 zinnen (wordt gebruikt door de LLM om te beslissen of de volledige notitie gelezen moet worden)
 * Kernbevindingen (3–5 punten)
 * Methodologische notities
-* Citaten die relevant zijn voor mijn onderzoek (in de originele taal)
+* Citaten die relevant zijn voor mijn onderzoek (in de originele taal) — **alleen voor papers en webartikelen**; weggelaten voor video/podcast (timestamps onbetrouwbaar)
 * Links naar gerelateerde notities in de vault ([[dubbele haken]])
+
+**Cross-link drempelwaarden:** voeg een `[[link]]` toe als een notitie minstens twee gedeelde kernbegrippen heeft met de doelnotitie, of als er een directe citatie-relatie bestaat. Voeg geen links toe op basis van oppervlakkige overeenkomst in thema alleen.
 
 ## Taal
 - Antwoord in het Nederlands tenzij anders gevraagd
@@ -53,6 +66,43 @@ Na de frontmatter bevat elke notitie:
 - Gebruik Zotero MCP om papers op te halen via hun titel of sleutelwoorden
 - Sla literatuurnotities op als `literature/[auteur-jaar-kernwoord].md`
 - Voeg altijd een #tag toe voor het thema van de paper
+
+## Ingest-procedure
+
+De LLM compileert bestaande kennis — hij genereert geen nieuwe kennis. Prompts voor Qwen zijn kort en structureel.
+
+**Stap 1 — Kwaliteitscheck (Qwen)**
+Beoordeel of het item de vault waard is via `index-score.py`. Items met score < 40 (🔴) worden niet ingested tenzij er een expliciete reden is.
+
+**Stap 2 — Kandidaat aanmaken (Qwen via `process_item.py`)**
+```bash
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/process_item.py \
+  --item-key ITEMKEY --output-dir meta/candidates/ [overige vlaggen]
+```
+De draft verschijnt in `meta/candidates/[auteur-jaar-kw].md`. Geen bron-inhoud bereikt Claude Code.
+
+**Stap 3 — Human review**
+Lees de kandidaat-notitie. Geef Go of No-go. Bij No-go: verwijder het bestand uit `meta/candidates/`.
+
+**Stap 4 — Promotie naar `literature/` (bij Go)**
+```bash
+mv meta/candidates/[bestand].md literature/[bestand].md
+```
+
+**Stap 5 — Cross-links toevoegen (hyalo + Qwen)**
+Zoek verwante notities:
+```bash
+hyalo find "[kernbegrip]" --glob "literature/*.md" --format text
+```
+Voeg `[[links]]` toe aan de nieuwe notitie én aan de 2–5 meest verwante bestaande notities (alleen bij drempelwaarde — zie Literatuurnotities).
+
+**Stap 6 — Syntheses bijwerken (Qwen)**
+Controleer welke syntheses relevant zijn en voeg een bullet of sectie toe.
+
+**Ollama-routing:**
+- Kwaliteitscheck, tekstgeneratie, cross-link-suggesties, synthese-aanvullingen → Qwen (lokaal)
+- Coördinatie, beslissingen, review → Claude (orchestrator)
+- Navigatie, zoeken, link management → hyalo (geen LLM)
 
 ## _inbox prioritering (index-score.py)
 - Gebruik `.claude/index-score.py` om items in de Zotero `_inbox` te scoren op relevantie vóór de fase 2-review
@@ -69,16 +119,26 @@ Na de frontmatter bevat elke notitie:
   ```
 - `.claude/zotero_utils.py` — gedeelde hulpfuncties voor beide scripts (API-sleutel uitlezen uit `~/.zprofile`, collectie-ID opzoeken)
 
-## YouTube-transcripten (yt-dlp)
-- Transcripten worden opgeslagen in `inbox/` als `.vtt`-bestanden
-- Verwerk een transcript naar een note in `literature/` met de volgende structuur:
-  - Titel, spreker, kanaal, datum, URL
-  - Samenvatting (3–5 zinnen)
-  - Kernpunten met tijdcodes
-  - Relevante citaten (met tijdcode)
-  - Links naar gerelateerde notes in de vault
-- Bestandsnaam voor transcript-notes: `[spreker-jaar-kernwoord].md` met #tag `#video`
-- Ruwe `.vtt`-bestanden verwijder je uit `inbox/` nadat de note is aangemaakt
+## YouTube-transcripten (attach-transcript.py)
+
+YouTube-items volgen een eager transcript-pipeline: bij ✅ in de feedreader wordt het transcript meteen opgehaald en als bijlage in Zotero opgeslagen, zodat de Go/No-go op inhoud kan worden gebaseerd.
+
+**Transcript-bijlage aanmaken (voor Go/No-go):**
+```bash
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/attach-transcript.py ITEMKEY
+```
+Dit doet:
+1. Transcript ophalen via `YouTubeTranscriptApi` (of uit `transcript_cache/`)
+2. Qwen genereert een cleaned versie + abstract (3–5 zinnen)
+3. Cleaned transcript als `.txt`-bijlage naar Zotero; abstract als `abstractNote`
+
+**Na Go: literatuurnotitie aanmaken via `process_item.py`** — zelfde als papers (zie Ingest-procedure).
+
+**Notitiestructuur voor video/podcast:**
+- Geen `## Relevant quotes`-sectie — tijdcodes zijn onbetrouwbaar zonder geverifieerde bron
+- Overige secties zoals papers: TLDR, Key findings, Methodological notes, Related notes, Flashcards
+
+**Fallback:** `fetch-fulltext.py` leest de transcript-bijlage uit het Zotero-item (lokale API); yt-dlp is niet meer nodig voor de pipeline.
 
 ## Zotero database-onderhoud
 - De semantische zoekdatabase wordt automatisch bijgewerkt dagelijks om 05:45 via de launchd-agent `nl.researchvault.zotero-update` (`zotero-mcp update-db --fulltext`) — geen handmatige actie nodig vóór een sessie
@@ -167,7 +227,7 @@ Correcte aanpak voor het genereren van literatuurnotities: gebruik `.claude/proc
   --item-key ITEMKEY \
   --title "Titel" --authors "Achternaam, V." --year 2024 \
   --journal "..." --citation-key auteur2024kw \
-  --zotero-url "zotero://select/library/1/items/ITEMKEY" \
+  --zotero-url "zotero://select/library/items/ITEMKEY" \
   --tags "thema" --status unread
 # → {"status": "ok", "path": "literature/auteur2024kw.md"}
 ```

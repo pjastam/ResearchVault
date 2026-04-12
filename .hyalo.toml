@@ -1,0 +1,3 @@
+dir = "."
+format = "text"
+hints = false

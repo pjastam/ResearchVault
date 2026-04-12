@@ -9,6 +9,7 @@
 .claude/settings.local.json
 
 # Persoonlijke onderzoeksinhoud — niet delen, maar mapstructuur wel bewaren
+meta/candidates/*.md
 literature/*.md
 literature/annotations/*
 !literature/annotations/.gitkeep

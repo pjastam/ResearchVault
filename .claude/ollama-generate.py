@@ -31,11 +31,14 @@ MAX_RETRIES   = 2     # pogingen bij verbindingsfouten
 def generate(model: str, prompt: str, content: str, no_think: bool) -> str:
     full_prompt = f"/no_think\n{prompt}\n\n{content}" if no_think else f"{prompt}\n\n{content}"
 
-    payload = json.dumps({
+    payload_dict: dict = {
         "model": model,
         "prompt": full_prompt,
         "stream": True,
-    }).encode("utf-8")
+    }
+    if no_think:
+        payload_dict["think"] = False
+    payload = json.dumps(payload_dict).encode("utf-8")
 
     req = urllib.request.Request(
         OLLAMA_API,

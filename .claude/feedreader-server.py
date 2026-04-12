@@ -13,15 +13,23 @@ import html
 import http.server
 import json
 import os
+import subprocess
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-SERVE_DIR    = Path.home() / ".local" / "share" / "feedreader-serve"
-SCRIPT_DIR   = Path(__file__).parent
-SKIP_QUEUE   = SCRIPT_DIR / "skip_queue.jsonl"
-PORT         = 8765
+SERVE_DIR         = Path.home() / ".local" / "share" / "feedreader-serve"
+SCRIPT_DIR        = Path(__file__).parent
+SKIP_QUEUE        = SCRIPT_DIR / "skip_queue.jsonl"
+ATTACH_SCRIPT     = SCRIPT_DIR / "attach-transcript.py"
+PORT              = 8765
+
+# Python-interpreter met zotero-mcp en youtube_transcript_api beschikbaar
+_ZOTERO_PYTHON = Path(os.environ.get(
+    "ZOTERO_PYTHON",
+    "/Users/pietstam/.local/share/uv/tools/zotero-mcp-server/bin/python3",
+))
 
 # ── Zotero Web API ─────────────────────────────────────────────────────────────
 def _load_api_key() -> str:
@@ -152,7 +160,15 @@ class Phase0Handler(http.server.SimpleHTTPRequestHandler):
             self._respond_pixel(200)
 
         elif action in ("zotero", "read"):
-            ok, _result = _add_to_zotero_inbox(url, title, source_type, action, source, date)
+            ok, item_key = _add_to_zotero_inbox(url, title, source_type, action, source, date)
+            # YouTube ✅: spawn attach-transcript.py asynchroon (geen wachttijd voor de gebruiker)
+            if ok and source_type == "youtube" and item_key and action == "zotero":
+                subprocess.Popen(
+                    [str(_ZOTERO_PYTHON), str(ATTACH_SCRIPT),
+                     "--item-key", item_key, "--url", url],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
             self._respond_pixel(200 if ok else 500)
 
     @staticmethod

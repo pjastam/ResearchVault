@@ -28,7 +28,7 @@ The generated note contains:
 - Relevant quotes (original language)
 - Links to related notes
 
-Notes are saved to `literature/[citation-key].md`.
+Notes are saved to `literature/[author-year-keyword1-keyword2].md` — Qwen selects 2–4 nouns from the title and TLDR.
 
 > **Privacy:** no paper content ever appears in Claude Code's context. `process_item.py` is a self-contained local subagent — it fetches, generates, and writes without returning any source text to the orchestration layer.
 
@@ -36,24 +36,37 @@ Notes are saved to `literature/[citation-key].md`.
 
 ## YouTube videos
 
-Videos added via the iOS share sheet from the YouTube app arrive in Zotero `_inbox` as watch URLs. After a Go decision:
+YouTube items follow an **eager transcript pipeline**: when you mark a video ✅ in the feedreader, `attach-transcript.py` runs automatically and stores a cleaned transcript as an attachment in the Zotero item — mirroring how a PDF accompanies a paper. This makes Go/No-go decisions content-based.
+
+**If the transcript attachment is missing** (e.g. for manually added items), run it explicitly:
+
+```bash
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/attach-transcript.py ITEMKEY
+```
+
+This script:
+1. Fetches the transcript via `YouTubeTranscriptApi` (or from `.claude/transcript_cache/`)
+2. Qwen3.5:9b generates a cleaned transcript and a 3–5 sentence abstract
+3. Uploads the cleaned transcript as a `.txt` attachment to Zotero; sets `abstractNote`
+
+After a **Go** decision, generate the literature note the same way as papers:
 
 ```
-transcript [URL]
+verwerk recente papers
 ```
 
-Claude Code:
-1. Checks whether a transcript is already cached from the feedreader (`.claude/transcript_cache/{video_id}.json`) — no re-fetch needed if so
-2. Falls back to yt-dlp if no cache exists
-3. Generates a structured note locally via Qwen3.5:9b:
-   - Title, speaker, channel, date, URL
-   - Summary (3–5 sentences)
-   - Key points with timestamps
-   - Relevant quotes with timestamps
-4. Adds frontmatter, `[[internal links]]`, and `#video` tag
-5. Removes the raw transcript from `inbox/` and the item from Zotero `_inbox`
+Claude Code calls `process_item.py`, which reads the transcript attachment from Zotero locally via `fetch-fulltext.py`. No transcript content reaches Claude Code.
 
-Notes are saved to `literature/[speaker-year-keyword].md`.
+The generated note contains:
+- YAML frontmatter (title, authors, year, tags, status, Zotero deep link)
+- TLDR
+- Key findings (3–5 points)
+- Methodological notes
+- *(No "Relevant quotes" section — timestamps are unreliable without a verifiable source)*
+- Links to related notes
+- Flashcards (max 3)
+
+Notes are saved to `literature/[author-year-keyword1-keyword2].md` — Qwen selects 2–4 nouns from the title and TLDR.
 
 ---
 

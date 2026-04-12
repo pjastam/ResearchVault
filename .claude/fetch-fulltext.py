@@ -9,7 +9,10 @@ De volledige tekst wordt naar het opgegeven bestand geschreven.
 Alleen lengte en status worden geprint — nooit de inhoud zelf.
 """
 
+import html as html_module
+import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -54,7 +57,43 @@ def main():
         ]
 
     if not attachments:
-        print(f"Geen bijlage gevonden voor item {item_key}", file=sys.stderr)
+        # Fallback: zoek naar transcript-note (_transcript tag).
+        # Web API heeft een bekende bug waarbij notes niet opvraagbaar zijn via GET,
+        # ook al zijn ze aangemaakt. Gebruik lokale Zotero API (port 23119) als fallback.
+        def _find_transcript_notes(items):
+            return [
+                c for c in items
+                if c["data"].get("itemType") == "note"
+                and any(t["tag"] == "_transcript" for t in c["data"].get("tags", []))
+            ]
+
+        transcript_notes = _find_transcript_notes(children)
+
+        if not transcript_notes:
+            # Fallback naar lokale Zotero API
+            try:
+                import urllib.request as _ureq
+                _local_url = f"http://localhost:23119/api/users/0/items/{item_key}/children"
+                with _ureq.urlopen(_local_url, timeout=5) as _r:
+                    _local_children = json.loads(_r.read())
+                transcript_notes = _find_transcript_notes(_local_children)
+                if transcript_notes:
+                    print(f"  Transcript-note gevonden via lokale Zotero API", file=sys.stderr)
+            except Exception as _e:
+                print(f"  Lokale Zotero API niet bereikbaar: {_e}", file=sys.stderr)
+        if transcript_notes:
+            note_html = transcript_notes[0]["data"].get("note", "")
+            # Strip HTML-tags en decode HTML-entiteiten
+            text = re.sub(r"<[^>]+>", " ", note_html)
+            content = html_module.unescape(text).strip()
+            content = re.sub(r" {2,}", " ", content)
+            if content:
+                os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True)
+                with open(output_path, "w", encoding="utf-8") as f:
+                    f.write(content)
+                print(f"Opgeslagen: {output_path} ({len(content):,} tekens, type: transcript note)")
+                return
+        print(f"Geen bijlage of transcript-note gevonden voor item {item_key}", file=sys.stderr)
         sys.exit(1)
 
     attachment_key = attachments[0]["key"]
