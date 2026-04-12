@@ -207,31 +207,37 @@
 <li>Relevant quotes (original language)</li>
 <li>Links to related notes</li>
 </ul>
-<p>Notes are saved to <code>literature/[citation-key].md</code>.</p>
+<p>Notes are saved to <code>literature/[author-year-keyword1-keyword2].md</code> — Qwen selects 2–4 nouns from the title and TLDR.</p>
 <blockquote>
 <p><strong>Privacy:</strong> no paper content ever appears in Claude Code's context. <code>process_item.py</code> is a self-contained local subagent — it fetches, generates, and writes without returning any source text to the orchestration layer.</p>
 </blockquote>
 <hr />
 <h2 id="youtube-videos"><a class="header" href="#youtube-videos">YouTube videos</a></h2>
-<p>Videos added via the iOS share sheet from the YouTube app arrive in Zotero <code>_inbox</code> as watch URLs. After a Go decision:</p>
-<pre><code>transcript [URL]
+<p>YouTube items follow an <strong>eager transcript pipeline</strong>: when you mark a video ✅ in the feedreader, <code>attach-transcript.py</code> runs automatically and stores a cleaned transcript as an attachment in the Zotero item — mirroring how a PDF accompanies a paper. This makes Go/No-go decisions content-based.</p>
+<p><strong>If the transcript attachment is missing</strong> (e.g. for manually added items), run it explicitly:</p>
+<pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/attach-transcript.py ITEMKEY
 </code></pre>
-<p>Claude Code:</p>
+<p>This script:</p>
 <ol>
-<li>Checks whether a transcript is already cached from the feedreader (<code>.claude/transcript_cache/{video_id}.json</code>) — no re-fetch needed if so</li>
-<li>Falls back to yt-dlp if no cache exists</li>
-<li>Generates a structured note locally via Qwen3.5:9b:
-<ul>
-<li>Title, speaker, channel, date, URL</li>
-<li>Summary (3–5 sentences)</li>
-<li>Key points with timestamps</li>
-<li>Relevant quotes with timestamps</li>
-</ul>
-</li>
-<li>Adds frontmatter, <code>[[internal links]]</code>, and <code>#video</code> tag</li>
-<li>Removes the raw transcript from <code>inbox/</code> and the item from Zotero <code>_inbox</code></li>
+<li>Fetches the transcript via <code>YouTubeTranscriptApi</code> (or from <code>.claude/transcript_cache/</code>)</li>
+<li>Qwen3.5:9b generates a cleaned transcript and a 3–5 sentence abstract</li>
+<li>Uploads the cleaned transcript as a <code>.txt</code> attachment to Zotero; sets <code>abstractNote</code></li>
 </ol>
-<p>Notes are saved to <code>literature/[speaker-year-keyword].md</code>.</p>
+<p>After a <strong>Go</strong> decision, generate the literature note the same way as papers:</p>
+<pre><code>verwerk recente papers
+</code></pre>
+<p>Claude Code calls <code>process_item.py</code>, which reads the transcript attachment from Zotero locally via <code>fetch-fulltext.py</code>. No transcript content reaches Claude Code.</p>
+<p>The generated note contains:</p>
+<ul>
+<li>YAML frontmatter (title, authors, year, tags, status, Zotero deep link)</li>
+<li>TLDR</li>
+<li>Key findings (3–5 points)</li>
+<li>Methodological notes</li>
+<li><em>(No "Relevant quotes" section — timestamps are unreliable without a verifiable source)</em></li>
+<li>Links to related notes</li>
+<li>Flashcards (max 3)</li>
+</ul>
+<p>Notes are saved to <code>literature/[author-year-keyword1-keyword2].md</code> — Qwen selects 2–4 nouns from the title and TLDR.</p>
 <hr />
 <h2 id="podcasts"><a class="header" href="#podcasts">Podcasts</a></h2>
 <p>Podcast episodes added from Overcast (via iOS share sheet) arrive in Zotero <code>_inbox</code> as overcast.fm URLs. After a Go decision:</p>
