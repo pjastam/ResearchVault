@@ -51,7 +51,7 @@ Create the HTTP server agent in `~/Library/LaunchAgents/`:
 </plist>
 ```
 
-The nightly batch jobs run via `~/bin/nachtelijke-taken.sh`, called from a LaunchDaemon in `/Library/LaunchDaemons/`. Because it is a system-level daemon, it fires at 06:00 even without an active user session — which is required when the Mac wakes from a scheduled `pmset` power-on. The script runs sequentially: Zotero DB update → feedreader-score → feedreader-learn → shutdown.
+The nightly batch jobs run via `~/bin/nachtelijke-taken.sh`, called from a LaunchDaemon in `/Library/LaunchDaemons/`. Because it is a system-level daemon, it fires at 06:00 even without an active user session — which is required when the Mac wakes from a scheduled `pmset` power-on. The script runs sequentially: Zotero DB update → feedreader-score → feedreader-learn → proton-backup → proton-mirror → shutdown. The feed-related steps run first so the filtered feeds are ready before you start your morning session; the backups follow and may take longer.
 
 ```xml
 <!-- /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist -->
@@ -76,10 +76,17 @@ The nightly batch jobs run via `~/bin/nachtelijke-taken.sh`, called from a Launc
     <key>Minute</key>
     <integer>0</integer>
   </dict>
-  <key>StandardOutPath</key>
-  <string>/Users/pietstam/Library/Logs/nachtelijke-taken.log</string>
   <key>StandardErrorPath</key>
   <string>/Users/pietstam/Library/Logs/nachtelijke-taken-error.log</string>
+  <key>WorkingDirectory</key>
+  <string>/Users/pietstam</string>
+  <key>TimeOut</key>
+  <integer>14400</integer>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>LAUNCHD_RUN</key>
+    <string>1</string>
+  </dict>
   <key>RunAtLoad</key>
   <false/>
 </dict>
