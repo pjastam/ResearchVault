@@ -218,7 +218,7 @@ http://onlinelibrary.wiley.com/rss/journal/10.1002/(ISSN)1099-1050
 &lt;/dict&gt;
 &lt;/plist&gt;
 </code></pre>
-<p>The nightly batch jobs run via <code>~/bin/nachtelijke-taken.sh</code>, called from a LaunchDaemon in <code>/Library/LaunchDaemons/</code>. Because it is a system-level daemon, it fires at 06:00 even without an active user session — which is required when the Mac wakes from a scheduled <code>pmset</code> power-on. The script runs sequentially: Zotero DB update → feedreader-score → feedreader-learn → shutdown.</p>
+<p>The nightly batch jobs run via <code>~/bin/nachtelijke-taken.sh</code>, called from a LaunchDaemon in <code>/Library/LaunchDaemons/</code>. Because it is a system-level daemon, it fires at 06:00 even without an active user session — which is required when the Mac wakes from a scheduled <code>pmset</code> power-on. The script runs sequentially: Zotero DB update → feedreader-score → feedreader-learn → proton-backup → proton-mirror → shutdown. The feed-related steps run first so the filtered feeds are ready before you start your morning session; the backups follow and may take longer.</p>
 <pre><code class="language-xml">&lt;!-- /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist --&gt;
 &lt;?xml version="1.0" encoding="UTF-8"?&gt;
 &lt;!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
@@ -241,10 +241,17 @@ http://onlinelibrary.wiley.com/rss/journal/10.1002/(ISSN)1099-1050
     &lt;key&gt;Minute&lt;/key&gt;
     &lt;integer&gt;0&lt;/integer&gt;
   &lt;/dict&gt;
-  &lt;key&gt;StandardOutPath&lt;/key&gt;
-  &lt;string&gt;/Users/pietstam/Library/Logs/nachtelijke-taken.log&lt;/string&gt;
   &lt;key&gt;StandardErrorPath&lt;/key&gt;
   &lt;string&gt;/Users/pietstam/Library/Logs/nachtelijke-taken-error.log&lt;/string&gt;
+  &lt;key&gt;WorkingDirectory&lt;/key&gt;
+  &lt;string&gt;/Users/pietstam&lt;/string&gt;
+  &lt;key&gt;TimeOut&lt;/key&gt;
+  &lt;integer&gt;14400&lt;/integer&gt;
+  &lt;key&gt;EnvironmentVariables&lt;/key&gt;
+  &lt;dict&gt;
+    &lt;key&gt;LAUNCHD_RUN&lt;/key&gt;
+    &lt;string&gt;1&lt;/string&gt;
+  &lt;/dict&gt;
   &lt;key&gt;RunAtLoad&lt;/key&gt;
   &lt;false/&gt;
 &lt;/dict&gt;
