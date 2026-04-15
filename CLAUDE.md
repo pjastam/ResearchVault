@@ -141,8 +141,8 @@ Dit doet:
 **Fallback:** `fetch-fulltext.py` leest de transcript-bijlage uit het Zotero-item (lokale API); yt-dlp is niet meer nodig voor de pipeline.
 
 ## Zotero database-onderhoud
-- De semantische zoekdatabase wordt automatisch bijgewerkt dagelijks om 05:45 via de launchd-agent `nl.researchvault.zotero-update` (`zotero-mcp update-db --fulltext`) — geen handmatige actie nodig vóór een sessie
-- Herinner de gebruiker eraan de database handmatig bij te werken als zoekopdrachten recente toevoegingen missen die van dezelfde dag zijn (de automatische update draait om 05:45)
+- De semantische zoekdatabase wordt automatisch bijgewerkt dagelijks om 06:00 via de nachtelijke-taken daemon (`nl.pietstam.nachtelijke-taken`) — geen handmatige actie nodig vóór een sessie
+- Herinner de gebruiker eraan de database handmatig bij te werken als zoekopdrachten recente toevoegingen missen die van dezelfde dag zijn (de automatische update draait om 06:00)
 - Gebruik het commando `update-zotero` (alias) of `zotero-mcp update-db --fulltext` voor een handmatige volledige update
 - Check de status met `zotero-status` of `zotero-mcp db-status`
 
@@ -196,11 +196,9 @@ De feedreader scoort RSS/YouTube/podcast-feeds automatisch op relevantie en prod
 
 **Leerloop:** feedreader-learn.py verwerkt eerst de skip-queue (👎-signalen), matcht daarna recent aan Zotero toegevoegde items aan het logboek, en onderscheidt drie categorieën: ✅ positieven · 👎 expliciet afgewezen · ❌ zwak negatief (niet toegevoegd na timeout). Na ≥30 positieven verschijnt een initieel drempeladvies; pas dan `THRESHOLD_GREEN` en `THRESHOLD_YELLOW` in `feedreader-score.py` aan. Het leren gaat daarna continu door.
 
-**launchd-agents** (laden bij inloggen):
-- `nl.researchvault.feedreader-server` — HTTP-server permanent actief (poort 8765)
-- `nl.researchvault.zotero-update` — Zotero semantische zoekdatabase bijwerken dagelijks om 05:45 (`zotero-mcp update-db --fulltext`)
-- `nl.researchvault.feedreader-score` — score-run dagelijks om 06:00 (na de database-update)
-- `nl.researchvault.feedreader-learn` — leerloop dagelijks om 06:15
+**launchd-agents en daemon:**
+- `nl.researchvault.feedreader-server` (LaunchAgent) — HTTP-server permanent actief (poort 8765)
+- `nl.pietstam.nachtelijke-taken` (LaunchDaemon, `/Library/LaunchDaemons/`) — nachtelijke batchrun dagelijks om 06:00: zotero update-db → feedreader-score → feedreader-learn → shutdown; Mac wordt gewekt via `pmset wakeorpoweron` om 05:55
 - `nl.researchvault.ttyd` — browser-terminal permanent actief (poort 7681, `--writable`); log: `/tmp/ttyd.log`
 
 ## RSS-feeds

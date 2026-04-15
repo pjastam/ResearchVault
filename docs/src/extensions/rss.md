@@ -24,7 +24,9 @@ http://onlinelibrary.wiley.com/rss/journal/10.1002/(ISSN)1099-1050
 
 **Create and load the launchd agents** (run once after installation):
 
-Create three plist files in `~/Library/LaunchAgents/`. Example for the HTTP server:
+The HTTP server runs as a persistent LaunchAgent. The nightly batch jobs (Zotero DB update, feed scoring, learning loop) are consolidated into a single LaunchDaemon that runs at system level — no user session required.
+
+Create the HTTP server agent in `~/Library/LaunchAgents/`:
 
 ```xml
 <!-- ~/Library/LaunchAgents/nl.researchvault.feedreader-server.plist -->
@@ -49,24 +51,58 @@ Create three plist files in `~/Library/LaunchAgents/`. Example for the HTTP serv
 </plist>
 ```
 
-Create similar plists for `nl.researchvault.zotero-update` (daily at 05:45, runs `zotero-mcp update-db --fulltext`), `nl.researchvault.feedreader-score` (daily at 06:00, `StartCalendarInterval` with `Hour: 6`), and `nl.researchvault.feedreader-learn` (daily at 06:15). Then load all four:
+The nightly batch jobs run via `~/bin/nachtelijke-taken.sh`, called from a LaunchDaemon in `/Library/LaunchDaemons/`. Because it is a system-level daemon, it fires at 06:00 even without an active user session — which is required when the Mac wakes from a scheduled `pmset` power-on. The script runs sequentially: Zotero DB update → feedreader-score → feedreader-learn → shutdown.
+
+```xml
+<!-- /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist -->
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>nl.pietstam.nachtelijke-taken</string>
+  <key>UserName</key>
+  <string>pietstam</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/pietstam/bin/nachtelijke-taken.sh</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>6</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+  <key>StandardOutPath</key>
+  <string>/Users/pietstam/Library/Logs/nachtelijke-taken.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/pietstam/Library/Logs/nachtelijke-taken-error.log</string>
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>
+```
+
+Load the LaunchAgent (as user) and install the LaunchDaemon (as root):
 
 ```bash
 launchctl load ~/Library/LaunchAgents/nl.researchvault.feedreader-server.plist
-launchctl load ~/Library/LaunchAgents/nl.researchvault.zotero-update.plist
-launchctl load ~/Library/LaunchAgents/nl.researchvault.feedreader-score.plist
-launchctl load ~/Library/LaunchAgents/nl.researchvault.feedreader-learn.plist
+sudo cp /path/to/nl.pietstam.nachtelijke-taken.plist /Library/LaunchDaemons/
+sudo chown root:wheel /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
+sudo chmod 644 /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
+sudo launchctl bootstrap system /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
 ```
 
-This starts a local HTTP server on port 8765, schedules the Zotero DB update at 05:45, and schedules the daily score run at 06:00 (after the DB update is complete).
+**macOS sleep/wake settings** — configure a scheduled wake so the Mac powers on automatically before the 06:00 batch run:
 
-**macOS sleep/wake settings** — the launchd agents and the HTTP server only work when the Mac is awake. If your Mac mini is idle for most of the day, configure two settings so you can use sleep mode without disrupting the workflow:
-
-1. **Scheduled wake for the launchd jobs** — set a recurring daily wake time 5 minutes before the first scheduled job:
+1. **Scheduled wake for the nightly daemon** — set a recurring daily wake time 5 minutes before the batch job:
    ```bash
-   sudo pmset repeat wake MTWRFSU 05:40:00
+   sudo pmset repeat wakeorpoweron MTWRFSU 05:55:00
    ```
-   The Mac wakes at 05:40, all three jobs run (05:45 – 06:15), and macOS returns to sleep automatically after the inactivity timeout. Check the schedule with `pmset -g sched`; cancel with `sudo pmset repeat cancel`.
+   The Mac wakes at 05:55, the daemon fires at 06:00, and the Mac shuts down automatically at the end of the script. Check the schedule with `pmset -g sched`; cancel with `sudo pmset repeat cancel`.
 
 2. **Network wake for iPhone/iPad access** — in **System Settings → Energy** (Dutch: *Energie-instellingen*), enable **"Schakel sluimerstand uit voor netwerktoegang"**. Despite the wording ("disable sleep for network access"), this puts the Mac into a lighter sleep state rather than deep sleep, keeping the network interface active so the HTTP server on port 8765 remains reachable from iPhone or iPad. The Mac still saves significant power compared to staying fully awake.
 
@@ -96,7 +132,7 @@ The article page (for both YouTube and podcast) includes three tag buttons — *
 
 > **Serve directory:** the HTTP server serves files from `~/.local/share/feedreader-serve/`, not from `~/Documents/`, because macOS TCC prevents system Python from accessing the Documents folder when launched via launchd.
 
-**Learning loop** — `feedreader-learn.py` runs daily at 06:15 and matches recently added Zotero items (by URL) against the score log. After ≥30 positives it prints a threshold recommendation. Once the threshold is stable, activate score filtering in `feedreader-score.py` by adjusting `THRESHOLD_GREEN` and `THRESHOLD_YELLOW`.
+**Learning loop** — `feedreader-learn.py` runs daily as part of the nightly batch job and matches recently added Zotero items (by URL) against the score log. After ≥30 positives it prints a threshold recommendation. Once the threshold is stable, activate score filtering in `feedreader-score.py` by adjusting `THRESHOLD_GREEN` and `THRESHOLD_YELLOW`.
 
 > **Privacy note:** `feedreader-score.py` runs entirely locally. Feed URLs are fetched directly from the source; no feed content is sent to any cloud service.
 

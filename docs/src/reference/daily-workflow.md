@@ -63,7 +63,7 @@ You do not need to know exactly what you are looking for — the skill is design
 5. Claude Code retrieves all items from your Zotero `_inbox` and presents each one with a short summary and relevance assessment — the summary is generated locally by Qwen3.5:9b. You respond **Go** or **No-go** per item.
 6. For each **Go**: Claude Code writes a structured literature note using the safe pipeline below.
 7. For each **No-go**: Claude Code removes the item from `_inbox` (after your confirmation).
-8. At the end of the session, Claude Code shows a summary: X approved, Y removed. The Zotero semantic search database is updated automatically at 05:45 each day by the `nl.researchvault.zotero-update` launchd agent — no manual action needed before a session. If you process items later in the day and want the database to reflect them immediately, run:
+8. At the end of the session, Claude Code shows a summary: X approved, Y removed. The Zotero semantic search database is updated automatically each day as part of the nightly batch job (`nl.pietstam.nachtelijke-taken` daemon, runs at 06:00) — no manual action needed before a session. If you process items later in the day and want the database to reflect them immediately, run:
 
    ```bash
    zotero-mcp update-db --fulltext # recommended (includes full text, 5–20 min on Apple Silicon)

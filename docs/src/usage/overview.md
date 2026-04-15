@@ -34,7 +34,7 @@ The feedreader is in **calibration mode** until its scoring threshold is stable.
 
 - The feedreader runs automatically but does **not** yet route items to Zotero `_inbox` on its own.
 - You browse the HTML reader daily and give feedback signals: click on interesting items (and add them to Zotero) for positive signals, press 👎 on irrelevant items for explicit negative signals.
-- `feedreader-learn.py` processes these signals every morning at 06:15.
+- `feedreader-learn.py` processes these signals every morning as part of the nightly batch job (06:00).
 - Once **≥30 positive signals** have accumulated, `feedreader-learn.py` will recommend an initial threshold.
 
 ---
