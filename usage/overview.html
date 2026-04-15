@@ -205,7 +205,7 @@
 <ul>
 <li>The feedreader runs automatically but does <strong>not</strong> yet route items to Zotero <code>_inbox</code> on its own.</li>
 <li>You browse the HTML reader daily and give feedback signals: click on interesting items (and add them to Zotero) for positive signals, press 👎 on irrelevant items for explicit negative signals.</li>
-<li><code>feedreader-learn.py</code> processes these signals every morning at 06:15.</li>
+<li><code>feedreader-learn.py</code> processes these signals every morning as part of the nightly batch job (06:00).</li>
 <li>Once <strong>≥30 positive signals</strong> have accumulated, <code>feedreader-learn.py</code> will recommend an initial threshold.</li>
 </ul>
 <hr />

@@ -236,7 +236,7 @@ claude
 <p>For each <strong>No-go</strong>: Claude Code removes the item from <code>_inbox</code> (after your confirmation).</p>
 </li>
 <li>
-<p>At the end of the session, Claude Code shows a summary: X approved, Y removed. The Zotero semantic search database is updated automatically at 05:45 each day by the <code>nl.researchvault.zotero-update</code> launchd agent — no manual action needed before a session. If you process items later in the day and want the database to reflect them immediately, run:</p>
+<p>At the end of the session, Claude Code shows a summary: X approved, Y removed. The Zotero semantic search database is updated automatically each day as part of the nightly batch job (<code>nl.pietstam.nachtelijke-taken</code> daemon, runs at 06:00) — no manual action needed before a session. If you process items later in the day and want the database to reflect them immediately, run:</p>
 <pre><code class="language-bash">zotero-mcp update-db --fulltext # recommended (includes full text, 5–20 min on Apple Silicon)
 </code></pre>
 <p>Or use the alias: <code>update-zotero</code>. Check database status with <code>zotero-mcp db-status</code>.</p>

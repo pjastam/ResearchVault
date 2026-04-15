@@ -249,7 +249,7 @@
 <ul>
 <li>The feedreader runs automatically but does <strong>not</strong> yet route items to Zotero <code>_inbox</code> on its own.</li>
 <li>You browse the HTML reader daily and give feedback signals: click on interesting items (and add them to Zotero) for positive signals, press 👎 on irrelevant items for explicit negative signals.</li>
-<li><code>feedreader-learn.py</code> processes these signals every morning at 06:15.</li>
+<li><code>feedreader-learn.py</code> processes these signals every morning as part of the nightly batch job (06:00).</li>
 <li>Once <strong>≥30 positive signals</strong> have accumulated, <code>feedreader-learn.py</code> will recommend an initial threshold.</li>
 </ul>
 <hr />
@@ -553,7 +553,7 @@ claude
 <p>For each <strong>No-go</strong>: Claude Code removes the item from <code>_inbox</code> (after your confirmation).</p>
 </li>
 <li>
-<p>At the end of the session, Claude Code shows a summary: X approved, Y removed. The Zotero semantic search database is updated automatically at 05:45 each day by the <code>nl.researchvault.zotero-update</code> launchd agent — no manual action needed before a session. If you process items later in the day and want the database to reflect them immediately, run:</p>
+<p>At the end of the session, Claude Code shows a summary: X approved, Y removed. The Zotero semantic search database is updated automatically each day as part of the nightly batch job (<code>nl.pietstam.nachtelijke-taken</code> daemon, runs at 06:00) — no manual action needed before a session. If you process items later in the day and want the database to reflect them immediately, run:</p>
 <pre><code class="language-bash">zotero-mcp update-db --fulltext # recommended (includes full text, 5–20 min on Apple Silicon)
 </code></pre>
 <p>Or use the alias: <code>update-zotero</code>. Check database status with <code>zotero-mcp db-status</code>.</p>
@@ -1172,7 +1172,8 @@ https://www.skipr.nl/feed/
 http://onlinelibrary.wiley.com/rss/journal/10.1002/(ISSN)1099-1050
 </code></pre>
 <p><strong>Create and load the launchd agents</strong> (run once after installation):</p>
-<p>Create three plist files in <code>~/Library/LaunchAgents/</code>. Example for the HTTP server:</p>
+<p>The HTTP server runs as a persistent LaunchAgent. The nightly batch jobs (Zotero DB update, feed scoring, learning loop) are consolidated into a single LaunchDaemon that runs at system level — no user session required.</p>
+<p>Create the HTTP server agent in <code>~/Library/LaunchAgents/</code>:</p>
 <pre><code class="language-xml">&lt;!-- ~/Library/LaunchAgents/nl.researchvault.feedreader-server.plist --&gt;
 &lt;?xml version="1.0" encoding="UTF-8"?&gt;
 &lt;!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
@@ -1194,20 +1195,52 @@ http://onlinelibrary.wiley.com/rss/journal/10.1002/(ISSN)1099-1050
 &lt;/dict&gt;
 &lt;/plist&gt;
 </code></pre>
-<p>Create similar plists for <code>nl.researchvault.zotero-update</code> (daily at 05:45, runs <code>zotero-mcp update-db --fulltext</code>), <code>nl.researchvault.feedreader-score</code> (daily at 06:00, <code>StartCalendarInterval</code> with <code>Hour: 6</code>), and <code>nl.researchvault.feedreader-learn</code> (daily at 06:15). Then load all four:</p>
-<pre><code class="language-bash">launchctl load ~/Library/LaunchAgents/nl.researchvault.feedreader-server.plist
-launchctl load ~/Library/LaunchAgents/nl.researchvault.zotero-update.plist
-launchctl load ~/Library/LaunchAgents/nl.researchvault.feedreader-score.plist
-launchctl load ~/Library/LaunchAgents/nl.researchvault.feedreader-learn.plist
+<p>The nightly batch jobs run via <code>~/bin/nachtelijke-taken.sh</code>, called from a LaunchDaemon in <code>/Library/LaunchDaemons/</code>. Because it is a system-level daemon, it fires at 06:00 even without an active user session — which is required when the Mac wakes from a scheduled <code>pmset</code> power-on. The script runs sequentially: Zotero DB update → feedreader-score → feedreader-learn → shutdown.</p>
+<pre><code class="language-xml">&lt;!-- /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist --&gt;
+&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd"&gt;
+&lt;plist version="1.0"&gt;
+&lt;dict&gt;
+  &lt;key&gt;Label&lt;/key&gt;
+  &lt;string&gt;nl.pietstam.nachtelijke-taken&lt;/string&gt;
+  &lt;key&gt;UserName&lt;/key&gt;
+  &lt;string&gt;pietstam&lt;/string&gt;
+  &lt;key&gt;ProgramArguments&lt;/key&gt;
+  &lt;array&gt;
+    &lt;string&gt;/bin/bash&lt;/string&gt;
+    &lt;string&gt;/Users/pietstam/bin/nachtelijke-taken.sh&lt;/string&gt;
+  &lt;/array&gt;
+  &lt;key&gt;StartCalendarInterval&lt;/key&gt;
+  &lt;dict&gt;
+    &lt;key&gt;Hour&lt;/key&gt;
+    &lt;integer&gt;6&lt;/integer&gt;
+    &lt;key&gt;Minute&lt;/key&gt;
+    &lt;integer&gt;0&lt;/integer&gt;
+  &lt;/dict&gt;
+  &lt;key&gt;StandardOutPath&lt;/key&gt;
+  &lt;string&gt;/Users/pietstam/Library/Logs/nachtelijke-taken.log&lt;/string&gt;
+  &lt;key&gt;StandardErrorPath&lt;/key&gt;
+  &lt;string&gt;/Users/pietstam/Library/Logs/nachtelijke-taken-error.log&lt;/string&gt;
+  &lt;key&gt;RunAtLoad&lt;/key&gt;
+  &lt;false/&gt;
+&lt;/dict&gt;
+&lt;/plist&gt;
 </code></pre>
-<p>This starts a local HTTP server on port 8765, schedules the Zotero DB update at 05:45, and schedules the daily score run at 06:00 (after the DB update is complete).</p>
-<p><strong>macOS sleep/wake settings</strong> — the launchd agents and the HTTP server only work when the Mac is awake. If your Mac mini is idle for most of the day, configure two settings so you can use sleep mode without disrupting the workflow:</p>
+<p>Load the LaunchAgent (as user) and install the LaunchDaemon (as root):</p>
+<pre><code class="language-bash">launchctl load ~/Library/LaunchAgents/nl.researchvault.feedreader-server.plist
+sudo cp /path/to/nl.pietstam.nachtelijke-taken.plist /Library/LaunchDaemons/
+sudo chown root:wheel /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
+sudo chmod 644 /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
+sudo launchctl bootstrap system /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
+</code></pre>
+<p><strong>macOS sleep/wake settings</strong> — configure a scheduled wake so the Mac powers on automatically before the 06:00 batch run:</p>
 <ol>
 <li>
-<p><strong>Scheduled wake for the launchd jobs</strong> — set a recurring daily wake time 5 minutes before the first scheduled job:</p>
-<pre><code class="language-bash">sudo pmset repeat wake MTWRFSU 05:40:00
+<p><strong>Scheduled wake for the nightly daemon</strong> — set a recurring daily wake time 5 minutes before the batch job:</p>
+<pre><code class="language-bash">sudo pmset repeat wakeorpoweron MTWRFSU 05:55:00
 </code></pre>
-<p>The Mac wakes at 05:40, all three jobs run (05:45 – 06:15), and macOS returns to sleep automatically after the inactivity timeout. Check the schedule with <code>pmset -g sched</code>; cancel with <code>sudo pmset repeat cancel</code>.</p>
+<p>The Mac wakes at 05:55, the daemon fires at 06:00, and the Mac shuts down automatically at the end of the script. Check the schedule with <code>pmset -g sched</code>; cancel with <code>sudo pmset repeat cancel</code>.</p>
 </li>
 <li>
 <p><strong>Network wake for iPhone/iPad access</strong> — in <strong>System Settings → Energy</strong> (Dutch: <em>Energie-instellingen</em>), enable <strong>"Schakel sluimerstand uit voor netwerktoegang"</strong>. Despite the wording ("disable sleep for network access"), this puts the Mac into a lighter sleep state rather than deep sleep, keeping the network interface active so the HTTP server on port 8765 remains reachable from iPhone or iPad. The Mac still saves significant power compared to staying fully awake.</p>
@@ -1232,7 +1265,7 @@ launchctl load ~/Library/LaunchAgents/nl.researchvault.feedreader-learn.plist
 <blockquote>
 <p><strong>Serve directory:</strong> the HTTP server serves files from <code>~/.local/share/feedreader-serve/</code>, not from <code>~/Documents/</code>, because macOS TCC prevents system Python from accessing the Documents folder when launched via launchd.</p>
 </blockquote>
-<p><strong>Learning loop</strong> — <code>feedreader-learn.py</code> runs daily at 06:15 and matches recently added Zotero items (by URL) against the score log. After ≥30 positives it prints a threshold recommendation. Once the threshold is stable, activate score filtering in <code>feedreader-score.py</code> by adjusting <code>THRESHOLD_GREEN</code> and <code>THRESHOLD_YELLOW</code>.</p>
+<p><strong>Learning loop</strong> — <code>feedreader-learn.py</code> runs daily as part of the nightly batch job and matches recently added Zotero items (by URL) against the score log. After ≥30 positives it prints a threshold recommendation. Once the threshold is stable, activate score filtering in <code>feedreader-score.py</code> by adjusting <code>THRESHOLD_GREEN</code> and <code>THRESHOLD_YELLOW</code>.</p>
 <blockquote>
 <p><strong>Privacy note:</strong> <code>feedreader-score.py</code> runs entirely locally. Feed URLs are fetched directly from the source; no feed content is sent to any cloud service.</p>
 </blockquote>
@@ -1663,7 +1696,7 @@ claude
 <tr><td>Claude Code does not see the MCP tool</td><td>Configuration file missing</td><td>Check <code>~/.claude/claude_desktop_config.json</code></td></tr>
 <tr><td>Ollama not responding</td><td>Service not started</td><td>Run <code>ollama serve</code> or <code>brew services start ollama</code></td></tr>
 <tr><td>yt-dlp returns no subtitles</td><td>Video has no (auto-)subtitles</td><td>Try <code>--sub-lang en</code> or check whether the video has subtitles at all</td></tr>
-<tr><td>launchd update not running</td><td>Zotero is not open at the scheduled time</td><td>Start Zotero manually and run <code>update-zotero</code>, or choose "Auto on startup" in step 10c option 1</td></tr>
+<tr><td>launchd update not running</td><td>Nightly daemon did not fire (check <code>~/Library/Logs/nachtelijke-taken.log</code>)</td><td>Run <code>update-zotero</code> manually; verify the daemon is loaded with <code>sudo launchctl list | grep nachtelijke</code></td></tr>
 <tr><td>whisper-cpp gives an error</td><td>Model not yet downloaded</td><td>Wait for the first download, or check disk space</td></tr>
 <tr><td>Whisper transcription is inaccurate</td><td>Low audio quality or incorrect language detection</td><td>Use <code>--model medium</code> for better quality, or specify the language explicitly with <code>--language nl</code> or <code>--language en</code> if automatic detection picks the wrong language</td></tr>
 <tr><td>NetNewsWire not syncing across devices</td><td>FreshRSS account not connected</td><td>Add FreshRSS account in NetNewsWire → Settings → Accounts → FreshRSS; use API URL <code>http://[mac-ip]:8080/api/greader.php</code> and the API password from FreshRSS Profile → API Management</td></tr>
