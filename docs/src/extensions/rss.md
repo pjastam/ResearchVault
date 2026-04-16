@@ -102,8 +102,6 @@ The nightly batch jobs run via `~/bin/nachtelijke-taken.sh`, called from a Launc
 
 Install and load both daemons as root:
 
-> **Run these commands in a real terminal** (Terminal.app or iTerm2), not from within Claude Code. Claude Code cannot prompt for a sudo password interactively.
-
 ```bash
 # feedreader-server
 sudo cp /path/to/nl.researchvault.feedreader-server.plist /Library/LaunchDaemons/
