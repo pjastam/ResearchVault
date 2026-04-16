@@ -196,10 +196,10 @@ De feedreader scoort RSS/YouTube/podcast-feeds automatisch op relevantie en prod
 
 **Leerloop:** feedreader-learn.py verwerkt eerst de skip-queue (👎-signalen), matcht daarna recent aan Zotero toegevoegde items aan het logboek, en onderscheidt drie categorieën: ✅ positieven · 👎 expliciet afgewezen · ❌ zwak negatief (niet toegevoegd na timeout). Na ≥30 positieven verschijnt een initieel drempeladvies; pas dan `THRESHOLD_GREEN` en `THRESHOLD_YELLOW` in `feedreader-score.py` aan. Het leren gaat daarna continu door.
 
-**launchd-agents en daemon:**
-- `nl.researchvault.feedreader-server` (LaunchAgent) — HTTP-server permanent actief (poort 8765)
-- `nl.pietstam.nachtelijke-taken` (LaunchDaemon, `/Library/LaunchDaemons/`) — nachtelijke batchrun dagelijks om 06:00: zotero update-db → feedreader-score → feedreader-learn → shutdown; Mac wordt gewekt via `pmset wakeorpoweron` om 05:55
-- `nl.researchvault.ttyd` — browser-terminal permanent actief (poort 7681, `--writable`); log: `/tmp/ttyd.log`
+**launchd-daemons (alle drie in `/Library/LaunchDaemons/`, draaien zonder ingelogde gebruiker):**
+- `nl.researchvault.feedreader-server` — HTTP-server permanent actief (poort 8765); log: `~/Library/Logs/feedreader-server.log`
+- `nl.pietstam.nachtelijke-taken` — nachtelijke batchrun dagelijks om 06:00: zotero update-db → feedreader-score → feedreader-learn → shutdown; Mac wordt gewekt via `pmset wakeorpoweron` om 05:55; log: `~/Library/Logs/nachtelijke-taken.log`
+- `nl.researchvault.ttyd` — browser-terminal permanent actief (poort 7681, `--writable`); log: `~/Library/Logs/ttyd.log`
 
 ## RSS-feeds
 - RSS-feeds worden gefilterd door de feedreader; de HTML-lezer (`http://localhost:8765/filtered.html`) of de Atom-feed in NetNewsWire toont items gesorteerd op relevantiescore

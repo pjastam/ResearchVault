@@ -16,23 +16,23 @@ The iframe URL is derived dynamically from `window.location.hostname`, so the te
 brew install ttyd
 ```
 
-## 17b. Load the launchd agent
+## 17b. Load the launchd daemon
 
-A launchd agent starts ttyd automatically at login and keeps it running:
+A launchd daemon starts ttyd automatically at boot and keeps it running — even without an active user session:
 
 ```bash
-launchctl load ~/Library/LaunchAgents/nl.researchvault.ttyd.plist
+sudo launchctl load /Library/LaunchDaemons/nl.researchvault.ttyd.plist
 ```
 
-This agent starts ttyd on port 7681 with the `--writable` flag enabled, which is required for interactive use. Without `--writable`, the terminal renders but ignores all keyboard input.
+This daemon starts ttyd on port 7681 with the `--writable` flag enabled, which is required for interactive use. Without `--writable`, the terminal renders but ignores all keyboard input.
 
 To verify it is running:
 
 ```bash
-launchctl list | grep ttyd
+sudo launchctl list | grep ttyd
 ```
 
-A PID (number) in the first column confirms it is active. Log output is written to `/tmp/ttyd.log`.
+A PID (number) in the first column confirms it is active. Log output is written to `~/Library/Logs/ttyd.log`.
 
 ## 17c. Use the terminal in the HTML reader
 
@@ -58,13 +58,13 @@ By default, each time you open the terminal panel a new shell session starts. If
 brew install tmux
 ```
 
-Then unload the current agent, update the plist to use tmux, and reload:
+Then unload the current daemon, update the plist to use tmux, and reload:
 
 ```bash
-launchctl unload ~/Library/LaunchAgents/nl.researchvault.ttyd.plist
+sudo launchctl unload /Library/LaunchDaemons/nl.researchvault.ttyd.plist
 ```
 
-Edit `~/Library/LaunchAgents/nl.researchvault.ttyd.plist` and replace the `ProgramArguments` block with:
+Edit `/Library/LaunchDaemons/nl.researchvault.ttyd.plist` and replace the `ProgramArguments` block with:
 
 ```xml
 <key>ProgramArguments</key>
@@ -78,15 +78,15 @@ Edit `~/Library/LaunchAgents/nl.researchvault.ttyd.plist` and replace the `Progr
 Then reload:
 
 ```bash
-launchctl load ~/Library/LaunchAgents/nl.researchvault.ttyd.plist
+sudo launchctl load /Library/LaunchDaemons/nl.researchvault.ttyd.plist
 ```
 
 Now every connection to the terminal panel attaches to the same persistent `phase2` session. A Claude Code conversation that was running when you closed the panel will still be there when you reopen it.
 
 ## 17e. Security note
 
-ttyd listens on all network interfaces (`0.0.0.0`) by default, which is what makes it reachable from an iPad. This also means any device on your local network can open a terminal on your Mac mini. This is acceptable for a trusted home network — if you use public or shared networks, stop the agent before connecting:
+ttyd listens on all network interfaces (`0.0.0.0`) by default, which is what makes it reachable from an iPad. This also means any device on your local network can open a terminal on your Mac mini. This is acceptable for a trusted home network — if you use public or shared networks, stop the daemon before connecting:
 
 ```bash
-launchctl unload ~/Library/LaunchAgents/nl.researchvault.ttyd.plist
+sudo launchctl unload /Library/LaunchDaemons/nl.researchvault.ttyd.plist
 ```
