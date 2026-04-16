@@ -265,6 +265,9 @@ http://onlinelibrary.wiley.com/rss/journal/10.1002/(ISSN)1099-1050
 &lt;/plist&gt;
 </code></pre>
 <p>Install and load both daemons as root:</p>
+<blockquote>
+<p><strong>Run these commands in a real terminal</strong> (Terminal.app or iTerm2), not from within Claude Code. Claude Code cannot prompt for a sudo password interactively.</p>
+</blockquote>
 <pre><code class="language-bash"># feedreader-server
 sudo cp /path/to/nl.researchvault.feedreader-server.plist /Library/LaunchDaemons/
 sudo chown root:wheel /Library/LaunchDaemons/nl.researchvault.feedreader-server.plist
