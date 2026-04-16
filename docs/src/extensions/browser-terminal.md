@@ -20,6 +20,8 @@ brew install ttyd
 
 A launchd daemon starts ttyd automatically at boot and keeps it running — even without an active user session:
 
+> **Run this command in a real terminal** (Terminal.app or iTerm2), not from within Claude Code. Claude Code cannot prompt for a sudo password interactively.
+
 ```bash
 sudo launchctl load /Library/LaunchDaemons/nl.researchvault.ttyd.plist
 ```
