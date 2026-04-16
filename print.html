@@ -1242,9 +1242,6 @@ http://onlinelibrary.wiley.com/rss/journal/10.1002/(ISSN)1099-1050
 &lt;/plist&gt;
 </code></pre>
 <p>Install and load both daemons as root:</p>
-<blockquote>
-<p><strong>Run these commands in a real terminal</strong> (Terminal.app or iTerm2), not from within Claude Code. Claude Code cannot prompt for a sudo password interactively.</p>
-</blockquote>
 <pre><code class="language-bash"># feedreader-server
 sudo cp /path/to/nl.researchvault.feedreader-server.plist /Library/LaunchDaemons/
 sudo chown root:wheel /Library/LaunchDaemons/nl.researchvault.feedreader-server.plist
@@ -1668,9 +1665,6 @@ claude
 </code></pre>
 <h2 id="17b-load-the-launchd-daemon"><a class="header" href="#17b-load-the-launchd-daemon">17b. Load the launchd daemon</a></h2>
 <p>A launchd daemon starts ttyd automatically at boot and keeps it running — even without an active user session:</p>
-<blockquote>
-<p><strong>Run this command in a real terminal</strong> (Terminal.app or iTerm2), not from within Claude Code. Claude Code cannot prompt for a sudo password interactively.</p>
-</blockquote>
 <pre><code class="language-bash">sudo launchctl load /Library/LaunchDaemons/nl.researchvault.ttyd.plist
 </code></pre>
 <p>This daemon starts ttyd on port 7681 with the <code>--writable</code> flag enabled, which is required for interactive use. Without <code>--writable</code>, the terminal renders but ignores all keyboard input.</p>
