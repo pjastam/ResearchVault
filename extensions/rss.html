@@ -195,9 +195,9 @@ https://www.skipr.nl/feed/
 http://onlinelibrary.wiley.com/rss/journal/10.1002/(ISSN)1099-1050
 </code></pre>
 <p><strong>Create and load the launchd agents</strong> (run once after installation):</p>
-<p>The HTTP server runs as a persistent LaunchAgent. The nightly batch jobs (Zotero DB update, feed scoring, learning loop) are consolidated into a single LaunchDaemon that runs at system level — no user session required.</p>
-<p>Create the HTTP server agent in <code>~/Library/LaunchAgents/</code>:</p>
-<pre><code class="language-xml">&lt;!-- ~/Library/LaunchAgents/nl.researchvault.feedreader-server.plist --&gt;
+<p>Both the HTTP server and the nightly batch jobs run as LaunchDaemons in <code>/Library/LaunchDaemons/</code> — they fire even without an active user session, which is required when the Mac wakes from a scheduled <code>pmset</code> power-on.</p>
+<p>Create the HTTP server daemon in <code>/Library/LaunchDaemons/</code>:</p>
+<pre><code class="language-xml">&lt;!-- /Library/LaunchDaemons/nl.researchvault.feedreader-server.plist --&gt;
 &lt;?xml version="1.0" encoding="UTF-8"?&gt;
 &lt;!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd"&gt;
@@ -205,16 +205,21 @@ http://onlinelibrary.wiley.com/rss/journal/10.1002/(ISSN)1099-1050
 &lt;dict&gt;
   &lt;key&gt;Label&lt;/key&gt;
   &lt;string&gt;nl.researchvault.feedreader-server&lt;/string&gt;
+  &lt;key&gt;UserName&lt;/key&gt;
+  &lt;string&gt;pietstam&lt;/string&gt;
   &lt;key&gt;ProgramArguments&lt;/key&gt;
   &lt;array&gt;
-    &lt;string&gt;/bin/zsh&lt;/string&gt;
-    &lt;string&gt;-c&lt;/string&gt;
-    &lt;string&gt;~/.local/share/uv/tools/zotero-mcp-server/bin/python3 ~/Documents/ResearchVault/.claude/feedreader-server.py &gt;&gt; /tmp/feedreader-server.log 2&gt;&amp;1&lt;/string&gt;
+    &lt;string&gt;/Users/pietstam/.local/share/uv/tools/zotero-mcp-server/bin/python3&lt;/string&gt;
+    &lt;string&gt;/Users/pietstam/Workspace/repos/GitHub/ResearchVault/.claude/feedreader-server.py&lt;/string&gt;
   &lt;/array&gt;
   &lt;key&gt;RunAtLoad&lt;/key&gt;
   &lt;true/&gt;
   &lt;key&gt;KeepAlive&lt;/key&gt;
   &lt;true/&gt;
+  &lt;key&gt;StandardOutPath&lt;/key&gt;
+  &lt;string&gt;/Users/pietstam/Library/Logs/feedreader-server.log&lt;/string&gt;
+  &lt;key&gt;StandardErrorPath&lt;/key&gt;
+  &lt;string&gt;/Users/pietstam/Library/Logs/feedreader-server.log&lt;/string&gt;
 &lt;/dict&gt;
 &lt;/plist&gt;
 </code></pre>
@@ -241,8 +246,10 @@ http://onlinelibrary.wiley.com/rss/journal/10.1002/(ISSN)1099-1050
     &lt;key&gt;Minute&lt;/key&gt;
     &lt;integer&gt;0&lt;/integer&gt;
   &lt;/dict&gt;
+  &lt;key&gt;StandardOutPath&lt;/key&gt;
+  &lt;string&gt;/Users/pietstam/Library/Logs/nachtelijke-taken.log&lt;/string&gt;
   &lt;key&gt;StandardErrorPath&lt;/key&gt;
-  &lt;string&gt;/Users/pietstam/Library/Logs/nachtelijke-taken-error.log&lt;/string&gt;
+  &lt;string&gt;/Users/pietstam/Library/Logs/nachtelijke-taken.log&lt;/string&gt;
   &lt;key&gt;WorkingDirectory&lt;/key&gt;
   &lt;string&gt;/Users/pietstam&lt;/string&gt;
   &lt;key&gt;TimeOut&lt;/key&gt;
@@ -257,12 +264,18 @@ http://onlinelibrary.wiley.com/rss/journal/10.1002/(ISSN)1099-1050
 &lt;/dict&gt;
 &lt;/plist&gt;
 </code></pre>
-<p>Load the LaunchAgent (as user) and install the LaunchDaemon (as root):</p>
-<pre><code class="language-bash">launchctl load ~/Library/LaunchAgents/nl.researchvault.feedreader-server.plist
+<p>Install and load both daemons as root:</p>
+<pre><code class="language-bash"># feedreader-server
+sudo cp /path/to/nl.researchvault.feedreader-server.plist /Library/LaunchDaemons/
+sudo chown root:wheel /Library/LaunchDaemons/nl.researchvault.feedreader-server.plist
+sudo chmod 644 /Library/LaunchDaemons/nl.researchvault.feedreader-server.plist
+sudo launchctl load /Library/LaunchDaemons/nl.researchvault.feedreader-server.plist
+
+# nachtelijke-taken
 sudo cp /path/to/nl.pietstam.nachtelijke-taken.plist /Library/LaunchDaemons/
 sudo chown root:wheel /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
 sudo chmod 644 /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
-sudo launchctl bootstrap system /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
+sudo launchctl load /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
 </code></pre>
 <p><strong>macOS sleep/wake settings</strong> — configure a scheduled wake so the Mac powers on automatically before the 06:00 batch run:</p>
 <ol>

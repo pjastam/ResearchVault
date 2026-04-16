@@ -188,15 +188,15 @@
 <h2 id="17a-install-ttyd"><a class="header" href="#17a-install-ttyd">17a. Install ttyd</a></h2>
 <pre><code class="language-bash">brew install ttyd
 </code></pre>
-<h2 id="17b-load-the-launchd-agent"><a class="header" href="#17b-load-the-launchd-agent">17b. Load the launchd agent</a></h2>
-<p>A launchd agent starts ttyd automatically at login and keeps it running:</p>
-<pre><code class="language-bash">launchctl load ~/Library/LaunchAgents/nl.researchvault.ttyd.plist
+<h2 id="17b-load-the-launchd-daemon"><a class="header" href="#17b-load-the-launchd-daemon">17b. Load the launchd daemon</a></h2>
+<p>A launchd daemon starts ttyd automatically at boot and keeps it running — even without an active user session:</p>
+<pre><code class="language-bash">sudo launchctl load /Library/LaunchDaemons/nl.researchvault.ttyd.plist
 </code></pre>
-<p>This agent starts ttyd on port 7681 with the <code>--writable</code> flag enabled, which is required for interactive use. Without <code>--writable</code>, the terminal renders but ignores all keyboard input.</p>
+<p>This daemon starts ttyd on port 7681 with the <code>--writable</code> flag enabled, which is required for interactive use. Without <code>--writable</code>, the terminal renders but ignores all keyboard input.</p>
 <p>To verify it is running:</p>
-<pre><code class="language-bash">launchctl list | grep ttyd
+<pre><code class="language-bash">sudo launchctl list | grep ttyd
 </code></pre>
-<p>A PID (number) in the first column confirms it is active. Log output is written to <code>/tmp/ttyd.log</code>.</p>
+<p>A PID (number) in the first column confirms it is active. Log output is written to <code>~/Library/Logs/ttyd.log</code>.</p>
 <h2 id="17c-use-the-terminal-in-the-html-reader"><a class="header" href="#17c-use-the-terminal-in-the-html-reader">17c. Use the terminal in the HTML reader</a></h2>
 <ol>
 <li>Open <code>http://localhost:8765/filtered.html</code> (Mac) or <code>http://[mac-ip]:8765/filtered.html</code> (iPad)</li>
@@ -213,10 +213,10 @@ claude
 <p>By default, each time you open the terminal panel a new shell session starts. If you want to reconnect to an existing Claude Code session after navigating away or closing the panel, install tmux:</p>
 <pre><code class="language-bash">brew install tmux
 </code></pre>
-<p>Then unload the current agent, update the plist to use tmux, and reload:</p>
-<pre><code class="language-bash">launchctl unload ~/Library/LaunchAgents/nl.researchvault.ttyd.plist
+<p>Then unload the current daemon, update the plist to use tmux, and reload:</p>
+<pre><code class="language-bash">sudo launchctl unload /Library/LaunchDaemons/nl.researchvault.ttyd.plist
 </code></pre>
-<p>Edit <code>~/Library/LaunchAgents/nl.researchvault.ttyd.plist</code> and replace the <code>ProgramArguments</code> block with:</p>
+<p>Edit <code>/Library/LaunchDaemons/nl.researchvault.ttyd.plist</code> and replace the <code>ProgramArguments</code> block with:</p>
 <pre><code class="language-xml">&lt;key&gt;ProgramArguments&lt;/key&gt;
 &lt;array&gt;
   &lt;string&gt;/bin/sh&lt;/string&gt;
@@ -225,12 +225,12 @@ claude
 &lt;/array&gt;
 </code></pre>
 <p>Then reload:</p>
-<pre><code class="language-bash">launchctl load ~/Library/LaunchAgents/nl.researchvault.ttyd.plist
+<pre><code class="language-bash">sudo launchctl load /Library/LaunchDaemons/nl.researchvault.ttyd.plist
 </code></pre>
 <p>Now every connection to the terminal panel attaches to the same persistent <code>phase2</code> session. A Claude Code conversation that was running when you closed the panel will still be there when you reopen it.</p>
 <h2 id="17e-security-note"><a class="header" href="#17e-security-note">17e. Security note</a></h2>
-<p>ttyd listens on all network interfaces (<code>0.0.0.0</code>) by default, which is what makes it reachable from an iPad. This also means any device on your local network can open a terminal on your Mac mini. This is acceptable for a trusted home network — if you use public or shared networks, stop the agent before connecting:</p>
-<pre><code class="language-bash">launchctl unload ~/Library/LaunchAgents/nl.researchvault.ttyd.plist
+<p>ttyd listens on all network interfaces (<code>0.0.0.0</code>) by default, which is what makes it reachable from an iPad. This also means any device on your local network can open a terminal on your Mac mini. This is acceptable for a trusted home network — if you use public or shared networks, stop the daemon before connecting:</p>
+<pre><code class="language-bash">sudo launchctl unload /Library/LaunchDaemons/nl.researchvault.ttyd.plist
 </code></pre>
 
                     </main>

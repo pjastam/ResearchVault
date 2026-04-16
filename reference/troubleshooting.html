@@ -193,10 +193,10 @@
 <tr><td>Whisper transcription is inaccurate</td><td>Low audio quality or incorrect language detection</td><td>Use <code>--model medium</code> for better quality, or specify the language explicitly with <code>--language nl</code> or <code>--language en</code> if automatic detection picks the wrong language</td></tr>
 <tr><td>NetNewsWire not syncing across devices</td><td>FreshRSS account not connected</td><td>Add FreshRSS account in NetNewsWire → Settings → Accounts → FreshRSS; use API URL <code>http://[mac-ip]:8080/api/greader.php</code> and the API password from FreshRSS Profile → API Management</td></tr>
 <tr><td>FreshRSS container not running</td><td>Docker Desktop not started</td><td>Open Docker Desktop from Launchpad; verify with <code>docker ps</code></td></tr>
-<tr><td>feedreader HTML reader not loading</td><td>feedreader-server.py not running</td><td>Check with <code>launchctl list | grep feedreader</code>; restart with <code>launchctl kickstart gui/$(id -u)/nl.researchvault.feedreader-server</code></td></tr>
+<tr><td>feedreader HTML reader not loading</td><td>feedreader-server.py not running</td><td>Check with <code>sudo launchctl list | grep feedreader</code>; restart with <code>sudo launchctl kickstart system/nl.researchvault.feedreader-server</code></td></tr>
 <tr><td>Action buttons (✅/📖/👎) in NNW don't work</td><td>JavaScript not enabled</td><td>NetNewsWire → Settings → Article Content → enable "Enable JavaScript"</td></tr>
 <tr><td>Action buttons give no result</td><td>ZOTERO_API_KEY not set</td><td>Add <code>export ZOTERO_API_KEY="..."</code> to <code>~/.zprofile</code> and restart the feedreader-server agent</td></tr>
-<tr><td>ttyd terminal button not working</td><td>ttyd not running</td><td>Check with <code>launchctl list | grep ttyd</code>; verify port 7681 is open</td></tr>
+<tr><td>ttyd terminal button not working</td><td>ttyd not running</td><td>Check with <code>sudo launchctl list | grep ttyd</code>; verify port 7681 is open</td></tr>
 <tr><td>Obsidian flashcards not appearing</td><td>Plugin not enabled</td><td>Settings → Community Plugins → enable Spaced Repetition</td></tr>
 <tr><td>Flashcards not recognized</td><td>Incorrect format</td><td>Check that <code>?</code> is on its own line and <code>#flashcard</code> is present</td></tr>
 </tbody></table>

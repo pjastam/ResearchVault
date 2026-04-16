@@ -1172,9 +1172,9 @@ https://www.skipr.nl/feed/
 http://onlinelibrary.wiley.com/rss/journal/10.1002/(ISSN)1099-1050
 </code></pre>
 <p><strong>Create and load the launchd agents</strong> (run once after installation):</p>
-<p>The HTTP server runs as a persistent LaunchAgent. The nightly batch jobs (Zotero DB update, feed scoring, learning loop) are consolidated into a single LaunchDaemon that runs at system level — no user session required.</p>
-<p>Create the HTTP server agent in <code>~/Library/LaunchAgents/</code>:</p>
-<pre><code class="language-xml">&lt;!-- ~/Library/LaunchAgents/nl.researchvault.feedreader-server.plist --&gt;
+<p>Both the HTTP server and the nightly batch jobs run as LaunchDaemons in <code>/Library/LaunchDaemons/</code> — they fire even without an active user session, which is required when the Mac wakes from a scheduled <code>pmset</code> power-on.</p>
+<p>Create the HTTP server daemon in <code>/Library/LaunchDaemons/</code>:</p>
+<pre><code class="language-xml">&lt;!-- /Library/LaunchDaemons/nl.researchvault.feedreader-server.plist --&gt;
 &lt;?xml version="1.0" encoding="UTF-8"?&gt;
 &lt;!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd"&gt;
@@ -1182,16 +1182,21 @@ http://onlinelibrary.wiley.com/rss/journal/10.1002/(ISSN)1099-1050
 &lt;dict&gt;
   &lt;key&gt;Label&lt;/key&gt;
   &lt;string&gt;nl.researchvault.feedreader-server&lt;/string&gt;
+  &lt;key&gt;UserName&lt;/key&gt;
+  &lt;string&gt;pietstam&lt;/string&gt;
   &lt;key&gt;ProgramArguments&lt;/key&gt;
   &lt;array&gt;
-    &lt;string&gt;/bin/zsh&lt;/string&gt;
-    &lt;string&gt;-c&lt;/string&gt;
-    &lt;string&gt;~/.local/share/uv/tools/zotero-mcp-server/bin/python3 ~/Documents/ResearchVault/.claude/feedreader-server.py &gt;&gt; /tmp/feedreader-server.log 2&gt;&amp;1&lt;/string&gt;
+    &lt;string&gt;/Users/pietstam/.local/share/uv/tools/zotero-mcp-server/bin/python3&lt;/string&gt;
+    &lt;string&gt;/Users/pietstam/Workspace/repos/GitHub/ResearchVault/.claude/feedreader-server.py&lt;/string&gt;
   &lt;/array&gt;
   &lt;key&gt;RunAtLoad&lt;/key&gt;
   &lt;true/&gt;
   &lt;key&gt;KeepAlive&lt;/key&gt;
   &lt;true/&gt;
+  &lt;key&gt;StandardOutPath&lt;/key&gt;
+  &lt;string&gt;/Users/pietstam/Library/Logs/feedreader-server.log&lt;/string&gt;
+  &lt;key&gt;StandardErrorPath&lt;/key&gt;
+  &lt;string&gt;/Users/pietstam/Library/Logs/feedreader-server.log&lt;/string&gt;
 &lt;/dict&gt;
 &lt;/plist&gt;
 </code></pre>
@@ -1218,8 +1223,10 @@ http://onlinelibrary.wiley.com/rss/journal/10.1002/(ISSN)1099-1050
     &lt;key&gt;Minute&lt;/key&gt;
     &lt;integer&gt;0&lt;/integer&gt;
   &lt;/dict&gt;
+  &lt;key&gt;StandardOutPath&lt;/key&gt;
+  &lt;string&gt;/Users/pietstam/Library/Logs/nachtelijke-taken.log&lt;/string&gt;
   &lt;key&gt;StandardErrorPath&lt;/key&gt;
-  &lt;string&gt;/Users/pietstam/Library/Logs/nachtelijke-taken-error.log&lt;/string&gt;
+  &lt;string&gt;/Users/pietstam/Library/Logs/nachtelijke-taken.log&lt;/string&gt;
   &lt;key&gt;WorkingDirectory&lt;/key&gt;
   &lt;string&gt;/Users/pietstam&lt;/string&gt;
   &lt;key&gt;TimeOut&lt;/key&gt;
@@ -1234,12 +1241,18 @@ http://onlinelibrary.wiley.com/rss/journal/10.1002/(ISSN)1099-1050
 &lt;/dict&gt;
 &lt;/plist&gt;
 </code></pre>
-<p>Load the LaunchAgent (as user) and install the LaunchDaemon (as root):</p>
-<pre><code class="language-bash">launchctl load ~/Library/LaunchAgents/nl.researchvault.feedreader-server.plist
+<p>Install and load both daemons as root:</p>
+<pre><code class="language-bash"># feedreader-server
+sudo cp /path/to/nl.researchvault.feedreader-server.plist /Library/LaunchDaemons/
+sudo chown root:wheel /Library/LaunchDaemons/nl.researchvault.feedreader-server.plist
+sudo chmod 644 /Library/LaunchDaemons/nl.researchvault.feedreader-server.plist
+sudo launchctl load /Library/LaunchDaemons/nl.researchvault.feedreader-server.plist
+
+# nachtelijke-taken
 sudo cp /path/to/nl.pietstam.nachtelijke-taken.plist /Library/LaunchDaemons/
 sudo chown root:wheel /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
 sudo chmod 644 /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
-sudo launchctl bootstrap system /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
+sudo launchctl load /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
 </code></pre>
 <p><strong>macOS sleep/wake settings</strong> — configure a scheduled wake so the Mac powers on automatically before the 06:00 batch run:</p>
 <ol>
@@ -1650,15 +1663,15 @@ claude
 <h2 id="17a-install-ttyd"><a class="header" href="#17a-install-ttyd">17a. Install ttyd</a></h2>
 <pre><code class="language-bash">brew install ttyd
 </code></pre>
-<h2 id="17b-load-the-launchd-agent"><a class="header" href="#17b-load-the-launchd-agent">17b. Load the launchd agent</a></h2>
-<p>A launchd agent starts ttyd automatically at login and keeps it running:</p>
-<pre><code class="language-bash">launchctl load ~/Library/LaunchAgents/nl.researchvault.ttyd.plist
+<h2 id="17b-load-the-launchd-daemon"><a class="header" href="#17b-load-the-launchd-daemon">17b. Load the launchd daemon</a></h2>
+<p>A launchd daemon starts ttyd automatically at boot and keeps it running — even without an active user session:</p>
+<pre><code class="language-bash">sudo launchctl load /Library/LaunchDaemons/nl.researchvault.ttyd.plist
 </code></pre>
-<p>This agent starts ttyd on port 7681 with the <code>--writable</code> flag enabled, which is required for interactive use. Without <code>--writable</code>, the terminal renders but ignores all keyboard input.</p>
+<p>This daemon starts ttyd on port 7681 with the <code>--writable</code> flag enabled, which is required for interactive use. Without <code>--writable</code>, the terminal renders but ignores all keyboard input.</p>
 <p>To verify it is running:</p>
-<pre><code class="language-bash">launchctl list | grep ttyd
+<pre><code class="language-bash">sudo launchctl list | grep ttyd
 </code></pre>
-<p>A PID (number) in the first column confirms it is active. Log output is written to <code>/tmp/ttyd.log</code>.</p>
+<p>A PID (number) in the first column confirms it is active. Log output is written to <code>~/Library/Logs/ttyd.log</code>.</p>
 <h2 id="17c-use-the-terminal-in-the-html-reader"><a class="header" href="#17c-use-the-terminal-in-the-html-reader">17c. Use the terminal in the HTML reader</a></h2>
 <ol>
 <li>Open <code>http://localhost:8765/filtered.html</code> (Mac) or <code>http://[mac-ip]:8765/filtered.html</code> (iPad)</li>
@@ -1675,10 +1688,10 @@ claude
 <p>By default, each time you open the terminal panel a new shell session starts. If you want to reconnect to an existing Claude Code session after navigating away or closing the panel, install tmux:</p>
 <pre><code class="language-bash">brew install tmux
 </code></pre>
-<p>Then unload the current agent, update the plist to use tmux, and reload:</p>
-<pre><code class="language-bash">launchctl unload ~/Library/LaunchAgents/nl.researchvault.ttyd.plist
+<p>Then unload the current daemon, update the plist to use tmux, and reload:</p>
+<pre><code class="language-bash">sudo launchctl unload /Library/LaunchDaemons/nl.researchvault.ttyd.plist
 </code></pre>
-<p>Edit <code>~/Library/LaunchAgents/nl.researchvault.ttyd.plist</code> and replace the <code>ProgramArguments</code> block with:</p>
+<p>Edit <code>/Library/LaunchDaemons/nl.researchvault.ttyd.plist</code> and replace the <code>ProgramArguments</code> block with:</p>
 <pre><code class="language-xml">&lt;key&gt;ProgramArguments&lt;/key&gt;
 &lt;array&gt;
   &lt;string&gt;/bin/sh&lt;/string&gt;
@@ -1687,12 +1700,12 @@ claude
 &lt;/array&gt;
 </code></pre>
 <p>Then reload:</p>
-<pre><code class="language-bash">launchctl load ~/Library/LaunchAgents/nl.researchvault.ttyd.plist
+<pre><code class="language-bash">sudo launchctl load /Library/LaunchDaemons/nl.researchvault.ttyd.plist
 </code></pre>
 <p>Now every connection to the terminal panel attaches to the same persistent <code>phase2</code> session. A Claude Code conversation that was running when you closed the panel will still be there when you reopen it.</p>
 <h2 id="17e-security-note"><a class="header" href="#17e-security-note">17e. Security note</a></h2>
-<p>ttyd listens on all network interfaces (<code>0.0.0.0</code>) by default, which is what makes it reachable from an iPad. This also means any device on your local network can open a terminal on your Mac mini. This is acceptable for a trusted home network — if you use public or shared networks, stop the agent before connecting:</p>
-<pre><code class="language-bash">launchctl unload ~/Library/LaunchAgents/nl.researchvault.ttyd.plist
+<p>ttyd listens on all network interfaces (<code>0.0.0.0</code>) by default, which is what makes it reachable from an iPad. This also means any device on your local network can open a terminal on your Mac mini. This is acceptable for a trusted home network — if you use public or shared networks, stop the daemon before connecting:</p>
+<pre><code class="language-bash">sudo launchctl unload /Library/LaunchDaemons/nl.researchvault.ttyd.plist
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="troubleshooting"><a class="header" href="#troubleshooting">Troubleshooting</a></h1>
 <div class="table-wrapper"><table><thead><tr><th>Problem</th><th>Possible cause</th><th>Solution</th></tr></thead><tbody>
@@ -1708,10 +1721,10 @@ claude
 <tr><td>Whisper transcription is inaccurate</td><td>Low audio quality or incorrect language detection</td><td>Use <code>--model medium</code> for better quality, or specify the language explicitly with <code>--language nl</code> or <code>--language en</code> if automatic detection picks the wrong language</td></tr>
 <tr><td>NetNewsWire not syncing across devices</td><td>FreshRSS account not connected</td><td>Add FreshRSS account in NetNewsWire → Settings → Accounts → FreshRSS; use API URL <code>http://[mac-ip]:8080/api/greader.php</code> and the API password from FreshRSS Profile → API Management</td></tr>
 <tr><td>FreshRSS container not running</td><td>Docker Desktop not started</td><td>Open Docker Desktop from Launchpad; verify with <code>docker ps</code></td></tr>
-<tr><td>feedreader HTML reader not loading</td><td>feedreader-server.py not running</td><td>Check with <code>launchctl list | grep feedreader</code>; restart with <code>launchctl kickstart gui/$(id -u)/nl.researchvault.feedreader-server</code></td></tr>
+<tr><td>feedreader HTML reader not loading</td><td>feedreader-server.py not running</td><td>Check with <code>sudo launchctl list | grep feedreader</code>; restart with <code>sudo launchctl kickstart system/nl.researchvault.feedreader-server</code></td></tr>
 <tr><td>Action buttons (✅/📖/👎) in NNW don't work</td><td>JavaScript not enabled</td><td>NetNewsWire → Settings → Article Content → enable "Enable JavaScript"</td></tr>
 <tr><td>Action buttons give no result</td><td>ZOTERO_API_KEY not set</td><td>Add <code>export ZOTERO_API_KEY="..."</code> to <code>~/.zprofile</code> and restart the feedreader-server agent</td></tr>
-<tr><td>ttyd terminal button not working</td><td>ttyd not running</td><td>Check with <code>launchctl list | grep ttyd</code>; verify port 7681 is open</td></tr>
+<tr><td>ttyd terminal button not working</td><td>ttyd not running</td><td>Check with <code>sudo launchctl list | grep ttyd</code>; verify port 7681 is open</td></tr>
 <tr><td>Obsidian flashcards not appearing</td><td>Plugin not enabled</td><td>Settings → Community Plugins → enable Spaced Repetition</td></tr>
 <tr><td>Flashcards not recognized</td><td>Incorrect format</td><td>Check that <code>?</code> is on its own line and <code>#flashcard</code> is present</td></tr>
 </tbody></table>
