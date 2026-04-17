@@ -10,6 +10,7 @@
 | Ollama not responding | Service not started | Run `ollama serve` or `brew services start ollama` |
 | yt-dlp returns no subtitles | Video has no (auto-)subtitles | Try `--sub-lang en` or check whether the video has subtitles at all |
 | launchd update not running | Nightly daemon did not fire (check `~/Library/Logs/nachtelijke-taken.log`) | Run `update-zotero` manually; verify the daemon is loaded with `sudo launchctl list \| grep nachtelijke` |
+| Nightly daemon skipped despite Mac being on | Race condition: Mac woke up less than 30 minutes before the 06:00 trigger — `UserEventAgent-System` was not ready in time, launchd silently skipped the event | Set wake to 05:30: `sudo pmset repeat wakeorpoweron MTWRFSU 05:30:00`; kick off manually with `sudo launchctl kickstart system/nl.pietstam.nachtelijke-taken` |
 | `rclone` meldt `0 B transferred` bij backup | macOS TCC blokkeert toegang tot beschermde mappen (`~/Documents`, `~/.ssh`, etc.) tijdens headless daemon-run — de dialoog kan dan niet worden getoond | Geef rclone Full Disk Access: Systeeminstellingen → Privacy en beveiliging → Volledige schijftoegang → `+` → `/opt/homebrew/bin/rclone` |
 | whisper-cpp gives an error | Model not yet downloaded | Wait for the first download, or check disk space |
 | Whisper transcription is inaccurate | Low audio quality or incorrect language detection | Use `--model medium` for better quality, or specify the language explicitly with `--language nl` or `--language en` if automatic detection picks the wrong language |

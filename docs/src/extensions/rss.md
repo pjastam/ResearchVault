@@ -118,11 +118,11 @@ sudo launchctl load /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
 
 **macOS sleep/wake settings** — configure a scheduled wake so the Mac powers on automatically before the 06:00 batch run:
 
-1. **Scheduled wake for the nightly daemon** — set a recurring daily wake time 5 minutes before the batch job:
+1. **Scheduled wake for the nightly daemon** — set a recurring daily wake time at least 30 minutes before the batch job so that `UserEventAgent-System` has time to fully initialize before the 06:00 trigger fires:
    ```bash
-   sudo pmset repeat wakeorpoweron MTWRFSU 05:55:00
+   sudo pmset repeat wakeorpoweron MTWRFSU 05:30:00
    ```
-   The Mac wakes at 05:55, the daemon fires at 06:00, and the Mac shuts down automatically at the end of the script. Check the schedule with `pmset -g sched`; cancel with `sudo pmset repeat cancel`.
+   The Mac wakes at 05:30, the daemon fires at 06:00, and the Mac shuts down automatically at the end of the script. Check the schedule with `pmset -g sched`; cancel with `sudo pmset repeat cancel`. If the wake time is too close to 06:00 (< 30 min), `UserEventAgent-System` may not be ready in time and launchd silently skips the trigger — the job will then only run the next day.
 
 2. **Network wake for iPhone/iPad access** — in **System Settings → Energy** (Dutch: *Energie-instellingen*), enable **"Schakel sluimerstand uit voor netwerktoegang"**. Despite the wording ("disable sleep for network access"), this puts the Mac into a lighter sleep state rather than deep sleep, keeping the network interface active so the HTTP server on port 8765 remains reachable from iPhone or iPad. The Mac still saves significant power compared to staying fully awake.
 
