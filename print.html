@@ -1257,10 +1257,10 @@ sudo launchctl load /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
 <p><strong>macOS sleep/wake settings</strong> — configure a scheduled wake so the Mac powers on automatically before the 06:00 batch run:</p>
 <ol>
 <li>
-<p><strong>Scheduled wake for the nightly daemon</strong> — set a recurring daily wake time 5 minutes before the batch job:</p>
-<pre><code class="language-bash">sudo pmset repeat wakeorpoweron MTWRFSU 05:55:00
+<p><strong>Scheduled wake for the nightly daemon</strong> — set a recurring daily wake time at least 30 minutes before the batch job so that <code>UserEventAgent-System</code> has time to fully initialize before the 06:00 trigger fires:</p>
+<pre><code class="language-bash">sudo pmset repeat wakeorpoweron MTWRFSU 05:30:00
 </code></pre>
-<p>The Mac wakes at 05:55, the daemon fires at 06:00, and the Mac shuts down automatically at the end of the script. Check the schedule with <code>pmset -g sched</code>; cancel with <code>sudo pmset repeat cancel</code>.</p>
+<p>The Mac wakes at 05:30, the daemon fires at 06:00, and the Mac shuts down automatically at the end of the script. Check the schedule with <code>pmset -g sched</code>; cancel with <code>sudo pmset repeat cancel</code>. If the wake time is too close to 06:00 (&lt; 30 min), <code>UserEventAgent-System</code> may not be ready in time and launchd silently skips the trigger — the job will then only run the next day.</p>
 </li>
 <li>
 <p><strong>Network wake for iPhone/iPad access</strong> — in <strong>System Settings → Energy</strong> (Dutch: <em>Energie-instellingen</em>), enable <strong>"Schakel sluimerstand uit voor netwerktoegang"</strong>. Despite the wording ("disable sleep for network access"), this puts the Mac into a lighter sleep state rather than deep sleep, keeping the network interface active so the HTTP server on port 8765 remains reachable from iPhone or iPad. The Mac still saves significant power compared to staying fully awake.</p>
@@ -1717,6 +1717,7 @@ claude
 <tr><td>Ollama not responding</td><td>Service not started</td><td>Run <code>ollama serve</code> or <code>brew services start ollama</code></td></tr>
 <tr><td>yt-dlp returns no subtitles</td><td>Video has no (auto-)subtitles</td><td>Try <code>--sub-lang en</code> or check whether the video has subtitles at all</td></tr>
 <tr><td>launchd update not running</td><td>Nightly daemon did not fire (check <code>~/Library/Logs/nachtelijke-taken.log</code>)</td><td>Run <code>update-zotero</code> manually; verify the daemon is loaded with <code>sudo launchctl list | grep nachtelijke</code></td></tr>
+<tr><td>Nightly daemon skipped despite Mac being on</td><td>Race condition: Mac woke up less than 30 minutes before the 06:00 trigger — <code>UserEventAgent-System</code> was not ready in time, launchd silently skipped the event</td><td>Set wake to 05:30: <code>sudo pmset repeat wakeorpoweron MTWRFSU 05:30:00</code>; kick off manually with <code>sudo launchctl kickstart system/nl.pietstam.nachtelijke-taken</code></td></tr>
 <tr><td><code>rclone</code> meldt <code>0 B transferred</code> bij backup</td><td>macOS TCC blokkeert toegang tot beschermde mappen (<code>~/Documents</code>, <code>~/.ssh</code>, etc.) tijdens headless daemon-run — de dialoog kan dan niet worden getoond</td><td>Geef rclone Full Disk Access: Systeeminstellingen → Privacy en beveiliging → Volledige schijftoegang → <code>+</code> → <code>/opt/homebrew/bin/rclone</code></td></tr>
 <tr><td>whisper-cpp gives an error</td><td>Model not yet downloaded</td><td>Wait for the first download, or check disk space</td></tr>
 <tr><td>Whisper transcription is inaccurate</td><td>Low audio quality or incorrect language detection</td><td>Use <code>--model medium</code> for better quality, or specify the language explicitly with <code>--language nl</code> or <code>--language en</code> if automatic detection picks the wrong language</td></tr>
