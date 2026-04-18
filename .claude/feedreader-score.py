@@ -29,6 +29,7 @@ import html.parser
 import json
 import os
 import re
+import socket
 import sqlite3
 import sys
 import urllib.parse
@@ -68,6 +69,9 @@ except ImportError:
     _YT_API_OK = False
 
 # ── Configuratie ──────────────────────────────────────────────────────────────
+
+_hn = socket.gethostname()
+SERVER_HOST = _hn if _hn.endswith(".local") else _hn + ".local"
 
 SCRIPT_DIR    = Path(__file__).parent
 FEEDS_FILE    = SCRIPT_DIR / "feedreader-list.txt"
@@ -325,7 +329,7 @@ def _make_atom_content_html(item: dict) -> str:
     source_enc = urllib.parse.quote(item.get("feed_name", ""), safe="")
     date_enc   = urllib.parse.quote(item.get("published", "")[:10], safe="")  # YYYY-MM-DD
     action_base = (
-        f"http://localhost:8765/action"
+        f"http://{SERVER_HOST}:8765/action"
         f"?url={url_enc}&title={title_enc}&stype={stype_enc}"
         f"&source={source_enc}&date={date_enc}&type="
     )
@@ -670,7 +674,7 @@ def generate_html(items: list[dict], generated_at: datetime) -> str:
 const ITEMS = {data};
 const READ_KEY  = "feedreader_read";
 const SKIP_KEY  = "feedreader_skipped";
-const ACT_BASE  = "http://localhost:8765/action";
+const ACT_BASE  = "http://{SERVER_HOST}:8765/action";
 
 function getRead() {{
   try {{ return new Set(JSON.parse(localStorage.getItem(READ_KEY) || "[]")); }}
@@ -739,11 +743,6 @@ function rvAct(type, item, btn) {{
       }}
     }});
     markSkippedLocal(item.url);
-    fetch("/skip", {{
-      method: "POST",
-      headers: {{"Content-Type": "application/json"}},
-      body: JSON.stringify({{url: item.url, title: item.title, timestamp: new Date().toISOString()}})
-    }}).catch(function() {{}});
   }}
 }}
 
@@ -833,11 +832,6 @@ function makeItem(item, read, skipped) {{
     markSkippedLocal(item.url);
     div.classList.add("skipped");
     if (hideRead) div.classList.add("hidden");
-    fetch("/skip", {{
-      method: "POST",
-      headers: {{"Content-Type": "application/json"}},
-      body: JSON.stringify({{url: item.url, title: item.title, timestamp: new Date().toISOString()}})
-    }}).catch(function() {{}});
   }});
   div.appendChild(skipBtn);
 
