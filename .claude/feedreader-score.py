@@ -413,507 +413,6 @@ def generate_atom(items: list[dict], generated_at: datetime, feed_title: str = "
 """
 
 
-def generate_html(items: list[dict], generated_at: datetime) -> str:
-    """Genereert een HTML-pagina met twee-paneel layout (lijst + lezer), à la NetNewsWire."""
-    import json as _json
-
-    date_str = generated_at.strftime("%-d %b %Y, %H:%M")
-
-    data = _json.dumps([
-        {
-            "url":        item["url"],
-            "href":       item["url"],
-            "title":      item["title"],
-            "score":      item["score"],
-            "label":      score_label(item["score"]),
-            "source":     item["feed_name"],
-            "type":       item["source_type"],
-            "snippet":    make_item_summary(item, max_len=250),
-            "content":    (item.get("transcript_snippet") or item.get("description", ""))
-                          if item["source_type"] == "youtube"
-                          else item.get("description", ""),
-            "published":  item.get("published", ""),
-            "video_id":   item.get("video_id") or "",
-            "episode_id": item.get("episode_id") or "",
-        }
-        for item in items
-    ], ensure_ascii=False).replace("</", "<\\/")
-
-    green  = sum(1 for i in items if i["score"] >= THRESHOLD_GREEN)
-    yellow = sum(1 for i in items if THRESHOLD_YELLOW <= i["score"] < THRESHOLD_GREEN)
-    red    = sum(1 for i in items if i["score"] < THRESHOLD_YELLOW)
-
-    return f"""<!DOCTYPE html>
-<html lang="nl">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Phase 0 — RSS</title>
-<style>
-  :root {{
-    --green:  #1a7f4b;
-    --yellow: #9a6c00;
-    --red:    #c0392b;
-    --bg:     #f9f9f7;
-    --card:   #ffffff;
-    --border: #e0e0da;
-    --text:   #1a1a1a;
-    --muted:  #6b6b6b;
-    --read-op: 0.45;
-  }}
-  @media (prefers-color-scheme: dark) {{
-    :root {{
-      --bg:    #1c1c1e;
-      --card:  #2c2c2e;
-      --border:#3a3a3c;
-      --text:  #f2f2f7;
-      --muted: #98989e;
-    }}
-  }}
-  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-  body {{
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    font-size: 15px;
-    background: var(--bg);
-    color: var(--text);
-    padding: 0;
-    overflow: hidden;
-  }}
-  header {{
-    position: sticky; top: 0; z-index: 10;
-    background: var(--card);
-    border-bottom: 1px solid var(--border);
-    padding: .75rem 1rem;
-    display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
-  }}
-  header h1 {{ font-size: 1rem; font-weight: 600; flex: 1; }}
-  .stats {{ font-size: .8rem; color: var(--muted); }}
-  .tabs {{ display: flex; gap: .25rem; }}
-  .tabs button {{
-    border: 1px solid var(--border); border-radius: 6px;
-    background: var(--bg); color: var(--text);
-    padding: .3rem .7rem; font-size: .8rem; cursor: pointer;
-  }}
-  .tabs button.active {{
-    background: var(--text); color: var(--bg); border-color: var(--text);
-  }}
-  .type-filter {{ display: flex; gap: .25rem; }}
-  .type-filter button {{
-    border: 1px solid var(--border); border-radius: 6px;
-    background: var(--bg); color: var(--text);
-    padding: .3rem .7rem; font-size: .8rem; cursor: pointer;
-  }}
-  .type-filter button.active {{
-    background: var(--text); color: var(--bg); border-color: var(--text);
-  }}
-  .toggle-read {{
-    font-size: .8rem; color: var(--muted);
-    background: none; border: none; cursor: pointer; text-decoration: underline;
-  }}
-  /* ── two-panel layout ── */
-  #layout {{
-    display: flex; height: calc(100vh - 44px);
-  }}
-  #list-panel {{
-    width: 300px; flex-shrink: 0; overflow-y: auto;
-    border-right: 1px solid var(--border);
-  }}
-  #reader-panel {{
-    flex: 1; overflow-y: auto; min-width: 0;
-    background: var(--card);
-    padding: 1.5rem 2rem;
-  }}
-  #reader-empty {{
-    height: 100%; display: flex; align-items: center; justify-content: center;
-    color: var(--muted); font-size: .9rem;
-  }}
-  #reader-content {{ display: none; max-width: 680px; margin: 0 auto; }}
-  #reader-content.visible {{ display: block; }}
-  #reader-title {{
-    font-size: 1.15rem; font-weight: 700; line-height: 1.4; margin-bottom: .5rem;
-  }}
-  #reader-title a {{ color: var(--text); text-decoration: none; }}
-  #reader-title a:hover {{ text-decoration: underline; }}
-  #reader-meta {{
-    font-size: .8rem; color: var(--muted); margin-bottom: 1rem;
-    display: flex; align-items: center; gap: .4rem; flex-wrap: wrap;
-  }}
-  .reader-badge {{
-    font-size: .72rem; font-weight: 700; padding: .1rem .3rem; border-radius: 4px;
-  }}
-  .reader-badge.green  {{ background: #d4f0e2; color: var(--green); }}
-  .reader-badge.yellow {{ background: #fef3cd; color: var(--yellow); }}
-  .reader-badge.red    {{ background: #fde8e8; color: var(--red); }}
-  @media (prefers-color-scheme: dark) {{
-    .reader-badge.green  {{ background: #0d3d25; }}
-    .reader-badge.yellow {{ background: #3d2e00; }}
-    .reader-badge.red    {{ background: #3d0f0f; }}
-  }}
-  #reader-body {{
-    font-size: .9rem; line-height: 1.65;
-    white-space: pre-wrap; word-break: break-word;
-    border-top: 1px solid var(--border); padding-top: 1rem; margin-bottom: .75rem;
-  }}
-  #reader-actions {{
-    display: flex; gap: .4rem; flex-wrap: wrap;
-    border-top: 1px solid var(--border); padding-top: .75rem;
-  }}
-  #reader-actions button {{
-    border: 1px solid var(--border); border-radius: 6px;
-    background: var(--bg); color: var(--text);
-    padding: .3rem .65rem; font-size: .82rem; cursor: pointer;
-  }}
-  #reader-actions button:hover {{ background: var(--border); }}
-  /* ── terminal panel ── */
-  #terminal-panel {{
-    display: none; flex-shrink: 0; width: 45%;
-    border-left: 1px solid var(--border); background: #1e1e1e;
-  }}
-  #terminal-panel.visible {{ display: flex; flex-direction: column; }}
-  #terminal-panel iframe {{ flex: 1; border: none; width: 100%; height: 100%; }}
-  @media (max-width: 800px) {{
-    #layout {{ flex-direction: column; height: auto; }}
-    body {{ overflow: auto; }}
-    #list-panel {{ width: 100%; height: 55vh; border-right: none; border-bottom: 1px solid var(--border); }}
-    #reader-panel {{ min-height: 50vh; padding: 1rem; }}
-    #terminal-panel {{ width: 100%; height: 55vh; border-left: none; border-top: 1px solid var(--border); }}
-  }}
-  .view {{ display: none; padding: .5rem .6rem; }}
-  .view.active {{ display: block; }}
-  .source-group {{ margin-bottom: 1.25rem; }}
-  .source-heading {{
-    font-size: .7rem; font-weight: 600; text-transform: uppercase;
-    letter-spacing: .05em; color: var(--muted);
-    padding: .4rem .25rem .2rem; border-bottom: 1px solid var(--border);
-    margin-bottom: .35rem;
-  }}
-  .item {{
-    display: flex; gap: .5rem; align-items: flex-start;
-    padding: .4rem .35rem; border-radius: 7px;
-    cursor: pointer; transition: background .1s;
-  }}
-  .item:hover {{ background: var(--border); }}
-  .item.selected {{ background: var(--border); }}
-  .item.read .item-title {{ font-weight: 400; }}
-  .item.read {{ opacity: var(--read-op); }}
-  .item.read.hidden {{ display: none; }}
-  .item.skipped {{ opacity: var(--read-op); }}
-  .item.skipped .item-title {{ text-decoration: line-through; }}
-  .item.skipped.hidden {{ display: none; }}
-  .skip-btn {{
-    flex-shrink: 0; background: none; border: none;
-    cursor: pointer; font-size: .8rem;
-    padding: .2rem .3rem; border-radius: 5px;
-    opacity: 0.15; line-height: 1; transition: opacity .15s;
-  }}
-  .skip-btn:hover {{ opacity: 0.9; background: var(--border); }}
-  .item.skipped .skip-btn {{ display: none; }}
-  .badge {{
-    flex-shrink: 0; min-width: 2.1rem;
-    font-size: .7rem; font-weight: 700;
-    padding: .12rem .28rem; border-radius: 5px;
-    text-align: center; margin-top: .15rem;
-  }}
-  .badge.green  {{ background: #d4f0e2; color: var(--green); }}
-  .badge.yellow {{ background: #fef3cd; color: var(--yellow); }}
-  .badge.red    {{ background: #fde8e8; color: var(--red); }}
-  @media (prefers-color-scheme: dark) {{
-    .badge.green  {{ background: #0d3d25; }}
-    .badge.yellow {{ background: #3d2e00; }}
-    .badge.red    {{ background: #3d0f0f; }}
-  }}
-  .item-body {{ flex: 1; min-width: 0; }}
-  .item-title {{
-    font-size: .85rem; line-height: 1.3; font-weight: 600;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }}
-  .item-meta {{ font-size: .7rem; color: var(--muted); margin-top: .1rem; }}
-  a {{ color: inherit; text-decoration: none; }}
-</style>
-</head>
-<body>
-<header>
-  <h1>Phase 0</h1>
-  <span class="stats">🟢 {green} &nbsp;🟡 {yellow} &nbsp;🔴 {red} &nbsp;·&nbsp; {date_str}</span>
-  <div class="type-filter">
-    <button class="active" onclick="setType('all', this)">Alles</button>
-    <button onclick="setType('web', this)" title="RSS">📄</button>
-    <button onclick="setType('youtube', this)" title="YouTube">▶️</button>
-    <button onclick="setType('podcast', this)" title="Podcast">🎙️</button>
-  </div>
-  <div class="tabs">
-    <button class="active" onclick="switchView('score', this)">Op score</button>
-    <button onclick="switchView('source', this)">Op bron</button>
-    <button onclick="switchView('date', this)">Op datum</button>
-  </div>
-  <button class="toggle-read" onclick="toggleRead()">verberg gelezen / overgeslagen</button>
-  <button class="toggle-read" onclick="toggleTerminal()" id="term-btn">⌨️ terminal</button>
-</header>
-
-<div id="layout">
-  <div id="list-panel">
-    <div id="view-score" class="view active"></div>
-    <div id="view-source" class="view"></div>
-    <div id="view-date" class="view"></div>
-  </div>
-  <div id="reader-panel">
-    <div id="reader-empty">← Selecteer een item om te lezen</div>
-    <div id="reader-content">
-      <div id="reader-title"></div>
-      <div id="reader-meta"></div>
-      <div id="reader-body"></div>
-      <div id="reader-actions"></div>
-    </div>
-  </div>
-  <div id="terminal-panel">
-    <iframe id="term-iframe" src="about:blank"></iframe>
-  </div>
-</div>
-
-<script>
-const ITEMS = {data};
-const READ_KEY  = "feedreader_read";
-const SKIP_KEY  = "feedreader_skipped";
-const ACT_BASE  = "http://{SERVER_HOST}:8765/action";
-
-function getRead() {{
-  try {{ return new Set(JSON.parse(localStorage.getItem(READ_KEY) || "[]")); }}
-  catch {{ return new Set(); }}
-}}
-function markRead(url) {{
-  const s = getRead(); s.add(url);
-  localStorage.setItem(READ_KEY, JSON.stringify([...s]));
-}}
-function getSkipped() {{
-  try {{ return new Set(JSON.parse(localStorage.getItem(SKIP_KEY) || "[]")); }}
-  catch {{ return new Set(); }}
-}}
-function markSkippedLocal(url) {{
-  const s = getSkipped(); s.add(url);
-  localStorage.setItem(SKIP_KEY, JSON.stringify([...s]));
-}}
-
-let currentType = "all";
-let selectedUrl = null;
-let hideRead    = false;
-
-function setType(type, btn) {{
-  currentType = type;
-  document.querySelectorAll(".type-filter button").forEach(b => b.classList.remove("active"));
-  btn.classList.add("active");
-  renderAll();
-}}
-function visibleItems() {{
-  return currentType === "all" ? ITEMS : ITEMS.filter(i => i.type === currentType);
-}}
-function fmtDate(iso) {{
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (isNaN(d)) return "";
-  return d.toLocaleDateString("nl-NL", {{ day: "numeric", month: "short", year: "numeric" }});
-}}
-function badgeClass(score) {{
-  if (score >= {THRESHOLD_GREEN}) return "green";
-  if (score >= {THRESHOLD_YELLOW}) return "yellow";
-  return "red";
-}}
-function escHtml(s) {{
-  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-}}
-
-/* ── Reader ── */
-function rvAct(type, item, btn) {{
-  btn.disabled = true; btn.style.opacity = ".5";
-  var src = ACT_BASE
-    + "?url="    + encodeURIComponent(item.url)
-    + "&title="  + encodeURIComponent(item.title)
-    + "&stype="  + encodeURIComponent(item.type)
-    + "&source=" + encodeURIComponent(item.source)
-    + "&date="   + encodeURIComponent((item.published || "").substring(0, 10))
-    + "&type="   + type;
-  var img = new Image();
-  img.onload = function() {{ btn.textContent = "✓ Klaar"; }};
-  img.onerror = function() {{ btn.textContent = "⚠️ Fout"; }};
-  img.src = src;
-  if (type === "skip") {{
-    document.querySelectorAll(".item[data-url]").forEach(function(el) {{
-      if (el.dataset.url === item.url) {{
-        el.classList.add("skipped");
-        if (hideRead) el.classList.add("hidden");
-      }}
-    }});
-    markSkippedLocal(item.url);
-  }}
-}}
-
-function showReader(item) {{
-  selectedUrl = item.url;
-  document.querySelectorAll(".item").forEach(function(el) {{
-    el.classList.toggle("selected", el.dataset.url === item.url);
-  }});
-  document.getElementById("reader-empty").style.display = "none";
-  var rc = document.getElementById("reader-content");
-  rc.classList.add("visible");
-
-  var titleEl = document.getElementById("reader-title");
-  titleEl.innerHTML = "";
-  var a = document.createElement("a");
-  a.href = item.url; a.target = "_blank"; a.rel = "noopener";
-  a.textContent = item.title;
-  titleEl.appendChild(a);
-
-  var metaEl = document.getElementById("reader-meta");
-  metaEl.innerHTML = "";
-  var bc = badgeClass(item.score);
-  metaEl.innerHTML = escHtml(item.source)
-    + (item.published ? " &nbsp;&middot;&nbsp; " + escHtml(fmtDate(item.published)) : "")
-    + " &nbsp;&middot;&nbsp; <span class='reader-badge " + bc + "'>" + item.score + "</span>";
-
-  document.getElementById("reader-body").textContent = item.content || item.snippet || "";
-
-
-  var actEl = document.getElementById("reader-actions");
-  actEl.innerHTML = "";
-  [["zotero","✅ Zotero"],["read","📖 Later lezen"],["skip","👎 Overslaan"]].forEach(function(pair) {{
-    var btn = document.createElement("button");
-    btn.textContent = pair[1];
-    btn.addEventListener("click", (function(t, b) {{
-      return function() {{ rvAct(t, item, b); }};
-    }})(pair[0], btn));
-    actEl.appendChild(btn);
-  }});
-
-  var btnU = document.createElement("button");
-  btnU.textContent = "↩ Ongelezen";
-  btnU.addEventListener("click", function() {{
-    var s = getRead(); s.delete(item.url);
-    localStorage.setItem(READ_KEY, JSON.stringify([...s]));
-    document.querySelectorAll(".item[data-url]").forEach(function(el) {{
-      if (el.dataset.url === item.url) el.classList.remove("read");
-    }});
-  }});
-  actEl.appendChild(btnU);
-}}
-
-/* ── List rendering ── */
-function makeItem(item, read, skipped) {{
-  const isRead    = read.has(item.url);
-  const isSkipped = skipped.has(item.url);
-  const div = document.createElement("div");
-  div.className = "item"
-    + (isRead    ? " read"     : "")
-    + (isSkipped ? " skipped"  : "")
-    + (item.url === selectedUrl ? " selected" : "");
-  div.dataset.url = item.url;
-
-  var badge = document.createElement("span");
-  badge.className = "badge " + badgeClass(item.score);
-  badge.textContent = item.score;
-  div.appendChild(badge);
-
-  var body = document.createElement("div");
-  body.className = "item-body";
-  var titleDiv = document.createElement("div");
-  titleDiv.className = "item-title";
-  titleDiv.textContent = item.title;
-  body.appendChild(titleDiv);
-  var metaDiv = document.createElement("div");
-  metaDiv.className = "item-meta";
-  metaDiv.textContent = item.source + (item.published ? " · " + fmtDate(item.published) : "");
-  body.appendChild(metaDiv);
-  div.appendChild(body);
-
-  var skipBtn = document.createElement("button");
-  skipBtn.className = "skip-btn";
-  skipBtn.title = "Overslaan";
-  skipBtn.textContent = "👎";
-  skipBtn.addEventListener("click", function(e) {{
-    e.stopPropagation();
-    markSkippedLocal(item.url);
-    div.classList.add("skipped");
-    if (hideRead) div.classList.add("hidden");
-  }});
-  div.appendChild(skipBtn);
-
-  div.addEventListener("click", function() {{
-    if (!div.classList.contains("skipped")) {{
-      div.classList.add("read");
-      markRead(item.url);
-      showReader(item);
-    }}
-  }});
-  return div;
-}}
-
-function renderScore() {{
-  var el = document.getElementById("view-score");
-  el.innerHTML = "";
-  var read = getRead(), skipped = getSkipped();
-  visibleItems().forEach(function(item) {{ el.appendChild(makeItem(item, read, skipped)); }});
-}}
-function renderSource() {{
-  var el = document.getElementById("view-source");
-  el.innerHTML = "";
-  var read = getRead(), skipped = getSkipped(), groups = {{}};
-  visibleItems().forEach(function(item) {{
-    if (!groups[item.source]) groups[item.source] = [];
-    groups[item.source].push(item);
-  }});
-  Object.keys(groups).sort().forEach(function(src) {{
-    var grp = document.createElement("div");
-    grp.className = "source-group";
-    var h = document.createElement("div");
-    h.className = "source-heading";
-    h.textContent = src + " (" + groups[src].length + ")";
-    grp.appendChild(h);
-    groups[src].forEach(function(item) {{ grp.appendChild(makeItem(item, read, skipped)); }});
-    el.appendChild(grp);
-  }});
-}}
-function renderDate() {{
-  var el = document.getElementById("view-date");
-  el.innerHTML = "";
-  var read = getRead(), skipped = getSkipped();
-  var sorted = visibleItems().slice().sort(function(a, b) {{
-    if (!a.published) return 1;
-    if (!b.published) return -1;
-    return b.published.localeCompare(a.published);
-  }});
-  sorted.forEach(function(item) {{ el.appendChild(makeItem(item, read, skipped)); }});
-}}
-function renderAll() {{ renderScore(); renderSource(); renderDate(); }}
-
-function switchView(name, btn) {{
-  document.querySelectorAll(".view").forEach(function(v) {{ v.classList.remove("active"); }});
-  document.querySelectorAll(".tabs button").forEach(function(b) {{ b.classList.remove("active"); }});
-  document.getElementById("view-" + name).classList.add("active");
-  btn.classList.add("active");
-}}
-function toggleRead() {{
-  hideRead = !hideRead;
-  document.querySelectorAll(".item.read, .item.skipped").forEach(function(el) {{
-    el.classList.toggle("hidden", hideRead);
-  }});
-  document.querySelector(".toggle-read").textContent =
-    hideRead ? "toon alles" : "verberg gelezen / overgeslagen";
-}}
-function toggleTerminal() {{
-  var panel  = document.getElementById("terminal-panel");
-  var iframe = document.getElementById("term-iframe");
-  var btn    = document.getElementById("term-btn");
-  var open   = panel.classList.toggle("visible");
-  btn.style.fontWeight = open ? "700" : "";
-  if (open && iframe.src === "about:blank") {{
-    iframe.src = "http://" + window.location.hostname + ":7681/?";
-  }}
-}}
-
-renderAll();
-</script>
-</body>
-</html>
-"""
-
 
 # ── Hoofdprogramma ────────────────────────────────────────────────────────────
 
@@ -964,7 +463,6 @@ def main():
     model = SentenceTransformer("all-MiniLM-L6-v2")
     existing_urls = load_existing_log(LOG_FILE)
     all_items = []
-    new_log_entries = []
 
     for feed_url in feed_urls:
         try:
@@ -1058,18 +556,6 @@ def main():
         score = max(0, min(100, int(round(sim * 100))))
         item["score"] = score
 
-        # Log alleen nieuwe items (op basis van URL)
-        if item["url"] and item["url"] not in existing_urls:
-            new_log_entries.append({
-                "url":             item["url"],
-                "title":           item["title"],
-                "score":           score,
-                "feed_name":       item["feed_name"],
-                "source_type":     item["source_type"],
-                "timestamp":       now.isoformat(),
-                "text_length":     len(item["score_text"]),
-                "added_to_zotero": None,
-            })
 
     # Sorteren op score descending
     all_items.sort(key=lambda x: x["score"], reverse=True)
@@ -1084,8 +570,27 @@ def main():
         )
     ]
 
-    # 5. Atom-feed en HTML-pagina schrijven
-    print("[5/5] Atom-feed en HTML-pagina genereren...")
+    # Deduplicatiefilter: alleen items tonen die nog niet eerder zijn gezien
+    all_items = [i for i in all_items if i["url"] not in existing_urls]
+
+    # Log alleen wat daadwerkelijk in de output terechtkomt (na leeftijds- en deduplicatiefilter)
+    new_log_entries = [
+        {
+            "url":             item["url"],
+            "title":           item["title"],
+            "score":           item["score"],
+            "feed_name":       item["feed_name"],
+            "source_type":     item["source_type"],
+            "timestamp":       now.isoformat(),
+            "text_length":     len(item["score_text"]),
+            "added_to_zotero": None,
+        }
+        for item in all_items
+        if item["url"]
+    ]
+
+    # 5. Atom-feeds schrijven
+    print("[5/5] Atom-feeds genereren...")
 
     # Type-gefilterde feeds voor NetNewsWire
     for source_type, filename, label, emoji in [
@@ -1099,10 +604,6 @@ def main():
             generate_atom(subset, now, feed_title=f"Feedreader {emoji} {label}"),
             encoding="utf-8",
         )
-
-    html_str  = generate_html(all_items, now)
-    html_path = SERVE_DIR / "filtered.html"
-    html_path.write_text(html_str, encoding="utf-8")
 
     # Logboek bijwerken
     if new_log_entries:
@@ -1119,8 +620,7 @@ def main():
     print(f"📝 {len(new_log_entries)} nieuwe items toegevoegd aan score_log.jsonl")
     print(f"\n   XML YouTube:   http://localhost:8765/filtered-youtube.xml")
     print(f"   XML Podcasts:  http://localhost:8765/filtered-podcast.xml")
-    print(f"   XML Web:       http://localhost:8765/filtered-webpage.xml")
-    print(f"   HTML:          http://localhost:8765/filtered.html\n")
+    print(f"   XML Web:       http://localhost:8765/filtered-webpage.xml\n")
 
 
 if __name__ == "__main__":

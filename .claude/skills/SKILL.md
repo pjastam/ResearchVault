@@ -9,7 +9,7 @@
 
 Deze skill maakt Claude Code tot een actieve, vragenderwijs werkende research-assistent. De workflow volgt een **3-fasen model**:
 
-- **Fase 1 — Breed vangen:** items stromen via drie bronnen in Zotero `_inbox`: (1) de **feedreader** (`feedreader-score.py`) scoort dagelijks alle RSS/YouTube/podcast-feeds automatisch en schrijft een gefilterde HTML-lezer en Atom-feed naar `~/.local/share/feedreader-serve/`; de gebruiker of het algoritme besluit welke items worden doorgestuurd; (2) de **iOS share sheet** — items die de gebruiker al heeft gelezen/bekeken/beluisterd en bewust deelt vanuit YouTube, Overcast of Safari; (3) **desktop/e-mail/notities** — handmatige toevoeging. De feedreader-scorelogica is gedeeld via `feedreader_core.py` en draait automatisch via launchd om 06:00.
+- **Fase 1 — Breed vangen:** items stromen via drie bronnen in Zotero `_inbox`: (1) de **feedreader** (`feedreader-score.py`) scoort dagelijks alle RSS/YouTube/podcast-feeds automatisch en schrijft drie gefilterde Atom-feeds naar `~/.local/share/feedreader-serve/`; **FreshRSS** (Docker, poort 8080) abonneert op die feeds en synchroniseert leesstatus; **NetNewsWire** op Mac Mini, iPad en iPhone verbindt met FreshRSS voor cross-device sync; de gebruiker besluit welke items worden doorgestuurd via de NNW share sheet; (2) de **iOS share sheet** — items die de gebruiker al heeft gelezen/bekeken/beluisterd en bewust deelt vanuit YouTube, Overcast of Safari; (3) **desktop/e-mail/notities** — handmatige toevoeging. De feedreader-scorelogica is gedeeld via `feedreader_core.py` en draait automatisch via launchd om 06:00.
 - **Fase 2 — Filteren:** Claude Code genereert een samenvatting of beoordeling; de gebruiker geeft Go of No-go. Alleen goedgekeurde items gaan verder.
 - **Fase 3 — Verwerken & opslaan:** volledige verwerking naar de Obsidian vault.
 
@@ -165,16 +165,14 @@ De feedreader draait automatisch via launchd (06:00 dagelijks). Beheer is alleen
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/feedreader-learn.py
 ```
 
-**Actieknoppen:** elk item in de HTML-lezer heeft ✅ (direct verwerken) en 📖 (samenvatting nodig) knoppen die het item via de feedreader-server direct aan de Zotero `_inbox` collectie toevoegen met de bijbehorende tag. Deze knoppen werken ook in de Atom-feed in NetNewsWire.
-
-**👎-knop:** elk item in de HTML-lezer heeft een 👎-knop voor expliciete afwijzing. Klikken op de headline markeert als gelezen. Beide signalen worden opgeslagen in `score_log.jsonl` resp. `skip_queue.jsonl`.
+**Actieknoppen:** elk item in de Atom-feed heeft ✅ (direct verwerken) en 📖 (samenvatting nodig) knoppen die het item via de feedreader-server direct aan de Zotero `_inbox` collectie toevoegen met de bijbehorende tag. De 👎-knop geeft een expliciet afwijzingssignaal. Alle knoppen werken via de image-trick (GET `/action?type=...`) in de `<content>` van elk Atom-entry — NNW rendert deze HTML en stuurt de acties naar `macmini.local:8765`. Signalen worden opgeslagen in `score_log.jsonl` resp. `skip_queue.jsonl`.
 
 **Drempeladvies opvragen:**
 - Draai `feedreader-learn.py` — het verwerkt eerst de skip-queue, toont daarna ✅ positieven · 👎 expliciet afgewezen · ❌ zwak negatief
 - Na ≥30 positieven verschijnt een initieel drempeladvies; pas `THRESHOLD_GREEN` en `THRESHOLD_YELLOW` aan in `feedreader-score.py`
 - Het leren gaat daarna continu door: ook na de initiële instelling draagt elk 👎-signaal en elke Zotero-toevoeging bij aan de kalibratie
 
-**HTML-lezer:** `http://localhost:8765/filtered.html` (ook bereikbaar op iPhone/iPad via het LAN-IP van de Mac mini). De lezer bevat een **⌨️ terminal**-knop in de header die een ttyd-terminal als iframe opent (poort 7681) — hiermee kun je fase 2 (Claude Code) direct vanuit de browser starten, zonder te wisselen van app of tab.
+**NNW + FreshRSS:** NetNewsWire op alle apparaten verbindt met FreshRSS (`http://192.168.178.179:8080/api/greader.php`). Leesstatus synchroniseert automatisch tussen Mac Mini, iPad en iPhone. FreshRSS bewaart ongelezen items ook nadat de feedreader een nieuwe ronde heeft gedraaid — artikelen verdwijnen pas uit de ongelezen-teller als je ze markeert. De drie feeds in FreshRSS: `filtered-webpage.xml`, `filtered-youtube.xml`, `filtered-podcast.xml` (poort 8765).
 
 ---
 
@@ -367,7 +365,7 @@ Na ontvangst van `{"status": "ok", "path": "inbox/_summary_ITEMKEY.md"}`:
 
 ### Type 5: RSS-items verwerken
 
-> **Fase 1** (breed vangen): de feedreader (`feedreader-score.py`) heeft de feeds gescoord en gesorteerd. De HTML-lezer (`http://localhost:8765/filtered.html`) of de Atom-feed in NetNewsWire toont items op relevantie. De gebruiker heeft interessante items naar Zotero `_inbox` gestuurd via browser-extensie of iOS-app.
+> **Fase 1** (breed vangen): de feedreader (`feedreader-score.py`) heeft de feeds gescoord en gesorteerd. NetNewsWire toont de gefilterde Atom-feeds via FreshRSS. De gebruiker heeft interessante items naar Zotero `_inbox` gestuurd via de actieknoppen in NNW of de iOS share sheet.
 > **Fase 2** (filter): de gebruiker heeft kopteksten gescand; alleen interessante items komen hier.
 > **Fase 3** (verwerken): opslaan in Zotero of verwerken naar de vault.
 
@@ -458,4 +456,4 @@ Na ontvangst van `{"status": "ok", "path": "inbox/_summary_ITEMKEY.md"}`:
 
 ---
 
-*Skill versie 1.20 — april 2026 — actieknoppen ✅/📖 gedocumenteerd in Type F; CLAUDE.md bijgewerkt met zotero-inbox hulpscripts; release v1.13*
+*Skill versie 1.21 — april 2026 — HTML-lezer verwijderd; NNW + FreshRSS sync operationeel; deduplicatiefilter toegevoegd aan feedreader-score.py*
