@@ -56,7 +56,7 @@ Create the HTTP server daemon in `/Library/LaunchDaemons/`:
 </plist>
 ```
 
-The nightly batch jobs run via `~/bin/nachtelijke-taken.sh`, called from a LaunchDaemon in `/Library/LaunchDaemons/`. Because it is a system-level daemon, it fires at 06:00 even without an active user session — which is required when the Mac wakes from a scheduled `pmset` power-on. The script runs sequentially: Zotero DB update → feedreader-score → feedreader-learn → proton-backup → proton-mirror → shutdown. The feed-related steps run first so the filtered feeds are ready before you start your morning session; the backups follow and may take longer.
+The nightly batch jobs run via `~/bin/nachtelijke-taken.sh`, called from a LaunchDaemon in `/Library/LaunchDaemons/`. Because it is a system-level daemon, it fires at 06:00 even without an active user session — which is required when the Mac wakes from a scheduled `pmset` power-on. The script runs sequentially: Zotero DB update → feedreader-score → feedreader-learn → proton-backup → shutdown. The feed-related steps run first so the filtered feeds are ready before you start your morning session; the backup follows. The Proton Drive mirror (`proton-mirror.sh`) runs as a separate daemon at 13:00 (`nl.pietstam.proton-mirror`) so it does not delay the nightly shutdown.
 
 ```xml
 <!-- /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist -->
@@ -81,14 +81,11 @@ The nightly batch jobs run via `~/bin/nachtelijke-taken.sh`, called from a Launc
     <key>Minute</key>
     <integer>0</integer>
   </dict>
-  <key>StandardOutPath</key>
-  <string>/Users/pietstam/Library/Logs/nachtelijke-taken.log</string>
-  <key>StandardErrorPath</key>
-  <string>/Users/pietstam/Library/Logs/nachtelijke-taken.log</string>
   <key>WorkingDirectory</key>
   <string>/Users/pietstam</string>
+  <!-- Script logs zelf via exec >> redirect; geen StandardOutPath nodig -->
   <key>TimeOut</key>
-  <integer>14400</integer>
+  <integer>7200</integer>
   <key>EnvironmentVariables</key>
   <dict>
     <key>LAUNCHD_RUN</key>
@@ -100,7 +97,42 @@ The nightly batch jobs run via `~/bin/nachtelijke-taken.sh`, called from a Launc
 </plist>
 ```
 
-Install and load both daemons as root:
+The Proton Drive mirror uses a separate daemon that fires at 13:00 so it does not block the nightly shutdown:
+
+```xml
+<!-- /Library/LaunchDaemons/nl.pietstam.proton-mirror.plist -->
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>nl.pietstam.proton-mirror</string>
+  <key>UserName</key>
+  <string>pietstam</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/pietstam/bin/proton-mirror.sh</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>13</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+  <key>WorkingDirectory</key>
+  <string>/Users/pietstam</string>
+  <key>TimeOut</key>
+  <integer>14400</integer>
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>
+```
+
+Install and load all three daemons as root:
 
 ```bash
 # feedreader-server
@@ -114,6 +146,12 @@ sudo cp /path/to/nl.pietstam.nachtelijke-taken.plist /Library/LaunchDaemons/
 sudo chown root:wheel /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
 sudo chmod 644 /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
 sudo launchctl load /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
+
+# proton-mirror
+sudo cp /path/to/nl.pietstam.proton-mirror.plist /Library/LaunchDaemons/
+sudo chown root:wheel /Library/LaunchDaemons/nl.pietstam.proton-mirror.plist
+sudo chmod 644 /Library/LaunchDaemons/nl.pietstam.proton-mirror.plist
+sudo launchctl load /Library/LaunchDaemons/nl.pietstam.proton-mirror.plist
 ```
 
 **macOS sleep/wake settings** — configure a scheduled wake so the Mac powers on automatically before the 06:00 batch run:

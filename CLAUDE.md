@@ -198,7 +198,8 @@ De feedreader scoort RSS/YouTube/podcast-feeds automatisch op relevantie en prod
 
 **launchd-daemons (alle drie in `/Library/LaunchDaemons/`, draaien zonder ingelogde gebruiker):**
 - `nl.researchvault.feedreader-server` — HTTP-server permanent actief (poort 8765); log: `~/Library/Logs/feedreader-server.log`
-- `nl.pietstam.nachtelijke-taken` — nachtelijke batchrun dagelijks om 06:00: zotero update-db → feedreader-score → feedreader-learn → proton-backup → proton-mirror → shutdown; Mac wordt gewekt via `pmset wakeorpoweron` om 05:30 (minimaal 30 min vóór de trigger om race condition met UserEventAgent-System te voorkomen); log: `~/Library/Logs/nachtelijke-taken.log`; rclone heeft **Full Disk Access** nodig (Systeeminstellingen → Privacy en beveiliging → Volledige schijftoegang → `/opt/homebrew/bin/rclone`) — zonder FDA blokkeert macOS TCC de toegang tot `~/Documents` stil tijdens headless runs
+- `nl.pietstam.nachtelijke-taken` — nachtelijke batchrun dagelijks om 06:00: zotero update-db → feedreader-score → feedreader-learn → proton-backup → shutdown; Mac wordt gewekt via `pmset wakeorpoweron` om 05:30 (minimaal 30 min vóór de trigger om race condition met UserEventAgent-System te voorkomen); log: `~/Library/Logs/nachtelijke-taken.log`; rclone heeft **Full Disk Access** nodig (Systeeminstellingen → Privacy en beveiliging → Volledige schijftoegang → `/opt/homebrew/bin/rclone`) — zonder FDA blokkeert macOS TCC de toegang tot `~/Documents` stil tijdens headless runs
+- `nl.pietstam.proton-mirror` — Proton Drive mirror dagelijks om 13:00: synct 23 Proton Drive mappen naar `/Volumes/Proton/ProtonDrive-mirror/`; aparte daemon zodat de nachtelijke shutdown niet wordt geblokkeerd; log: `~/Library/Logs/proton-mirror.log`
 - `nl.researchvault.ttyd` — browser-terminal permanent actief (poort 7681, `--writable`); log: `~/Library/Logs/ttyd.log`
 
 ## RSS-feeds
