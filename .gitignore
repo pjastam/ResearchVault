@@ -35,6 +35,9 @@ inbox/*.md
 # PURE cache — gedeelde directory, niet in git
 .claude/pure_cache/
 
+# Eenmalige hulpscripts — lokaal bewaren tot niet meer nodig, dan verwijderen
+.claude/pure-backlog.py
+
 # Python cache
 **/__pycache__/
 **/*.pyc

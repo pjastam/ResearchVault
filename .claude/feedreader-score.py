@@ -32,7 +32,9 @@ import re
 import socket
 import sqlite3
 import sys
+import time
 import urllib.parse
+import urllib.request
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -101,6 +103,8 @@ ACADEMIC_FEED_PATTERNS = (
     "mejudice.nl",
 )
 TRANSCRIPT_CACHE_DIR = SCRIPT_DIR / "transcript_cache"
+PURE_CACHE_DIR       = SCRIPT_DIR / "pure_cache"
+PURE_FEED_PATTERNS   = ("pure.eur.nl", "research.vu.nl")
 # Minimum show notes length (chars) to be usable for content-based scoring and article generation;
 # shorter entries contain too little context for a meaningful embedding.
 SHOWNOTES_MIN_LENGTH = 200
@@ -109,6 +113,187 @@ SHOWNOTES_MIN_LENGTH = 200
 
 def is_academic_feed(feed_url: str) -> bool:
     return any(pat in feed_url for pat in ACADEMIC_FEED_PATTERNS)
+
+
+def is_pure_feed(feed_url: str) -> bool:
+    return any(p in feed_url for p in PURE_FEED_PATTERNS)
+
+
+def _extract_pure_metadata_from_html(html_text: str) -> dict:
+    """
+    Haalt bibliografische metadata op uit een PURE-publicatiepagina.
+
+    Strategie:
+      1. JSON-LD (<script type="application/ld+json">) — betrouwbaar voor
+         abstract, auteurs, DOI, tijdschrift, ISSN en publicatiedatum.
+      2. HTML-fallback — vangt volume, jaargang en pagina's op die PURE
+         doorgaans niet in JSON-LD zet.
+    """
+    meta: dict = {}
+
+    # ── 1. JSON-LD ────────────────────────────────────────────────────────
+    for jld_m in re.finditer(
+        r'<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>',
+        html_text, re.DOTALL | re.IGNORECASE,
+    ):
+        try:
+            data = json.loads(jld_m.group(1))
+        except json.JSONDecodeError:
+            continue
+
+        nodes = (
+            data if isinstance(data, list)
+            else data.get("@graph", [data]) if isinstance(data, dict)
+            else []
+        )
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            node_type = node.get("@type", "")
+            scholarly = any(t in node_type for t in (
+                "ScholarlyArticle", "Article", "Thesis",
+                "Book", "CreativeWork", "Report",
+            ))
+            if not scholarly:
+                continue
+
+            if node.get("description") and not meta.get("abstract"):
+                meta["abstract"] = re.sub(r"\s+", " ", str(node["description"])).strip()
+            if node.get("name") and not meta.get("title"):
+                meta["title"] = node["name"]
+
+            # Auteurs
+            if node.get("author") and not meta.get("authors"):
+                raw = node["author"]
+                if isinstance(raw, dict):
+                    raw = [raw]
+                meta["authors"] = [
+                    a["name"] for a in raw
+                    if isinstance(a, dict) and a.get("name")
+                ]
+
+            # DOI via sameAs (kan string of lijst zijn)
+            same_as = node.get("sameAs", [])
+            if isinstance(same_as, str):
+                same_as = [same_as]
+            for s in same_as:
+                m = re.search(r'doi\.org/(10\.[^\s"<>]+)', s)
+                if m and not meta.get("doi"):
+                    meta["doi"] = m.group(1).rstrip(".,")
+
+            # Tijdschrift + ISSN
+            is_part_of = node.get("isPartOf") or {}
+            if isinstance(is_part_of, dict):
+                if is_part_of.get("name") and not meta.get("journal"):
+                    meta["journal"] = is_part_of["name"]
+                issn = is_part_of.get("issn") or is_part_of.get("issn-l", "")
+                if issn and not meta.get("issn"):
+                    meta["issn"] = (issn[0] if isinstance(issn, list) else issn)
+
+            if node.get("datePublished") and not meta.get("date_published"):
+                meta["date_published"] = str(node["datePublished"])[:10]
+
+            if node.get("keywords") and not meta.get("keywords"):
+                kw = node["keywords"]
+                meta["keywords"] = (
+                    kw if isinstance(kw, list)
+                    else [k.strip() for k in str(kw).split(",")]
+                )
+
+    # ── 2. HTML-fallback voor ontbrekende velden ──────────────────────────
+
+    # Abstract
+    if not meta.get("abstract"):
+        for pat in (
+            r'class="[^"]*\brendering_abstractportal\b[^"]*"[^>]*>(.*?)</div>',
+            r'class="[^"]*\babstract\b[^"]*"[^>]*>(.*?)</(?:div|section)>',
+            r'<h[23][^>]*>\s*Abstract\s*</h[23]>\s*<p[^>]*>(.*?)</p>',
+        ):
+            m = re.search(pat, html_text, re.DOTALL | re.IGNORECASE)
+            if m:
+                candidate = strip_html(m.group(1))
+                if len(candidate) > 50:
+                    meta["abstract"] = candidate
+                    break
+
+    # DOI
+    if not meta.get("doi"):
+        m = re.search(r'https?://doi\.org/(10\.[^\s"<>]+)', html_text)
+        if m:
+            meta["doi"] = m.group(1).rstrip(".,")
+
+    # Volume — eerst PURE span-klasse, daarna vrije tekst
+    if not meta.get("volume"):
+        m = re.search(
+            r'<[^>]+class="[^"]*\bvolume\b[^"]*"[^>]*>\s*(\d+)\s*</',
+            html_text, re.IGNORECASE,
+        )
+        if not m:
+            m = re.search(r'\bvol(?:ume)?\.?\s+(\d+)', html_text, re.IGNORECASE)
+        if m:
+            meta["volume"] = m.group(1)
+
+    # Issue/number
+    if not meta.get("issue"):
+        m = re.search(
+            r'<[^>]+class="[^"]*\b(?:issue|number)\b[^"]*"[^>]*>\s*(\d+)\s*</',
+            html_text, re.IGNORECASE,
+        )
+        if not m:
+            m = re.search(r'\bno\.?\s*(\d+)', html_text, re.IGNORECASE)
+        if m:
+            meta["issue"] = m.group(1)
+
+    # Pagina's — span-klasse of pp.-notatie
+    if not meta.get("pages"):
+        m = re.search(
+            r'<[^>]+class="[^"]*\bpages\b[^"]*"[^>]*>\s*([\d]+\s*[-–]\s*[\d]+)\s*</',
+            html_text, re.IGNORECASE,
+        )
+        if not m:
+            m = re.search(r'\bpp?\.?\s*([\d]+\s*[-–]\s*[\d]+)', html_text, re.IGNORECASE)
+        if m:
+            meta["pages"] = re.sub(r"\s", "", m.group(1))
+
+    return meta
+
+
+def fetch_pure_metadata(url: str) -> dict:
+    """
+    Haalt bibliografische metadata op van een PURE-publicatiepagina en
+    cachet het resultaat in pure_cache/{url_hash}.json.
+
+    Bij een netwerk- of parsefout wordt alsnog een cache-bestand geschreven
+    (met 'error'-sleutel) om herhaalde pogingen te voorkomen. Geeft
+    altijd een dict terug — leeg bij fatale fout.
+    """
+    cache_key  = hashlib.md5(url.encode()).hexdigest()
+    cache_file = PURE_CACHE_DIR / f"{cache_key}.json"
+
+    if cache_file.exists():
+        try:
+            return json.loads(cache_file.read_text(encoding="utf-8"))
+        except Exception:
+            pass  # beschadigd bestand — opnieuw ophalen
+
+    meta: dict = {
+        "url":        url,
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
+    }
+    try:
+        req = urllib.request.Request(
+            url,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; feedreader-score/1.0)"},
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            html_text = resp.read().decode("utf-8", errors="replace")
+        meta.update(_extract_pure_metadata_from_html(html_text))
+    except Exception as exc:
+        meta["error"] = str(exc)
+
+    PURE_CACHE_DIR.mkdir(exist_ok=True)
+    cache_file.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    return meta
 
 
 def within_max_age(published: str, max_age_days: int, now: datetime) -> bool:
@@ -522,6 +707,21 @@ def main():
                 cache_podcast_shownotes(episode_id, title, feed_name, url, published, description)
                 has_shownotes = True
 
+            # PURE-verrijking: abstract + bibliografische velden ophalen van de publicatiepagina.
+            # PURE-feeds leveren alleen een titel; de pagina zelf bevat abstract, auteurs,
+            # DOI, tijdschrift, volume, jaargang en pagina's.
+            pure_meta: dict = {}
+            if source_type == "web" and is_pure_feed(feed_url):
+                _cache_path  = PURE_CACHE_DIR / f"{hashlib.md5(url.encode()).hexdigest()}.json"
+                _was_cached  = _cache_path.exists()
+                pure_meta    = fetch_pure_metadata(url)
+                if not _was_cached and not pure_meta.get("error"):
+                    time.sleep(0.3)  # beleefd wachten bij nieuwe HTTP-requests
+                abstract = pure_meta.get("abstract", "")
+                if abstract:
+                    description = abstract          # vult de anders-lege feed-beschrijving
+                    score_text  = title + " " + abstract[:1000]
+
             all_items.append({
                 "url":            url,
                 "title":          title,
@@ -533,9 +733,10 @@ def main():
                 "score_text":     score_text,
                 "video_id":       video_id,
                 "has_transcript": has_transcript,
-                "episode_id":     episode_id,
+                "episode_id":          episode_id,
                 "has_shownotes":       has_shownotes,
-                "transcript_snippet": transcript_snippet,
+                "transcript_snippet":  transcript_snippet,
+                "pure_meta":           pure_meta,
             })
 
     if not all_items:
