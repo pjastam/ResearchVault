@@ -16,6 +16,8 @@
 | --- | --- | --- |
 | `literature/` | Source notes | Één note per paper of bron uit Zotero |
 | `syntheses/` | Syntheses | Thematische syntheses van meerdere bronnen |
+| `craft/dev/` | Craft notes | Ervaringsgestuurd: developer conventions, tools, infrastructuur (558 notes, niet op GitHub) |
+| `craft/methods/` | Craft notes | Ervaringsgestuurd: statistische en econometrische methoden (56 notes, niet op GitHub) |
 | `concepts/` | Concepts | Methodologische concepten (averechtse selectie, moral hazard, risicoverevening, etc.) |
 | `authors/` | Authors | Onderzoekerprofielen met publicatiehistorie en relevantie |
 | `debates/` | Debates | Lopende wetenschappelijke discussies en tegenstellingen tussen studies |
@@ -96,7 +98,10 @@ hyalo find "[kernbegrip]" --glob "literature/*.md" --format text
 ```
 Voeg `[[links]]` toe aan de nieuwe notitie én aan de 2–5 meest verwante bestaande notities (alleen bij drempelwaarde — zie Literatuurnotities).
 
-**Stap 6 — Syntheses bijwerken (Qwen)**
+**Stap 6 — Craft-update suggestie (Qwen, automatisch via `process_item.py`)**
+`process_item.py` genereert automatisch een craft-update-suggestie op basis van tag-overlap met bestaande `craft/dev/`- en `craft/methods/`-notes. Output: `inbox/_craft_suggestion_ITEMKEY.md`. Dit is een *suggestie* — niet automatisch toegepast. Beoordeel en verwerk handmatig als relevant.
+
+**Stap 7 — Syntheses bijwerken (Qwen)**
 Controleer welke syntheses relevant zijn en voeg een bullet of sectie toe.
 
 **Ollama-routing:**
@@ -227,7 +232,7 @@ Correcte aanpak voor het genereren van literatuurnotities: gebruik `.claude/proc
   --journal "..." --citation-key auteur2024kw \
   --zotero-url "zotero://select/library/items/ITEMKEY" \
   --tags "thema" --status unread
-# → {"status": "ok", "path": "literature/auteur2024kw.md"}
+# → {"status": "ok", "path": "literature/auteur2024kw.md", "craft_suggestion": "inbox/_craft_suggestion_ITEMKEY.md"}
 ```
 
 De subagent roept intern `fetch-fulltext.py` en `ollama-generate.py` aan. Geen bron-inhoud bereikt Claude Code als tool-output.

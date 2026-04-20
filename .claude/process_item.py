@@ -124,6 +124,7 @@ def build_literature_note_prompt(
 # ── Hulpfuncties ──────────────────────────────────────────────────────────────
 
 def ok(path: str) -> None:
+    """Niet meer direct gebruikt — zie main() voor de uitgebreide JSON-output."""
     print(json.dumps({"status": "ok", "path": path}, ensure_ascii=False))
 
 
@@ -249,6 +250,131 @@ def build_frontmatter(
         "",
     ]
     return "\n".join(lines)
+
+
+def extract_frontmatter_tags(content: str) -> list[str]:
+    """Extraheer tags uit YAML frontmatter van een Obsidian-note."""
+    m = re.search(r"^---\n(.*?)\n---", content, re.DOTALL)
+    if not m:
+        return []
+    tags_m = re.search(r"^tags:\s*\[([^\]]*)\]", m.group(1), re.MULTILINE)
+    if not tags_m:
+        return []
+    return [t.strip().strip("\"'") for t in tags_m.group(1).split(",") if t.strip()]
+
+
+def extract_section(content: str, heading: str) -> str:
+    """Extraheer een sectie uit een Markdown-note op basis van de koptekst."""
+    m = re.search(
+        rf"##\s+{re.escape(heading)}\s*\n(.*?)(?=\n##|\Z)",
+        content, re.DOTALL | re.IGNORECASE,
+    )
+    return m.group(1).strip() if m else ""
+
+
+def suggest_craft_update(
+    lit_note_path: Path,
+    lit_tags: list[str],
+    lit_title: str,
+    vault_root: Path,
+    item_key: str,
+    model: str,
+) -> str | None:
+    """
+    Zoek craft-notes met overlappende tags en vraag Qwen om een updatevoorstel.
+
+    Schrijft het voorstel naar inbox/_craft_suggestion_<item_key>.md.
+    Geeft het pad terug, of None als er geen relevante match is.
+    Geen bron-inhoud bereikt Claude Code — alleen het pad wordt teruggegeven.
+    """
+    craft_dir = vault_root / "craft"
+    if not craft_dir.exists():
+        return None
+
+    # Verzamel craft-notes met overlappende tags
+    matches: list[tuple[Path, set[str]]] = []
+    for subdir in ("dev", "methods"):
+        d = craft_dir / subdir
+        if not d.exists():
+            continue
+        for f in sorted(d.glob("*.md")):
+            craft_tags = set(extract_frontmatter_tags(f.read_text(encoding="utf-8")))
+            overlap = set(lit_tags) & craft_tags
+            if overlap:
+                matches.append((f, overlap))
+
+    if not matches:
+        print("  [craft] Geen overlappende craft-notes gevonden.", file=sys.stderr)
+        return None
+
+    # Neem de top-3 op aantal overlappende tags
+    matches.sort(key=lambda x: len(x[1]), reverse=True)
+    top = matches[:3]
+
+    # Lees relevante secties uit de literatuurnotitie (niet de volledige tekst)
+    lit_content = lit_note_path.read_text(encoding="utf-8")
+    tldr = extract_section(lit_content, "TLDR") or extract_section(lit_content, "Kernvraag en hoofdargument")
+    findings = extract_section(lit_content, "Key findings") or extract_section(lit_content, "Kernbevindingen")
+
+    suggestions: list[str] = []
+    for craft_path, overlap in top:
+        craft_content = craft_path.read_text(encoding="utf-8")
+        craft_title_m = re.search(r'^title:\s*"?(.+?)"?\s*$', craft_content, re.MULTILINE)
+        craft_title = craft_title_m.group(1) if craft_title_m else craft_path.stem
+        # Lees de meest relevante sectie (Hoe / Implementatie / Wanneer gebruiken)
+        craft_body = (
+            extract_section(craft_content, "Hoe")
+            or extract_section(craft_content, "Implementatie")
+            or extract_section(craft_content, "Wanneer gebruiken")
+        )
+
+        prompt = (
+            f'Nieuwe literatuurnotitie: "{lit_title}"\n\n'
+            f"TLDR: {tldr[:400]}\n\n"
+            f"Kernbevindingen: {findings[:400]}\n\n"
+            f'Bestaande craft-note: "{craft_title}"\n'
+            f"Overlappende tags: {', '.join(overlap)}\n"
+            f"Huidige inhoud (fragment):\n{craft_body[:600]}\n\n"
+            "Taak: beschrijf in 3-5 Nederlandse zinnen welke nieuwe inzichten uit "
+            "de literatuurnotitie toegevoegd kunnen worden aan de craft-note. "
+            "Wees specifiek: welke sectie, wat precies toevoegen. "
+            'Als er niets nuttigs toe te voegen is, schrijf dan alleen: "Geen aanvulling nodig."'
+        )
+        payload = json.dumps({
+            "model": model,
+            "prompt": prompt,
+            "think": False,
+            "stream": False,
+            "options": {"temperature": 0.2, "num_predict": 300},
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            "http://localhost:11434/api/generate",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                suggestion_text = json.loads(resp.read()).get("response", "").strip()
+        except Exception as e:
+            print(f"  [craft] Qwen-aanroep mislukt voor {craft_path.name}: {e}", file=sys.stderr)
+            suggestion_text = "(fout bij genereren suggestie)"
+
+        suggestions.append(
+            f"### [[craft/{craft_path.parent.name}/{craft_path.stem}]]\n"
+            f"**Overlappende tags:** {', '.join(sorted(overlap))}\n\n"
+            f"{suggestion_text}\n"
+        )
+
+    # Schrijf alle suggesties naar één bestand in inbox/
+    suggestion_path = vault_root / "inbox" / f"_craft_suggestion_{item_key}.md"
+    header = (
+        f"# Craft-update suggesties voor: {lit_title}\n\n"
+        f"> Gegenereerd door process_item.py op basis van tag-overlap.\n"
+        f"> Beoordeeld door Qwen ({model}). Pas handmatig toe of negeer.\n\n"
+    )
+    suggestion_path.write_text(header + "\n---\n\n".join(suggestions), encoding="utf-8")
+    print(f"  [craft] Suggestie geschreven: {suggestion_path.name}", file=sys.stderr)
+    return str(suggestion_path.relative_to(vault_root))
 
 
 def run(cmd: list[str | Path], description: str) -> subprocess.CompletedProcess:
@@ -410,9 +536,23 @@ def main() -> None:
     if not args.keep_temp:
         temp_input.unlink(missing_ok=True)
 
+    # ── Stap 5: Craft-update suggestie ───────────────────────────────────────
+    print("[5/5] Craft-notes scannen op overlappende tags…", file=sys.stderr)
+    craft_suggestion = suggest_craft_update(
+        lit_note_path=output_path,
+        lit_tags=tags,
+        lit_title=title,
+        vault_root=VAULT_ROOT,
+        item_key=item_key,
+        model=model,
+    )
+
     # ── Statusoutput (JSON) ───────────────────────────────────────────────────
     relative = str(output_path.relative_to(VAULT_ROOT))
-    ok(relative)
+    result: dict = {"status": "ok", "path": relative}
+    if craft_suggestion:
+        result["craft_suggestion"] = craft_suggestion
+    print(json.dumps(result, ensure_ascii=False))
 
 
 if __name__ == "__main__":

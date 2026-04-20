@@ -17,6 +17,8 @@ daily/*
 !daily/.gitkeep
 syntheses/*
 !syntheses/.gitkeep
+craft/dev/*.md
+craft/methods/*.md
 projects/*
 !projects/.gitkeep
 inbox/*.vtt
