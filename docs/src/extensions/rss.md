@@ -56,7 +56,7 @@ Create the HTTP server daemon in `/Library/LaunchDaemons/`:
 </plist>
 ```
 
-The nightly batch jobs run via `~/bin/nachtelijke-taken.sh`, called from a LaunchDaemon in `/Library/LaunchDaemons/`. Because it is a system-level daemon, it fires at 06:00 even without an active user session — which is required when the Mac wakes from a scheduled `pmset` power-on. The script runs sequentially: Zotero DB update → feedreader-score → feedreader-learn → proton-backup → shutdown. The feed-related steps run first so the filtered feeds are ready before you start your morning session; the backup follows. The Proton Drive mirror (`proton-mirror.sh`) runs as a separate daemon at 13:00 (`nl.pietstam.proton-mirror`) so it does not delay the nightly shutdown.
+The nightly batch jobs run via `~/bin/nachtelijke-taken.sh`, called from a LaunchDaemon in `/Library/LaunchDaemons/`. Because it is a system-level daemon, it fires at 06:00 even without an active user session — which is required when the Mac wakes from a scheduled `pmset` power-on. The script runs sequentially in 6 steps: Zotero DB update → feedreader-score → FreshRSS actualize → feedreader-learn → proton-backup → proton-mirror → shutdown. The FreshRSS actualize step (`docker exec freshrss php /var/www/FreshRSS/app/actualize_script.php`) runs immediately after feedreader-score so that FreshRSS fetches the freshly generated feeds before the Mac shuts down. Without this step, FreshRSS would not update until the next time the Mac is awake and FreshRSS's own refresh schedule fires.
 
 ```xml
 <!-- /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist -->
@@ -97,42 +97,7 @@ The nightly batch jobs run via `~/bin/nachtelijke-taken.sh`, called from a Launc
 </plist>
 ```
 
-The Proton Drive mirror uses a separate daemon that fires at 13:00 so it does not block the nightly shutdown:
-
-```xml
-<!-- /Library/LaunchDaemons/nl.pietstam.proton-mirror.plist -->
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key>
-  <string>nl.pietstam.proton-mirror</string>
-  <key>UserName</key>
-  <string>pietstam</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>/bin/bash</string>
-    <string>/Users/pietstam/bin/proton-mirror.sh</string>
-  </array>
-  <key>StartCalendarInterval</key>
-  <dict>
-    <key>Hour</key>
-    <integer>13</integer>
-    <key>Minute</key>
-    <integer>0</integer>
-  </dict>
-  <key>WorkingDirectory</key>
-  <string>/Users/pietstam</string>
-  <key>TimeOut</key>
-  <integer>14400</integer>
-  <key>RunAtLoad</key>
-  <false/>
-</dict>
-</plist>
-```
-
-Install and load all three daemons as root:
+Install and load both daemons as root:
 
 ```bash
 # feedreader-server
@@ -146,12 +111,6 @@ sudo cp /path/to/nl.pietstam.nachtelijke-taken.plist /Library/LaunchDaemons/
 sudo chown root:wheel /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
 sudo chmod 644 /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
 sudo launchctl load /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
-
-# proton-mirror
-sudo cp /path/to/nl.pietstam.proton-mirror.plist /Library/LaunchDaemons/
-sudo chown root:wheel /Library/LaunchDaemons/nl.pietstam.proton-mirror.plist
-sudo chmod 644 /Library/LaunchDaemons/nl.pietstam.proton-mirror.plist
-sudo launchctl load /Library/LaunchDaemons/nl.pietstam.proton-mirror.plist
 ```
 
 **macOS sleep/wake settings** — configure a scheduled wake so the Mac powers on automatically before the 06:00 batch run:
@@ -206,13 +165,13 @@ brew install --cask netnewswire
 
 Or download via [netnewswire.com](https://netnewswire.com).
 
-**Subscribe to the three type-specific feeds** — add these URLs in NetNewsWire (use the Mac's LAN IP, not `localhost`, so the feeds also work on iPad and iPhone):
+**Connect NetNewsWire to FreshRSS** (not directly to the feeds) — this is required for cross-device read/unread sync. See [Step 12c](#12c-freshrss--readunread-sync-across-devices) for FreshRSS setup. Once FreshRSS is running, add a FreshRSS account in NetNewsWire on each device:
 
-```
-http://[mac-ip]:8765/filtered-webpage.xml   ← web articles
-http://[mac-ip]:8765/filtered-youtube.xml   ← YouTube videos
-http://[mac-ip]:8765/filtered-podcast.xml   ← podcast episodes
-```
+NetNewsWire → Settings → Accounts → **+** → FreshRSS
+- API URL: `http://[mac-ip]:8080/api/greader.php` (full path required — base URL alone does not work)
+- Username + API password
+
+NetNewsWire will then show the three filtered feeds (webpage, YouTube, podcast) via FreshRSS, with read/unread status synced across all devices.
 
 Titles are prefixed with score and label (`🟢 54 | Title…`). Items in each Atom feed are sorted by relevance score: the feedreader assigns a synthetic publication time within today's date (higher score = later time) so that higher-scoring items appear first in NetNewsWire's **Newest First** sort order. The server always responds with HTTP 200 for feed requests (never 304 Not Modified), ensuring NetNewsWire refreshes the feed contents on every poll.
 
@@ -295,12 +254,20 @@ In FreshRSS → click your username top-right → **Profile** → scroll to **AP
 **Connect NetNewsWire** on each device (Mac, iPad, iPhone):
 
 NetNewsWire → Settings → Accounts → **+** → FreshRSS
-- API URL: `http://[mac-ip]:8080/api/greader.php`
+- API URL: `http://[mac-ip]:8080/api/greader.php` (full path required — base URL alone does not work)
 - Username + API password from above
 
 > **Note:** FreshRSS may show a "Niet ingedeeld" (Uncategorised) folder in NetNewsWire alongside any custom categories. This is a known limitation of the Google Reader API integration — the folder is empty and does not affect functionality.
 
-> **Privacy note:** FreshRSS runs entirely on your Mac mini. Read/unread sync stays on the local network.
+**Remote access outside your home network** — use Tailscale Funnel to expose FreshRSS publicly over HTTPS without requiring Tailscale on the iPhone:
+
+```bash
+tailscale funnel --bg http://localhost:8080
+```
+
+This makes FreshRSS available at `https://[machine-name].[tailnet].ts.net/`. No changes needed to the NetNewsWire account — NNW continues to sync via the LAN IP at home; the Funnel URL is for browser access outside the home network. Tailscale Funnel is free and does not require port forwarding on the router. Only FreshRSS (port 8080) is exposed — nothing else on the Mac mini is reachable via the Funnel URL.
+
+> **Privacy note:** FreshRSS runs entirely on your Mac mini. Read/unread sync stays on the local network. The Funnel URL is publicly accessible — protect FreshRSS with a strong password.
 
 ## 12d. Feedback signals: training the scoring
 
