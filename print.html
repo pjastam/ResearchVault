@@ -1424,14 +1424,15 @@ sudo launchctl load /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
 <li><code>http://[mac-mini-tailscale-ip]:8765/filtered-youtube.xml</code></li>
 <li><code>http://[mac-mini-tailscale-ip]:8765/filtered-podcast.xml</code></li>
 </ul>
-<p><strong>FreshRSS actualize step in <code>nachtelijke-taken.sh</code></strong> — the script SSH-triggers FreshRSS on HA Green immediately after <code>feedreader-score.py</code> finishes, while the Mac mini is still awake and the feedreader server is still running:</p>
-<pre><code class="language-bash">ssh -i ~/.ssh/id_ed25519 \
-  -o StrictHostKeyChecking=accept-new \
-  -o ConnectTimeout=30 \
-  hassio@[ha-green-tailscale-ip] \
-  "sudo docker exec freshrss php /var/www/FreshRSS/app/actualize_script.php"
+<p><strong>FreshRSS actualize step in <code>nachtelijke-taken.sh</code></strong> — the script triggers FreshRSS on HA Green via HTTP immediately after <code>feedreader-score.py</code> finishes, while the Mac mini is still awake and the feedreader server is still running:</p>
+<pre><code class="language-bash"># Store credentials in ~/bin/.freshrss-env (chmod 600):
+# FRESHRSS_USER=your_username
+# FRESHRSS_TOKEN=your_master_auth_token   # FreshRSS → Settings → Profile → Authentication token
+source ~/bin/.freshrss-env
+curl -s --max-time 60 \
+  "http://[ha-green-tailscale-ip]:8080/i/?c=feed&amp;a=actualize&amp;ajax=1&amp;maxFeeds=50&amp;user=${FRESHRSS_USER}&amp;token=${FRESHRSS_TOKEN}"
 </code></pre>
-<p>The sequence matters: feedreader-score generates the XML files → the Mac mini's HTTP server serves them on port 8765 → the SSH command tells FreshRSS on HA Green to fetch them → FreshRSS stores the items internally → the Mac mini shuts down. After shutdown, FreshRSS on HA Green continues to serve the stored items to NetNewsWire.</p>
+<p>The sequence matters: feedreader-score generates the XML files → the Mac mini's HTTP server serves them on port 8765 → the curl call tells FreshRSS on HA Green to fetch them → FreshRSS stores the items internally → the Mac mini shuts down. After shutdown, FreshRSS on HA Green continues to serve the stored items to NetNewsWire.</p>
 <p><strong>Connect NetNewsWire</strong> on each device — use the HA Green's Tailscale IP:</p>
 <p>NetNewsWire → Settings → Accounts → <strong>+</strong> → FreshRSS</p>
 <ul>
@@ -1440,7 +1441,7 @@ sudo launchctl load /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
 </ul>
 <p>Tailscale must be installed and active on iPhone and iPad for the Tailscale IP to be reachable outside the home network.</p>
 <blockquote>
-<p><strong>SSH add-on Protection Mode:</strong> the <code>sudo docker exec</code> command requires the HA SSH add-on to run with Protection Mode disabled, because Protection Mode isolates the add-on container from the Docker socket. This is a known trade-off of this setup. A future improvement is to replace the SSH trigger with FreshRSS's built-in cron — if FreshRSS is configured to auto-refresh, the SSH step becomes unnecessary and Protection Mode can be re-enabled.</p>
+<p><strong>SSH add-on Protection Mode:</strong> Protection Mode on the HA SSH add-on is <strong>enabled</strong>. The actualize step uses a direct HTTP call to FreshRSS instead of <code>sudo docker exec</code>, so no Docker socket access is required. When SSH-ing into HA Green for manual Docker management, use <code>docker</code> without <code>sudo</code> — the hassio user has direct Docker group access.</p>
 </blockquote>
 <h2 id="12d-feedback-signals-training-the-scoring"><a class="header" href="#12d-feedback-signals-training-the-scoring">12d. Feedback signals: training the scoring</a></h2>
 <p>The HTML reader (<code>http://localhost:8765/filtered.html</code>) captures three types of user behaviour that feed into the learning loop:</p>
