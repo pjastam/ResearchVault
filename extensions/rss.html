@@ -205,25 +205,31 @@ http://onlinelibrary.wiley.com/rss/journal/10.1002/(ISSN)1099-1050
 &lt;dict&gt;
   &lt;key&gt;Label&lt;/key&gt;
   &lt;string&gt;nl.researchvault.feedreader-server&lt;/string&gt;
-  &lt;key&gt;UserName&lt;/key&gt;
-  &lt;string&gt;pietstam&lt;/string&gt;
+  &lt;key&gt;EnvironmentVariables&lt;/key&gt;
+  &lt;dict&gt;
+    &lt;key&gt;HOME&lt;/key&gt;
+    &lt;string&gt;/Users/YOUR_USERNAME&lt;/string&gt;
+  &lt;/dict&gt;
   &lt;key&gt;ProgramArguments&lt;/key&gt;
   &lt;array&gt;
-    &lt;string&gt;/Users/pietstam/.local/share/uv/tools/zotero-mcp-server/bin/python3&lt;/string&gt;
-    &lt;string&gt;/Users/pietstam/Workspace/repos/GitHub/ResearchVault/.claude/feedreader-server.py&lt;/string&gt;
+    &lt;string&gt;/Users/YOUR_USERNAME/.local/share/uv/tools/zotero-mcp-server/bin/python3&lt;/string&gt;
+    &lt;string&gt;/Users/YOUR_USERNAME/path/to/ResearchVault/.claude/feedreader-server.py&lt;/string&gt;
   &lt;/array&gt;
   &lt;key&gt;RunAtLoad&lt;/key&gt;
   &lt;true/&gt;
   &lt;key&gt;KeepAlive&lt;/key&gt;
   &lt;true/&gt;
   &lt;key&gt;StandardOutPath&lt;/key&gt;
-  &lt;string&gt;/Users/pietstam/Library/Logs/feedreader-server.log&lt;/string&gt;
+  &lt;string&gt;/Users/YOUR_USERNAME/Library/Logs/feedreader-server.log&lt;/string&gt;
   &lt;key&gt;StandardErrorPath&lt;/key&gt;
-  &lt;string&gt;/Users/pietstam/Library/Logs/feedreader-server.log&lt;/string&gt;
+  &lt;string&gt;/Users/YOUR_USERNAME/Library/Logs/feedreader-server.log&lt;/string&gt;
 &lt;/dict&gt;
 &lt;/plist&gt;
 </code></pre>
-<p>The nightly batch jobs run via <code>~/bin/nachtelijke-taken.sh</code>, called from a LaunchDaemon in <code>/Library/LaunchDaemons/</code>. Because it is a system-level daemon, it fires at 06:00 even without an active user session — which is required when the Mac wakes from a scheduled <code>pmset</code> power-on. The script runs sequentially in 6 steps: Zotero DB update → feedreader-score → FreshRSS actualize → feedreader-learn → proton-backup → proton-mirror → shutdown. The FreshRSS actualize step (<code>docker exec freshrss php /var/www/FreshRSS/app/actualize_script.php</code>) runs immediately after feedreader-score so that FreshRSS fetches the freshly generated feeds before the Mac shuts down. Without this step, FreshRSS would not update until the next time the Mac is awake and FreshRSS's own refresh schedule fires.</p>
+<blockquote>
+<p><strong>Note:</strong> the daemon runs as root (no <code>UserName</code> key). The <code>HOME</code> environment variable must point to your user's home directory so that Python tools can find their configuration files. Without <code>HOME</code>, tools like <code>rclone</code> and <code>zotero-mcp</code> will fail to locate their config paths during headless runs.</p>
+</blockquote>
+<p>The nightly batch jobs run via <code>~/bin/nachtelijke-taken.sh</code>, called from a LaunchDaemon in <code>/Library/LaunchDaemons/</code>. Because it is a system-level daemon running as root, it fires at 06:00 even without an active user session — which is required when the Mac wakes from a scheduled <code>pmset</code> power-on. The script runs sequentially in 6 steps: Zotero DB update → feedreader-score → FreshRSS actualize → feedreader-learn → proton-backup → proton-mirror → shutdown. The FreshRSS actualize step runs immediately after feedreader-score so that FreshRSS fetches the freshly generated feeds before the Mac shuts down. Without this step, FreshRSS would not update until the next time the Mac is awake and the FreshRSS actualize is triggered again. See <a href="#12c-freshrss--readunread-sync-across-devices">Step 12c</a> for how the actualize step differs between setup options.</p>
 <pre><code class="language-xml">&lt;!-- /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist --&gt;
 &lt;?xml version="1.0" encoding="UTF-8"?&gt;
 &lt;!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
@@ -232,12 +238,17 @@ http://onlinelibrary.wiley.com/rss/journal/10.1002/(ISSN)1099-1050
 &lt;dict&gt;
   &lt;key&gt;Label&lt;/key&gt;
   &lt;string&gt;nl.pietstam.nachtelijke-taken&lt;/string&gt;
-  &lt;key&gt;UserName&lt;/key&gt;
-  &lt;string&gt;pietstam&lt;/string&gt;
+  &lt;key&gt;EnvironmentVariables&lt;/key&gt;
+  &lt;dict&gt;
+    &lt;key&gt;HOME&lt;/key&gt;
+    &lt;string&gt;/Users/YOUR_USERNAME&lt;/string&gt;
+    &lt;key&gt;LAUNCHD_RUN&lt;/key&gt;
+    &lt;string&gt;1&lt;/string&gt;
+  &lt;/dict&gt;
   &lt;key&gt;ProgramArguments&lt;/key&gt;
   &lt;array&gt;
     &lt;string&gt;/bin/bash&lt;/string&gt;
-    &lt;string&gt;/Users/pietstam/bin/nachtelijke-taken.sh&lt;/string&gt;
+    &lt;string&gt;/Users/YOUR_USERNAME/bin/nachtelijke-taken.sh&lt;/string&gt;
   &lt;/array&gt;
   &lt;key&gt;StartCalendarInterval&lt;/key&gt;
   &lt;dict&gt;
@@ -247,20 +258,15 @@ http://onlinelibrary.wiley.com/rss/journal/10.1002/(ISSN)1099-1050
     &lt;integer&gt;0&lt;/integer&gt;
   &lt;/dict&gt;
   &lt;key&gt;WorkingDirectory&lt;/key&gt;
-  &lt;string&gt;/Users/pietstam&lt;/string&gt;
-  &lt;!-- Script logs zelf via exec &gt;&gt; redirect; geen StandardOutPath nodig --&gt;
-  &lt;key&gt;TimeOut&lt;/key&gt;
-  &lt;integer&gt;7200&lt;/integer&gt;
-  &lt;key&gt;EnvironmentVariables&lt;/key&gt;
-  &lt;dict&gt;
-    &lt;key&gt;LAUNCHD_RUN&lt;/key&gt;
-    &lt;string&gt;1&lt;/string&gt;
-  &lt;/dict&gt;
+  &lt;string&gt;/Users/YOUR_USERNAME&lt;/string&gt;
   &lt;key&gt;RunAtLoad&lt;/key&gt;
   &lt;false/&gt;
 &lt;/dict&gt;
 &lt;/plist&gt;
 </code></pre>
+<blockquote>
+<p><strong>Note:</strong> the daemon runs as root (no <code>UserName</code> key) to avoid <code>sudo</code>/PAM issues when the script shuts down the Mac at the end of the run. <code>LAUNCHD_RUN=1</code> signals the script that it was launched by launchd — the shutdown at the end of the script only fires when this variable is set, so manual runs are safe. The script logs to a file via an internal <code>exec &gt;&gt;</code> redirect, so no <code>StandardOutPath</code> is needed in the plist.</p>
+</blockquote>
 <p>Install and load both daemons as root:</p>
 <pre><code class="language-bash"># feedreader-server
 sudo cp /path/to/nl.researchvault.feedreader-server.plist /Library/LaunchDaemons/
@@ -365,7 +371,20 @@ sudo launchctl load /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
 <p><strong>Privacy note:</strong> NetNewsWire stores feed data locally. No reading habits are sent to external servers.</p>
 </blockquote>
 <h2 id="12c-freshrss--readunread-sync-across-devices"><a class="header" href="#12c-freshrss--readunread-sync-across-devices">12c. FreshRSS — read/unread sync across devices</a></h2>
-<p>Without FreshRSS, read/unread status in NetNewsWire is device-local: marking an item as read on your Mac is not visible on your iPad. FreshRSS is a self-hosted RSS sync backend that solves this. It runs in Docker on the Mac mini.</p>
+<p>Without a sync backend, read/unread status in NetNewsWire is device-local: marking an item as read on your Mac is not visible on your iPad. FreshRSS is a self-hosted RSS sync server that solves this — it stores the feed items centrally so all devices stay in sync. There are three ways to set this up, each with different trade-offs.</p>
+<h3 id="option-a-external-sync-service-simplest"><a class="header" href="#option-a-external-sync-service-simplest">Option A: external sync service (simplest)</a></h3>
+<p>Services such as <a href="https://www.inoreader.com">Inoreader</a> or <a href="https://feedly.com">Feedly</a> support the Google Reader API and work with NetNewsWire out of the box. Add the three filtered Atom feeds produced by the feedreader as subscriptions in the service:</p>
+<ul>
+<li><code>http://[mac-ip]:8765/filtered-webpage.xml</code></li>
+<li><code>http://[mac-ip]:8765/filtered-youtube.xml</code></li>
+<li><code>http://[mac-ip]:8765/filtered-podcast.xml</code></li>
+</ul>
+<p>Then connect NetNewsWire to the service account (Settings → Accounts → select the service).</p>
+<p><strong>Trade-offs:</strong> zero infrastructure to manage, works immediately. The downside is that your filtered feed content — scored headlines and summaries — is sent to an external server. This conflicts with the privacy-first design of the rest of the workflow.</p>
+<hr />
+<h3 id="option-b-freshrss-on-mac-mini-docker"><a class="header" href="#option-b-freshrss-on-mac-mini-docker">Option B: FreshRSS on Mac mini (Docker)</a></h3>
+<p>FreshRSS runs in a Docker container on the same Mac mini that generates the feeds. This keeps everything local.</p>
+<p><strong>Advantages over Option A:</strong> feed content never leaves your machine. FreshRSS is free and open-source. No account or subscription required.</p>
 <p><strong>Install Docker Desktop:</strong></p>
 <pre><code class="language-bash">brew install --cask docker
 </code></pre>
@@ -377,30 +396,74 @@ sudo launchctl load /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
   --restart unless-stopped \
   freshrss/freshrss
 </code></pre>
-<p>Open <code>http://[mac-ip]:8080</code> in your browser and complete the FreshRSS installation wizard. Create an admin account.</p>
+<p>Open <code>http://localhost:8080</code> in your browser and complete the FreshRSS installation wizard. Create an admin account.</p>
 <p><strong>Set API password</strong> (required for NetNewsWire):</p>
-<p>In FreshRSS → click your username top-right → <strong>Profile</strong> → scroll to <strong>API Management</strong> → set an API password.</p>
-<p><strong>Add the three feeds in FreshRSS</strong> (use the Mac mini's LAN IP, not <code>localhost</code>):</p>
+<p>FreshRSS → click your username top-right → <strong>Profile</strong> → scroll to <strong>API Management</strong> → set an API password.</p>
+<p><strong>Add the three feeds in FreshRSS</strong> (use the Mac mini's LAN IP, not <code>localhost</code>, so other devices can reach the feedreader server):</p>
 <ul>
 <li><code>http://[mac-ip]:8765/filtered-webpage.xml</code></li>
 <li><code>http://[mac-ip]:8765/filtered-youtube.xml</code></li>
 <li><code>http://[mac-ip]:8765/filtered-podcast.xml</code></li>
 </ul>
+<p><strong>FreshRSS actualize step in <code>nachtelijke-taken.sh</code></strong> — the script triggers FreshRSS to fetch the freshly generated feeds immediately after <code>feedreader-score.py</code> finishes, by running <code>actualize_script.php</code> directly inside the Docker container on the Mac mini:</p>
+<pre><code class="language-bash">docker exec freshrss php /var/www/FreshRSS/app/actualize_script.php
+</code></pre>
 <p><strong>Connect NetNewsWire</strong> on each device (Mac, iPad, iPhone):</p>
 <p>NetNewsWire → Settings → Accounts → <strong>+</strong> → FreshRSS</p>
 <ul>
 <li>API URL: <code>http://[mac-ip]:8080/api/greader.php</code> (full path required — base URL alone does not work)</li>
 <li>Username + API password from above</li>
 </ul>
-<blockquote>
-<p><strong>Note:</strong> FreshRSS may show a "Niet ingedeeld" (Uncategorised) folder in NetNewsWire alongside any custom categories. This is a known limitation of the Google Reader API integration — the folder is empty and does not affect functionality.</p>
-</blockquote>
 <p><strong>Remote access outside your home network</strong> — use Tailscale Funnel to expose FreshRSS publicly over HTTPS without requiring Tailscale on the iPhone:</p>
 <pre><code class="language-bash">tailscale funnel --bg http://localhost:8080
 </code></pre>
-<p>This makes FreshRSS available at <code>https://[machine-name].[tailnet].ts.net/</code>. No changes needed to the NetNewsWire account — NNW continues to sync via the LAN IP at home; the Funnel URL is for browser access outside the home network. Tailscale Funnel is free and does not require port forwarding on the router. Only FreshRSS (port 8080) is exposed — nothing else on the Mac mini is reachable via the Funnel URL.</p>
+<p>This makes FreshRSS available at <code>https://[machine-name].[tailnet].ts.net/</code>. Tailscale Funnel is free and does not require port forwarding on the router. The Funnel URL is publicly accessible — protect FreshRSS with a strong password.</p>
+<p><strong>Trade-off:</strong> FreshRSS is only available when the Mac mini is awake. Since the Mac shuts down after the nightly run, NetNewsWire on iPhone or iPad cannot sync until the Mac is awake again (during one of the daytime runs, or when you wake it manually).</p>
 <blockquote>
-<p><strong>Privacy note:</strong> FreshRSS runs entirely on your Mac mini. Read/unread sync stays on the local network. The Funnel URL is publicly accessible — protect FreshRSS with a strong password.</p>
+<p><strong>Note:</strong> FreshRSS may show a "Niet ingedeeld" (Uncategorised) folder in NetNewsWire alongside any custom categories. This is a known limitation of the Google Reader API integration — the folder is empty and does not affect functionality.</p>
+</blockquote>
+<hr />
+<h3 id="option-c-freshrss-on-home-assistant-green-current-setup"><a class="header" href="#option-c-freshrss-on-home-assistant-green-current-setup">Option C: FreshRSS on Home Assistant Green (current setup)</a></h3>
+<p>FreshRSS runs in a Docker container on a Home Assistant Green device, which runs 24/7 independently of the Mac mini. The Mac mini generates the filtered feeds as before; after generating them it triggers FreshRSS on the HA Green via SSH to fetch them. From that point the Mac can shut down — FreshRSS keeps the feeds available all day from the HA Green.</p>
+<p><strong>Advantages over Option B:</strong> FreshRSS is available 24/7 even when the Mac mini is off. NetNewsWire can sync at any time, not only during Mac awake windows. Docker Desktop is not needed on the Mac mini. Remote access requires only Tailscale (no public Funnel URL).</p>
+<p><strong>Prerequisites:</strong></p>
+<ul>
+<li>Home Assistant Green (or any always-on Linux host with Docker)</li>
+<li>SSH add-on installed on HA Green, with an SSH key from the Mac mini authorised</li>
+<li>Tailscale running on both the Mac mini and the HA Green (so the Mac mini can reach HA Green by its Tailscale IP, and iPhone/iPad can reach it too)</li>
+</ul>
+<p><strong>Start FreshRSS on HA Green</strong> — SSH into HA Green and run:</p>
+<pre><code class="language-bash">docker run -d \
+  --name freshrss \
+  --network host \
+  --restart unless-stopped \
+  freshrss/freshrss
+</code></pre>
+<p><code>--network host</code> maps port 80 directly to the host, making FreshRSS reachable at <code>http://[ha-green-ip]:80</code>. Open that address in your browser and complete the installation wizard.</p>
+<p><strong>Set API password</strong> — same as Option A: FreshRSS → Profile → API Management.</p>
+<p><strong>Add the three feeds in FreshRSS on HA Green</strong> — use the Mac mini's <strong>Tailscale IP</strong> so HA Green can reach the feedreader server even outside the home LAN:</p>
+<ul>
+<li><code>http://[mac-mini-tailscale-ip]:8765/filtered-webpage.xml</code></li>
+<li><code>http://[mac-mini-tailscale-ip]:8765/filtered-youtube.xml</code></li>
+<li><code>http://[mac-mini-tailscale-ip]:8765/filtered-podcast.xml</code></li>
+</ul>
+<p><strong>FreshRSS actualize step in <code>nachtelijke-taken.sh</code></strong> — the script SSH-triggers FreshRSS on HA Green immediately after <code>feedreader-score.py</code> finishes, while the Mac mini is still awake and the feedreader server is still running:</p>
+<pre><code class="language-bash">ssh -i ~/.ssh/id_ed25519 \
+  -o StrictHostKeyChecking=accept-new \
+  -o ConnectTimeout=30 \
+  hassio@[ha-green-tailscale-ip] \
+  "sudo docker exec freshrss php /var/www/FreshRSS/app/actualize_script.php"
+</code></pre>
+<p>The sequence matters: feedreader-score generates the XML files → the Mac mini's HTTP server serves them on port 8765 → the SSH command tells FreshRSS on HA Green to fetch them → FreshRSS stores the items internally → the Mac mini shuts down. After shutdown, FreshRSS on HA Green continues to serve the stored items to NetNewsWire.</p>
+<p><strong>Connect NetNewsWire</strong> on each device — use the HA Green's Tailscale IP:</p>
+<p>NetNewsWire → Settings → Accounts → <strong>+</strong> → FreshRSS</p>
+<ul>
+<li>API URL: <code>http://[ha-green-tailscale-ip]:80/api/greader.php</code></li>
+<li>Username + API password from above</li>
+</ul>
+<p>Tailscale must be installed and active on iPhone and iPad for the Tailscale IP to be reachable outside the home network.</p>
+<blockquote>
+<p><strong>SSH add-on Protection Mode:</strong> the <code>sudo docker exec</code> command requires the HA SSH add-on to run with Protection Mode disabled, because Protection Mode isolates the add-on container from the Docker socket. This is a known trade-off of this setup. A future improvement is to replace the SSH trigger with FreshRSS's built-in cron — if FreshRSS is configured to auto-refresh, the SSH step becomes unnecessary and Protection Mode can be re-enabled.</p>
 </blockquote>
 <h2 id="12d-feedback-signals-training-the-scoring"><a class="header" href="#12d-feedback-signals-training-the-scoring">12d. Feedback signals: training the scoring</a></h2>
 <p>The HTML reader (<code>http://localhost:8765/filtered.html</code>) captures three types of user behaviour that feed into the learning loop:</p>
