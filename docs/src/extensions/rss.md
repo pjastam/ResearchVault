@@ -334,17 +334,18 @@ docker run -d \
 - `http://[mac-mini-tailscale-ip]:8765/filtered-youtube.xml`
 - `http://[mac-mini-tailscale-ip]:8765/filtered-podcast.xml`
 
-**FreshRSS actualize step in `nachtelijke-taken.sh`** — the script SSH-triggers FreshRSS on HA Green immediately after `feedreader-score.py` finishes, while the Mac mini is still awake and the feedreader server is still running:
+**FreshRSS actualize step in `nachtelijke-taken.sh`** — the script triggers FreshRSS on HA Green via HTTP immediately after `feedreader-score.py` finishes, while the Mac mini is still awake and the feedreader server is still running:
 
 ```bash
-ssh -i ~/.ssh/id_ed25519 \
-  -o StrictHostKeyChecking=accept-new \
-  -o ConnectTimeout=30 \
-  hassio@[ha-green-tailscale-ip] \
-  "sudo docker exec freshrss php /var/www/FreshRSS/app/actualize_script.php"
+# Store credentials in ~/bin/.freshrss-env (chmod 600):
+# FRESHRSS_USER=your_username
+# FRESHRSS_TOKEN=your_master_auth_token   # FreshRSS → Settings → Profile → Authentication token
+source ~/bin/.freshrss-env
+curl -s --max-time 60 \
+  "http://[ha-green-tailscale-ip]:8080/i/?c=feed&a=actualize&ajax=1&maxFeeds=50&user=${FRESHRSS_USER}&token=${FRESHRSS_TOKEN}"
 ```
 
-The sequence matters: feedreader-score generates the XML files → the Mac mini's HTTP server serves them on port 8765 → the SSH command tells FreshRSS on HA Green to fetch them → FreshRSS stores the items internally → the Mac mini shuts down. After shutdown, FreshRSS on HA Green continues to serve the stored items to NetNewsWire.
+The sequence matters: feedreader-score generates the XML files → the Mac mini's HTTP server serves them on port 8765 → the curl call tells FreshRSS on HA Green to fetch them → FreshRSS stores the items internally → the Mac mini shuts down. After shutdown, FreshRSS on HA Green continues to serve the stored items to NetNewsWire.
 
 **Connect NetNewsWire** on each device — use the HA Green's Tailscale IP:
 
@@ -355,7 +356,7 @@ NetNewsWire → Settings → Accounts → **+** → FreshRSS
 
 Tailscale must be installed and active on iPhone and iPad for the Tailscale IP to be reachable outside the home network.
 
-> **SSH add-on Protection Mode:** the `sudo docker exec` command requires the HA SSH add-on to run with Protection Mode disabled, because Protection Mode isolates the add-on container from the Docker socket. This is a known trade-off of this setup. A future improvement is to replace the SSH trigger with FreshRSS's built-in cron — if FreshRSS is configured to auto-refresh, the SSH step becomes unnecessary and Protection Mode can be re-enabled.
+> **SSH add-on Protection Mode:** Protection Mode on the HA SSH add-on is **enabled**. The actualize step uses a direct HTTP call to FreshRSS instead of `sudo docker exec`, so no Docker socket access is required. When SSH-ing into HA Green for manual Docker management, use `docker` without `sudo` — the hassio user has direct Docker group access.
 
 ## 12d. Feedback signals: training the scoring
 
