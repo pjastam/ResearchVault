@@ -96,6 +96,8 @@ https://onlinelibrary.wiley.com/feed/14680009/most-recent
 https://esb.nu/sectie/artikel/feed/
 https://www.mejudice.nl/artikelen?rss=generate
 
+# ── 5-Popular science ─────────────────────────────────────────────────────────
+https://www.nature.com/nature.rss
 
 # ── Podcasts ──────────────────────────────────────────────────────────────────
 # Geïmporteerd uit Overcast Podcast Subscriptions.opml
