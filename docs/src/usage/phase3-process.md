@@ -104,12 +104,6 @@ verwerk recente papers
 ```
 The item is already in `_inbox` with metadata from the Zotero Connector. Processed as a standard literature note.
 
-**Direct to `inbox/`** (for news items, policy documents, quick reads):
-```
-inbox [URL]
-```
-Claude Code fetches the article and saves it as a Markdown file in `inbox/`. You can then ask Claude Code to convert it to a note in `literature/`.
-
 Notes get `#web` or `#beleid` as appropriate.
 
 ---

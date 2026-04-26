@@ -16,11 +16,6 @@
 | --- | --- | --- |
 | `literature/` | Source notes | Één note per paper of bron uit Zotero |
 | `syntheses/` | Syntheses | Thematische syntheses van meerdere bronnen |
-| `craft/dev/` | Craft notes | Ervaringsgestuurd: developer conventions, tools, infrastructuur (558 notes, niet op GitHub) |
-| `craft/methods/` | Craft notes | Ervaringsgestuurd: statistische en econometrische methoden (56 notes, niet op GitHub) |
-| `concepts/` | Concepts | Methodologische concepten (averechtse selectie, moral hazard, risicoverevening, etc.) |
-| `authors/` | Authors | Onderzoekerprofielen met publicatiehistorie en relevantie |
-| `debates/` | Debates | Lopende wetenschappelijke discussies en tegenstellingen tussen studies |
 | `projects/` | Projects | Projectspecifieke documentatie en Talma-koppelingen |
 | `daily/` | — | Dagelijkse notities en logboek |
 | `inbox/` | — | Ruwe input die nog verwerkt moet worden |
@@ -98,10 +93,7 @@ hyalo find "[kernbegrip]" --glob "literature/*.md" --format text
 ```
 Voeg `[[links]]` toe aan de nieuwe notitie én aan de 2–5 meest verwante bestaande notities (alleen bij drempelwaarde — zie Literatuurnotities).
 
-**Stap 6 — Craft-update suggestie (Qwen, automatisch via `process_item.py`)**
-`process_item.py` genereert automatisch een craft-update-suggestie op basis van tag-overlap met bestaande `craft/dev/`- en `craft/methods/`-notes. Output: `inbox/_craft_suggestion_ITEMKEY.md`. Dit is een *suggestie* — niet automatisch toegepast. Beoordeel en verwerk handmatig als relevant.
-
-**Stap 7 — Syntheses bijwerken (Qwen)**
+**Stap 6 — Syntheses bijwerken (Qwen)**
 Controleer welke syntheses relevant zijn en voeg een bullet of sectie toe.
 
 **Ollama-routing:**
@@ -210,8 +202,7 @@ De feedreader scoort RSS/YouTube/podcast-feeds automatisch op relevantie en prod
 - RSS-feeds worden gefilterd door de feedreader; de HTML-lezer (`http://localhost:8765/filtered.html`) of de Atom-feed in NetNewsWire toont items gesorteerd op relevantiescore
 - Feeds toevoegen: zet de feed-URL op een nieuwe regel in `.claude/feedreader-list.txt`
 - Academische artikelen die interessant zijn: voeg ze toe aan Zotero via de browser-extensie of iOS-app → komen in `_inbox` terecht
-- Niet-academische artikelen: voeg toe via Zotero Connector, of geef de URL door met `inbox [URL]` voor directe opslag als Markdown in `inbox/`
-- Bestandsnaam voor RSS-items zonder Zotero-record: `[bron-jaar-kernwoord].md` met #tag `#web` of `#beleid`
+- Niet-academische artikelen: voeg toe via Zotero Connector of de iOS share sheet — alle bronnen komen via de Zotero `_inbox` de vault in
 
 ## Spaced repetition (Obsidian plugin)
 - Flashcards worden aangemaakt na elke literatuurnotitie of synthese
@@ -232,7 +223,7 @@ Correcte aanpak voor het genereren van literatuurnotities: gebruik `.claude/proc
   --journal "..." --citation-key auteur2024kw \
   --zotero-url "zotero://select/library/items/ITEMKEY" \
   --tags "thema" --status unread
-# → {"status": "ok", "path": "literature/auteur2024kw.md", "craft_suggestion": "inbox/_craft_suggestion_ITEMKEY.md"}
+# → {"status": "ok", "path": "literature/auteur2024kw.md"}
 ```
 
 De subagent roept intern `fetch-fulltext.py` en `ollama-generate.py` aan. Geen bron-inhoud bereikt Claude Code als tool-output.

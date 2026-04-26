@@ -219,7 +219,6 @@ Interesting articles are saved via two routes:
 
 - **Via action buttons** (✅ / 📖): click directly in the NNW article view — the item is added to Zotero `_inbox` immediately, with the correct type (webpage / videoRecording / podcast), source, date, and tag.
 - **Via Zotero browser extension or iOS app:** open the article in a browser, click the Zotero icon → item is saved with full metadata to Zotero `_inbox`. Use this route when you want annotation capabilities or need richer metadata.
-- **Direct to `inbox/`:** pass the URL to Claude Code with the instruction `inbox [URL]` → Claude Code fetches the content and saves it as a Markdown file in `inbox/`, without Zotero. Use this route for non-academic articles and policy documents.
 
 > **Privacy note:** NetNewsWire stores feed data locally. No reading habits are sent to external servers.
 

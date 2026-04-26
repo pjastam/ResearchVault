@@ -98,10 +98,4 @@ Items from the iOS share sheet may carry a Zotero tag from the source app:
 
 ## Source 3: desktop / email / notes
 
-Items added manually from email, a desktop browser, or notes follow the same path as source 1: they need a full Phase 2 review before entering the vault. Add them to Zotero `_inbox` via the Zotero browser extension or the desktop app, or pass a URL directly:
-
-```
-inbox [URL]
-```
-
-This fetches the article and saves it as Markdown in `inbox/` without going through Zotero.
+Items added manually from email, a desktop browser, or notes follow the same path as source 1: they need a full Phase 2 review before entering the vault. Add them to Zotero `_inbox` via the Zotero browser extension or the desktop app.
