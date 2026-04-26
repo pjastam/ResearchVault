@@ -323,10 +323,7 @@ THRESHOLD_YELLOW = ...   # from the recommendation
 </ul>
 <hr />
 <h2 id="source-3-desktop--email--notes"><a class="header" href="#source-3-desktop--email--notes">Source 3: desktop / email / notes</a></h2>
-<p>Items added manually from email, a desktop browser, or notes follow the same path as source 1: they need a full Phase 2 review before entering the vault. Add them to Zotero <code>_inbox</code> via the Zotero browser extension or the desktop app, or pass a URL directly:</p>
-<pre><code>inbox [URL]
-</code></pre>
-<p>This fetches the article and saves it as Markdown in <code>inbox/</code> without going through Zotero.</p>
+<p>Items added manually from email, a desktop browser, or notes follow the same path as source 1: they need a full Phase 2 review before entering the vault. Add them to Zotero <code>_inbox</code> via the Zotero browser extension or the desktop app.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="phase-2-gono-go-in-claude-code"><a class="header" href="#phase-2-gono-go-in-claude-code">Phase 2: Go/No-go in Claude Code</a></h1>
 <p>Phase 2 is the filter step. Items in Zotero <code>_inbox</code> are reviewed one by one; you decide which ones enter the vault (Go) and which ones do not (No-go).</p>
 <hr />
@@ -478,10 +475,6 @@ zotero-mcp db-status   # check current database status
 <pre><code>verwerk recente papers
 </code></pre>
 <p>The item is already in <code>_inbox</code> with metadata from the Zotero Connector. Processed as a standard literature note.</p>
-<p><strong>Direct to <code>inbox/</code></strong> (for news items, policy documents, quick reads):</p>
-<pre><code>inbox [URL]
-</code></pre>
-<p>Claude Code fetches the article and saves it as a Markdown file in <code>inbox/</code>. You can then ask Claude Code to convert it to a note in <code>literature/</code>.</p>
 <p>Notes get <code>#web</code> or <code>#beleid</code> as appropriate.</p>
 <hr />
 <h2 id="after-processing"><a class="header" href="#after-processing">After processing</a></h2>
@@ -912,8 +905,7 @@ Each literature note contains:
 ## RSS feeds
 - All RSS feeds (academic and non-academic) are followed via NetNewsWire
 - Academic articles of interest: add them to Zotero via the browser extension or iOS app → they end up in `_inbox`
-- Non-academic articles: add via Zotero Connector, or pass the URL with `inbox [URL]` for direct storage as Markdown in `inbox/`
-- File name for RSS items without a Zotero record: `[source-year-keyword].md` with #tag `#web` or `#policy`
+- Non-academic articles: add via Zotero Connector or the iOS app — all sources enter the vault via Zotero `_inbox`
 
 ## Spaced repetition (Obsidian plugin)
 - Flashcards are created after each literature note or synthesis
@@ -1343,7 +1335,6 @@ sudo launchctl load /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
 <ul>
 <li><strong>Via action buttons</strong> (✅ / 📖): click directly in the NNW article view — the item is added to Zotero <code>_inbox</code> immediately, with the correct type (webpage / videoRecording / podcast), source, date, and tag.</li>
 <li><strong>Via Zotero browser extension or iOS app:</strong> open the article in a browser, click the Zotero icon → item is saved with full metadata to Zotero <code>_inbox</code>. Use this route when you want annotation capabilities or need richer metadata.</li>
-<li><strong>Direct to <code>inbox/</code>:</strong> pass the URL to Claude Code with the instruction <code>inbox [URL]</code> → Claude Code fetches the content and saves it as a Markdown file in <code>inbox/</code>, without Zotero. Use this route for non-academic articles and policy documents.</li>
 </ul>
 <blockquote>
 <p><strong>Privacy note:</strong> NetNewsWire stores feed data locally. No reading habits are sent to external servers.</p>
