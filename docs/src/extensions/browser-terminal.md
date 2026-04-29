@@ -21,7 +21,7 @@ brew install ttyd
 A launchd daemon starts ttyd automatically at boot and keeps it running — even without an active user session:
 
 ```bash
-sudo launchctl load /Library/LaunchDaemons/nl.researchvault.ttyd.plist
+sudo launchctl bootstrap system /Library/LaunchDaemons/nl.researchvault.ttyd.plist
 ```
 
 This daemon starts ttyd on port 7681 with the `--writable` flag enabled, which is required for interactive use. Without `--writable`, the terminal renders but ignores all keyboard input.
@@ -33,6 +33,8 @@ sudo launchctl list | grep ttyd
 ```
 
 A PID (number) in the first column confirms it is active. Log output is written to `~/Library/Logs/ttyd.log`.
+
+> **BTM approval required (macOS Ventura and later):** after the first boot, macOS Background Task Management may silently block the daemon. If `sudo launchctl list | grep ttyd` is empty after a reboot, go to **System Settings → General → Login Items & Extensions → Allow in the Background** and enable the `sh` entry. This approval persists across reboots.
 
 ## 17c. Use the terminal in the HTML reader
 
@@ -61,7 +63,7 @@ brew install tmux
 Then unload the current daemon, update the plist to use tmux, and reload:
 
 ```bash
-sudo launchctl unload /Library/LaunchDaemons/nl.researchvault.ttyd.plist
+sudo launchctl bootout system/nl.researchvault.ttyd
 ```
 
 Edit `/Library/LaunchDaemons/nl.researchvault.ttyd.plist` and replace the `ProgramArguments` block with:
@@ -78,7 +80,7 @@ Edit `/Library/LaunchDaemons/nl.researchvault.ttyd.plist` and replace the `Progr
 Then reload:
 
 ```bash
-sudo launchctl load /Library/LaunchDaemons/nl.researchvault.ttyd.plist
+sudo launchctl bootstrap system /Library/LaunchDaemons/nl.researchvault.ttyd.plist
 ```
 
 Now every connection to the terminal panel attaches to the same persistent `phase2` session. A Claude Code conversation that was running when you closed the panel will still be there when you reopen it.
