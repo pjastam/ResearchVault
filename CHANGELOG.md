@@ -1,5 +1,30 @@
 # Changelog
 
+## v1.16 — 29 april 2026
+
+### ⭐ NNW-sterren als leersignaal + auto-sterren
+
+- Items met score ≥ THRESHOLD_STAR (70) worden automatisch gestefd in FreshRSS via de GReader API — ze verschijnen dan met ster in NNW
+- NNW-ster (FreshRSS starred) telt als positief leersignaal in `feedreader-learn.py`, naast Zotero URL-match en titelmatching
+- NNW gelezen maar niet in Zotero na 1 dag → sterk negatief leersignaal (`read_in_nnw: true`)
+- Signaalhi­ërarchie: starred > Zotero-URL > Zotero-titel > NNW-gelezen > timeout
+- 👎/✅/📖-knoppen verwijderd uit Atom-feeds (NNW-ster is nu het primaire actiesignaal)
+- Nieuwe module `freshrss_utils.py` met GReader-authenticatie en stream-helpers
+
+### 📊 Bayesiaanse score-herweging
+
+- Ruwe cosine-similariteitsscore (0–100) wordt herwogen via Bayes met prior π = 0.70
+- Formule: `P(R=1|S) = S·π / (S·π + (1−S)·(1−π))`, kantelpunt bij ruwe score 30
+- Beide scores worden opgeslagen: `score` (Bayesiaans, gebruikt voor drempels en weergave) en `score_raw` (ruwe cosine, voor calibratie)
+- Constante `PRIOR_RELEVANCE = 0.70` in `feedreader_core.py`; aanpasbaar als feedselectie verandert
+
+### 🐛 Bugfixes
+
+- `freshrss_utils.py`: `load_freshrss_creds()` las alleen `export VAR=`-regels — nu ook `VAR=waarde` zonder export-prefix
+- `FRESHRSS_HA_URL` in `.researchvault-env` gecorrigeerd van `http://100.113.121.73:8080` naar `http://100.113.121.73:8080/api` (GReader-pad vereist `/api`-prefix vóór `/greader.php/...`)
+
+---
+
 ## v1.15 — 29 april 2026
 
 ### 📡 FreshRSS & NetNewsWire integratie
