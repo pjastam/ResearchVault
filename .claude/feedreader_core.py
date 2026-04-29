@@ -12,6 +12,7 @@ import numpy as np
 
 THRESHOLD_GREEN  = 50
 THRESHOLD_YELLOW = 40
+THRESHOLD_STAR   = 70  # items met score ≥ dit worden auto-gestefd in FreshRSS/NNW
 
 # Items with PDF annotations are treated as strong positive signals (3× weight vs. unannotated)
 WEIGHT_DEFAULT     = 1

@@ -52,6 +52,7 @@ from sentence_transformers import SentenceTransformer
 from feedreader_core import (
     THRESHOLD_GREEN,
     THRESHOLD_YELLOW,
+    THRESHOLD_STAR,
     WEIGHT_DEFAULT,
     WEIGHT_ANNOTATIONS,
     cosine_similarity,
@@ -60,6 +61,11 @@ from feedreader_core import (
     detect_source_type,
     extract_snippet,
     make_item_summary,
+)
+from freshrss_utils import (
+    load_freshrss_creds,
+    freshrss_auth,
+    freshrss_star_by_urls,
 )
 from zotero_utils import make_sqlite_copy, get_library_keys_with_weights
 
@@ -478,20 +484,15 @@ def _make_atom_content_html(item: dict) -> str:
     """
     Genereert HTML-content voor het Atom <content type="html">-element.
 
-    Structuur:
-      - Tekst per brontype (transcript, show notes of lange beschrijving)
-      - Scheidingslijn
-      - Actieknoppen: ✅ Zotero · 📖 Later lezen · 👎 Overslaan
-        (links naar GET /action op de lokale server)
+    Toont alleen tekstinhoud per brontype (transcript, show notes of lange
+    beschrijving). Geen actieknoppen — NNW-sterren dienen als enige
+    in-app signaal; de leerloop leest de ster-status via de GReader API.
 
     De content wordt als CDATA ingebed zodat geen dubbele XML-escaping nodig is.
     """
-    url_enc     = urllib.parse.quote(item["url"], safe="")
     source_type = item.get("source_type", "web")
-
     parts = []
 
-    # Tekst content per brontype
     text_content = None
     if source_type == "youtube" and item.get("has_transcript"):
         text_content = item.get("transcript_snippet", "") or None
@@ -508,44 +509,7 @@ def _make_atom_content_html(item: dict) -> str:
             if para:
                 parts.append(f"<p>{html.escape(para)}</p>")
 
-    # Actieknoppen onderin — via image-trick (geen browsertabblad, vereist JS)
-    title_enc  = urllib.parse.quote(item.get("title", ""), safe="")
-    stype_enc  = urllib.parse.quote(source_type, safe="")
-    source_enc = urllib.parse.quote(item.get("feed_name", ""), safe="")
-    date_enc   = urllib.parse.quote(item.get("published", "")[:10], safe="")  # YYYY-MM-DD
-    action_base = (
-        f"http://{SERVER_HOST}:8765/action"
-        f"?url={url_enc}&title={title_enc}&stype={stype_enc}"
-        f"&source={source_enc}&date={date_enc}&type="
-    )
-    btn_style = (
-        "cursor:pointer;border:1px solid #ccc;border-radius:5px;"
-        "background:#f5f5f5;padding:.25rem .6rem;font-size:.85em;"
-    )
-    script = (
-        f'<script>'
-        f'function rvAct(t,b){{'
-        f'b.disabled=true;b.style.opacity=".5";'
-        f'var i=new Image();'
-        f'i.onload=function(){{b.textContent="✓ Klaar";}};'
-        f'i.onerror=function(){{b.textContent="⚠️ Fout";}};'
-        f'i.src="{action_base}"+t;'
-        f'}}'
-        f'</script>'
-    )
-    parts.append(
-        '<hr style="margin:1.5em 0;border:none;border-top:1px solid #ccc">'
-        '<p style="font-size:.85em;color:#666">'
-        f'<button style="{btn_style}" onclick="rvAct(\'zotero\',this)">✅ Zotero</button>'
-        '&nbsp;'
-        f'<button style="{btn_style}" onclick="rvAct(\'read\',this)">📖 Later lezen</button>'
-        '&nbsp;'
-        f'<button style="{btn_style}" onclick="rvAct(\'skip\',this)">👎 Overslaan</button>'
-        f'</p>{script}'
-    )
-
     content = "\n".join(parts)
-    # ]]> mag niet voorkomen in CDATA
     return content.replace("]]>", "]]&gt;")
 
 
@@ -789,6 +753,21 @@ def main():
         for item in all_items
         if item["url"]
     ]
+
+    # 4b. Auto-sterren: items met score ≥ THRESHOLD_STAR in FreshRSS/NNW markeren
+    star_candidates = [i["url"] for i in all_items if i.get("score", 0) >= THRESHOLD_STAR and i.get("url")]
+    if star_candidates:
+        print(f"     ⭐ {len(star_candidates)} item(s) met score ≥{THRESHOLD_STAR} auto-sterren in FreshRSS...")
+        fr_creds = load_freshrss_creds()
+        if all(fr_creds.values()):
+            fr_auth, fr_post = freshrss_auth(fr_creds)
+            if fr_auth and fr_post:
+                starred = freshrss_star_by_urls(fr_creds["url"], fr_auth, fr_post, star_candidates)
+                print(f"     ⭐ {starred}/{len(star_candidates)} gestefd in FreshRSS.")
+            else:
+                print("     ⚠️  FreshRSS GReader auth mislukt; auto-sterren overgeslagen.")
+        else:
+            print("     ⚠️  FRESHRSS_API_WACHTWOORD niet ingesteld; auto-sterren overgeslagen.")
 
     # 5. Atom-feeds schrijven
     print("[5/5] Atom-feeds genereren...")

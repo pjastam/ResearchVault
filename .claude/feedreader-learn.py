@@ -25,6 +25,12 @@ import sys
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
+from freshrss_utils import (
+    load_freshrss_creds,
+    freshrss_auth,
+    freshrss_starred_urls,
+    freshrss_read_urls,
+)
 from zotero_utils import make_sqlite_copy
 
 # ── Configuratie ──────────────────────────────────────────────────────────────
@@ -34,7 +40,8 @@ LOG_FILE        = SCRIPT_DIR / "score_log.jsonl"
 SKIP_QUEUE      = SCRIPT_DIR / "skip_queue.jsonl"
 ZOTERO_SQLITE   = Path.home() / "Zotero" / "zotero.sqlite"
 INBOX_ID        = 333
-LABEL_AFTER_DAYS = 3   # items ouder dan N dagen zonder match krijgen added_to_zotero: false
+LABEL_AFTER_DAYS     = 3  # items ouder dan N dagen zonder match krijgen added_to_zotero: false
+NNW_READ_LABEL_AFTER_DAYS = 1  # gelezen in NNW maar niet in Zotero → na 1 dag negatief labelen
 MIN_POSITIVES    = 30  # minimum positieven voor drempeladvies
 
 # ── Hulpfuncties ──────────────────────────────────────────────────────────────
@@ -168,8 +175,8 @@ def main():
     else:
         print(f"     Geen nieuwe skip-signalen.")
 
-    # Zotero-URLs en -titels ophalen
-    print("[2/4] Zotero-URLs en -titels ophalen...")
+    # Zotero-URLs en -titels + FreshRSS-signalen ophalen
+    print("[2/4] Zotero-URLs en -titels + FreshRSS-signalen ophalen...")
     tmp_db = make_sqlite_copy(ZOTERO_SQLITE)
     conn   = sqlite3.connect(tmp_db)
     try:
@@ -181,57 +188,101 @@ def main():
     print(f"     {len(zotero_urls)} URL(s) gevonden in Zotero.")
     print(f"     {len(zotero_titles)} titel(s) gevonden in Zotero.")
 
-    # Logboek labelen (Zotero-matching: eerst URL, dan titel)
-    print("[3/4] Logboek bijwerken...")
-    now      = datetime.now(timezone.utc)
-    cutoff   = now - timedelta(days=LABEL_AFTER_DAYS)
+    # FreshRSS GReader-signalen: gestefd (positief) en gelezen (negatief)
+    fr_starred: set[str] = set()
+    fr_read:    set[str] = set()
+    fr_creds = load_freshrss_creds()
+    if all(fr_creds.values()):
+        fr_auth, _ = freshrss_auth(fr_creds)
+        if fr_auth:
+            fr_starred = freshrss_starred_urls(fr_creds["url"], fr_auth)
+            fr_read    = freshrss_read_urls(fr_creds["url"], fr_auth)
+            print(f"     ⭐ {len(fr_starred)} gestefd, 📖 {len(fr_read)} gelezen in FreshRSS.")
+        else:
+            print("     ⚠️  FreshRSS GReader auth mislukt; FreshRSS-signalen overgeslagen.")
+    else:
+        print("     ℹ️  FRESHRSS_API_WACHTWOORD niet ingesteld; FreshRSS-signalen overgeslagen.")
 
-    newly_true_url   = 0
-    newly_true_title = 0
-    newly_false      = 0
+    # Logboek labelen
+    print("[3/4] Logboek bijwerken...")
+    now          = datetime.now(timezone.utc)
+    cutoff       = now - timedelta(days=LABEL_AFTER_DAYS)
+    nnw_cutoff   = now - timedelta(days=NNW_READ_LABEL_AFTER_DAYS)
+
+    newly_true_url     = 0
+    newly_true_title   = 0
+    newly_true_starred = 0
+    newly_false        = 0
+    newly_false_nnw    = 0
 
     for entry in entries:
         if entry.get("added_to_zotero") is not None:
             continue  # al gelabeld
 
         url = entry.get("url", "")
+
+        # Positief signaal 1: gestefd in FreshRSS/NNW
+        if url in fr_starred:
+            entry["added_to_zotero"] = True
+            entry["starred_in_freshrss"] = True
+            newly_true_starred += 1
+            continue
+
+        # Positief signaal 2: toegevoegd aan Zotero (URL-match)
         if url in zotero_urls:
             entry["added_to_zotero"] = True
             newly_true_url += 1
-        else:
-            # Tweede pass: titelmatching
-            raw_title = entry.get("title", "")
-            if len(raw_title) >= MIN_TITLE_LENGTH and normalize_title(raw_title) in zotero_titles:
-                entry["added_to_zotero"] = True
-                newly_true_title += 1
-            else:
-                # Labelen als false zodra de wachttijd verstreken is
-                try:
-                    ts = datetime.fromisoformat(entry["timestamp"])
-                    if ts < cutoff:
-                        entry["added_to_zotero"] = False
-                        newly_false += 1
-                except (KeyError, ValueError):
-                    pass
+            continue
+
+        # Positief signaal 3: titelmatching
+        raw_title = entry.get("title", "")
+        if len(raw_title) >= MIN_TITLE_LENGTH and normalize_title(raw_title) in zotero_titles:
+            entry["added_to_zotero"] = True
+            newly_true_title += 1
+            continue
+
+        try:
+            ts = datetime.fromisoformat(entry["timestamp"])
+        except (KeyError, ValueError):
+            continue
+
+        # Negatief signaal 1 (sterk, change D): gelezen in NNW maar niet in Zotero
+        if url in fr_read and ts < nnw_cutoff:
+            entry["added_to_zotero"] = False
+            entry["read_in_nnw"] = True
+            newly_false_nnw += 1
+            continue
+
+        # Negatief signaal 2 (sterkste, change F): timeout — genegeerd zonder enige actie
+        if ts < cutoff:
+            entry["added_to_zotero"] = False
+            newly_false += 1
 
     save_log(LOG_FILE, entries)
-    print(f"     ✅ via URL:   {newly_true_url} nieuw gelabeld")
-    print(f"     ✅ via titel: {newly_true_title} nieuw gelabeld")
-    print(f"     ❌ niet toegevoegd (>{LABEL_AFTER_DAYS}d): {newly_false} nieuw gelabeld")
+    print(f"     ⭐ via FreshRSS-ster: {newly_true_starred} nieuw gelabeld")
+    print(f"     ✅ via URL:           {newly_true_url} nieuw gelabeld")
+    print(f"     ✅ via titel:         {newly_true_title} nieuw gelabeld")
+    print(f"     📖 NNW gelezen/geen Zotero (>{NNW_READ_LABEL_AFTER_DAYS}d): {newly_false_nnw} nieuw gelabeld")
+    print(f"     ❌ genegeerd, timeout (>{LABEL_AFTER_DAYS}d): {newly_false} nieuw gelabeld")
 
     # Drempeladvies
     print("[4/4] Drempeladvies berekenen...")
-    positives = [e["score"] for e in entries if e.get("added_to_zotero") is True]
-    skipped   = [e["score"] for e in entries if e.get("skipped") is True]
-    negatives = [e["score"] for e in entries if e.get("added_to_zotero") is False]
-    unlabeled = [e for e in entries if e.get("added_to_zotero") is None]
+    positives        = [e["score"] for e in entries if e.get("added_to_zotero") is True]
+    skipped          = [e["score"] for e in entries if e.get("skipped") is True]
+    negatives_nnw    = [e["score"] for e in entries
+                        if e.get("added_to_zotero") is False and e.get("read_in_nnw")]
+    negatives_timeout = [e["score"] for e in entries
+                         if e.get("added_to_zotero") is False and not e.get("read_in_nnw")]
+    negatives        = negatives_timeout + negatives_nnw
+    unlabeled        = [e for e in entries if e.get("added_to_zotero") is None]
 
     print(f"\n{'=' * 52}")
     print(f"Gelabelde dataset:")
-    print(f"  ✅ positieven (toegevoegd aan Zotero):    {len(positives)}")
-    print(f"  👎 expliciet afgewezen (skipped):         {len(skipped)}")
-    print(f"  ❌ zwak negatief (niet toegevoegd, timeout): {len(negatives)}")
-    print(f"  ⏳ nog niet gelabeld:                     {len(unlabeled)}")
+    print(f"  ✅ positieven (Zotero of NNW-ster):              {len(positives)}")
+    print(f"  ❌ sterkste negatief (timeout, genegeerd):       {len(negatives_timeout)}")
+    print(f"  📖 sterk negatief (NNW gelezen, niet Zotero):   {len(negatives_nnw)}")
+    print(f"  👎 expliciet afgewezen (skip-knop):              {len(skipped)}")
+    print(f"  ⏳ nog niet gelabeld:                            {len(unlabeled)}")
 
     if len(positives) < MIN_POSITIVES:
         print(f"\n⏳ Nog niet genoeg data voor een betrouwbaar drempeladvies.")
