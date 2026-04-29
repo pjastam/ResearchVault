@@ -190,13 +190,16 @@
 </code></pre>
 <h2 id="17b-load-the-launchd-daemon"><a class="header" href="#17b-load-the-launchd-daemon">17b. Load the launchd daemon</a></h2>
 <p>A launchd daemon starts ttyd automatically at boot and keeps it running — even without an active user session:</p>
-<pre><code class="language-bash">sudo launchctl load /Library/LaunchDaemons/nl.researchvault.ttyd.plist
+<pre><code class="language-bash">sudo launchctl bootstrap system /Library/LaunchDaemons/nl.researchvault.ttyd.plist
 </code></pre>
 <p>This daemon starts ttyd on port 7681 with the <code>--writable</code> flag enabled, which is required for interactive use. Without <code>--writable</code>, the terminal renders but ignores all keyboard input.</p>
 <p>To verify it is running:</p>
 <pre><code class="language-bash">sudo launchctl list | grep ttyd
 </code></pre>
 <p>A PID (number) in the first column confirms it is active. Log output is written to <code>~/Library/Logs/ttyd.log</code>.</p>
+<blockquote>
+<p><strong>BTM approval required (macOS Ventura and later):</strong> after the first boot, macOS Background Task Management may silently block the daemon. If <code>sudo launchctl list | grep ttyd</code> is empty after a reboot, go to <strong>System Settings → General → Login Items &amp; Extensions → Allow in the Background</strong> and enable the <code>sh</code> entry. This approval persists across reboots.</p>
+</blockquote>
 <h2 id="17c-use-the-terminal-in-the-html-reader"><a class="header" href="#17c-use-the-terminal-in-the-html-reader">17c. Use the terminal in the HTML reader</a></h2>
 <ol>
 <li>Open <code>http://localhost:8765/filtered.html</code> (Mac) or <code>http://[mac-ip]:8765/filtered.html</code> (iPad)</li>
@@ -214,7 +217,7 @@ claude
 <pre><code class="language-bash">brew install tmux
 </code></pre>
 <p>Then unload the current daemon, update the plist to use tmux, and reload:</p>
-<pre><code class="language-bash">sudo launchctl unload /Library/LaunchDaemons/nl.researchvault.ttyd.plist
+<pre><code class="language-bash">sudo launchctl bootout system/nl.researchvault.ttyd
 </code></pre>
 <p>Edit <code>/Library/LaunchDaemons/nl.researchvault.ttyd.plist</code> and replace the <code>ProgramArguments</code> block with:</p>
 <pre><code class="language-xml">&lt;key&gt;ProgramArguments&lt;/key&gt;
@@ -225,7 +228,7 @@ claude
 &lt;/array&gt;
 </code></pre>
 <p>Then reload:</p>
-<pre><code class="language-bash">sudo launchctl load /Library/LaunchDaemons/nl.researchvault.ttyd.plist
+<pre><code class="language-bash">sudo launchctl bootstrap system /Library/LaunchDaemons/nl.researchvault.ttyd.plist
 </code></pre>
 <p>Now every connection to the terminal panel attaches to the same persistent <code>phase2</code> session. A Claude Code conversation that was running when you closed the panel will still be there when you reopen it.</p>
 <h2 id="17e-security-note"><a class="header" href="#17e-security-note">17e. Security note</a></h2>

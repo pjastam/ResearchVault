@@ -1725,13 +1725,16 @@ claude
 </code></pre>
 <h2 id="17b-load-the-launchd-daemon"><a class="header" href="#17b-load-the-launchd-daemon">17b. Load the launchd daemon</a></h2>
 <p>A launchd daemon starts ttyd automatically at boot and keeps it running — even without an active user session:</p>
-<pre><code class="language-bash">sudo launchctl load /Library/LaunchDaemons/nl.researchvault.ttyd.plist
+<pre><code class="language-bash">sudo launchctl bootstrap system /Library/LaunchDaemons/nl.researchvault.ttyd.plist
 </code></pre>
 <p>This daemon starts ttyd on port 7681 with the <code>--writable</code> flag enabled, which is required for interactive use. Without <code>--writable</code>, the terminal renders but ignores all keyboard input.</p>
 <p>To verify it is running:</p>
 <pre><code class="language-bash">sudo launchctl list | grep ttyd
 </code></pre>
 <p>A PID (number) in the first column confirms it is active. Log output is written to <code>~/Library/Logs/ttyd.log</code>.</p>
+<blockquote>
+<p><strong>BTM approval required (macOS Ventura and later):</strong> after the first boot, macOS Background Task Management may silently block the daemon. If <code>sudo launchctl list | grep ttyd</code> is empty after a reboot, go to <strong>System Settings → General → Login Items &amp; Extensions → Allow in the Background</strong> and enable the <code>sh</code> entry. This approval persists across reboots.</p>
+</blockquote>
 <h2 id="17c-use-the-terminal-in-the-html-reader"><a class="header" href="#17c-use-the-terminal-in-the-html-reader">17c. Use the terminal in the HTML reader</a></h2>
 <ol>
 <li>Open <code>http://localhost:8765/filtered.html</code> (Mac) or <code>http://[mac-ip]:8765/filtered.html</code> (iPad)</li>
@@ -1749,7 +1752,7 @@ claude
 <pre><code class="language-bash">brew install tmux
 </code></pre>
 <p>Then unload the current daemon, update the plist to use tmux, and reload:</p>
-<pre><code class="language-bash">sudo launchctl unload /Library/LaunchDaemons/nl.researchvault.ttyd.plist
+<pre><code class="language-bash">sudo launchctl bootout system/nl.researchvault.ttyd
 </code></pre>
 <p>Edit <code>/Library/LaunchDaemons/nl.researchvault.ttyd.plist</code> and replace the <code>ProgramArguments</code> block with:</p>
 <pre><code class="language-xml">&lt;key&gt;ProgramArguments&lt;/key&gt;
@@ -1760,7 +1763,7 @@ claude
 &lt;/array&gt;
 </code></pre>
 <p>Then reload:</p>
-<pre><code class="language-bash">sudo launchctl load /Library/LaunchDaemons/nl.researchvault.ttyd.plist
+<pre><code class="language-bash">sudo launchctl bootstrap system /Library/LaunchDaemons/nl.researchvault.ttyd.plist
 </code></pre>
 <p>Now every connection to the terminal panel attaches to the same persistent <code>phase2</code> session. A Claude Code conversation that was running when you closed the panel will still be there when you reopen it.</p>
 <h2 id="17e-security-note"><a class="header" href="#17e-security-note">17e. Security note</a></h2>
@@ -1776,17 +1779,18 @@ claude
 <tr><td>Claude Code does not see the MCP tool</td><td>Configuration file missing</td><td>Check <code>~/.claude/claude_desktop_config.json</code></td></tr>
 <tr><td>Ollama not responding</td><td>Service not started</td><td>Run <code>ollama serve</code> or <code>brew services start ollama</code></td></tr>
 <tr><td>yt-dlp returns no subtitles</td><td>Video has no (auto-)subtitles</td><td>Try <code>--sub-lang en</code> or check whether the video has subtitles at all</td></tr>
-<tr><td>launchd update not running</td><td>Nightly daemon did not fire (check <code>~/Library/Logs/nachtelijke-taken.log</code>)</td><td>Run <code>update-zotero</code> manually; verify the daemon is loaded with <code>sudo launchctl list | grep nachtelijke</code></td></tr>
+<tr><td>launchd update not running</td><td>Nightly daemon did not fire (check <code>~/Library/Logs/nachtelijke-taken.log</code>)</td><td>Run <code>update-zotero</code> manually; verify the daemon is loaded with <code>sudo launchctl list | grep nachtelijke</code>; if empty after reboot, see "Daemons not loading after reboot" below</td></tr>
+<tr><td>Daemons not loading after reboot</td><td>macOS Background Task Management (BTM) blocking bash processes</td><td>Go to System Settings → General → Login Items &amp; Extensions → Allow in the Background → enable <code>bash (4×)</code>, <code>sh (1×)</code>, <code>ollama (1×)</code>; diagnose with: <code>log show --predicate 'eventMessage contains "pietstam"' --last boot | grep disallowed</code></td></tr>
 <tr><td>Nightly daemon skipped despite Mac being on</td><td>Race condition: Mac woke up less than 30 minutes before the 06:00 trigger — <code>UserEventAgent-System</code> was not ready in time, launchd silently skipped the event</td><td>Set wake to 05:30: <code>sudo pmset repeat wakeorpoweron MTWRFSU 05:30:00</code>; kick off manually with <code>sudo launchctl kickstart system/nl.pietstam.nachtelijke-taken</code></td></tr>
 <tr><td><code>rclone</code> meldt <code>0 B transferred</code> bij backup</td><td>macOS TCC blokkeert toegang tot beschermde mappen (<code>~/Documents</code>, <code>~/.ssh</code>, etc.) tijdens headless daemon-run — de dialoog kan dan niet worden getoond</td><td>Geef rclone Full Disk Access: Systeeminstellingen → Privacy en beveiliging → Volledige schijftoegang → <code>+</code> → <code>/opt/homebrew/bin/rclone</code></td></tr>
 <tr><td>whisper-cpp gives an error</td><td>Model not yet downloaded</td><td>Wait for the first download, or check disk space</td></tr>
 <tr><td>Whisper transcription is inaccurate</td><td>Low audio quality or incorrect language detection</td><td>Use <code>--model medium</code> for better quality, or specify the language explicitly with <code>--language nl</code> or <code>--language en</code> if automatic detection picks the wrong language</td></tr>
 <tr><td>NetNewsWire not syncing across devices</td><td>FreshRSS account not connected</td><td>Add FreshRSS account in NetNewsWire → Settings → Accounts → FreshRSS; use API URL <code>http://[mac-ip]:8080/api/greader.php</code> and the API password from FreshRSS Profile → API Management</td></tr>
-<tr><td>FreshRSS container not running</td><td>Docker Desktop not started</td><td>Open Docker Desktop from Launchpad; verify with <code>docker ps</code></td></tr>
+<tr><td>FreshRSS container not running</td><td>Container stopped on HA Green</td><td>SSH in: <code>ssh hassio@100.113.121.73 "docker restart freshrss"</code>; verify with <code>ssh hassio@100.113.121.73 "docker ps | grep freshrss"</code></td></tr>
 <tr><td>feedreader HTML reader not loading</td><td>feedreader-server.py not running</td><td>Check with <code>sudo launchctl list | grep feedreader</code>; restart with <code>sudo launchctl kickstart system/nl.researchvault.feedreader-server</code></td></tr>
 <tr><td>Action buttons (✅/📖/👎) in NNW don't work</td><td>JavaScript not enabled</td><td>NetNewsWire → Settings → Article Content → enable "Enable JavaScript"</td></tr>
 <tr><td>Action buttons give no result</td><td>ZOTERO_API_KEY not set</td><td>Add <code>export ZOTERO_API_KEY="..."</code> to <code>~/.zprofile</code> and restart the feedreader-server agent</td></tr>
-<tr><td>ttyd terminal button not working</td><td>ttyd not running</td><td>Check with <code>sudo launchctl list | grep ttyd</code>; verify port 7681 is open</td></tr>
+<tr><td>ttyd terminal button not working</td><td>ttyd not running or BTM blocking</td><td>Check with <code>sudo launchctl list | grep ttyd</code>; if empty after reboot, go to System Settings → General → Login Items &amp; Extensions → Allow in the Background → enable <code>sh</code>; verify port 7681 is open</td></tr>
 <tr><td>Obsidian flashcards not appearing</td><td>Plugin not enabled</td><td>Settings → Community Plugins → enable Spaced Repetition</td></tr>
 <tr><td>Flashcards not recognized</td><td>Incorrect format</td><td>Check that <code>?</code> is on its own line and <code>#flashcard</code> is present</td></tr>
 </tbody></table>
