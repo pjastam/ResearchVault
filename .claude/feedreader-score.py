@@ -53,10 +53,12 @@ from feedreader_core import (
     THRESHOLD_GREEN,
     THRESHOLD_YELLOW,
     THRESHOLD_STAR,
+    PRIOR_RELEVANCE,
     WEIGHT_DEFAULT,
     WEIGHT_ANNOTATIONS,
     cosine_similarity,
     compute_weighted_profile,
+    bayesian_score,
     score_label,
     detect_source_type,
     extract_snippet,
@@ -717,9 +719,10 @@ def main():
 
     now = datetime.now(timezone.utc)
     for item, emb in zip(all_items, embeddings):
-        sim   = cosine_similarity(np.array(emb, dtype=np.float32), profile)
-        score = max(0, min(100, int(round(sim * 100))))
-        item["score"] = score
+        sim             = cosine_similarity(np.array(emb, dtype=np.float32), profile)
+        raw             = max(0, min(100, int(round(sim * 100))))
+        item["score_raw"] = raw
+        item["score"]     = bayesian_score(raw)
 
 
     # Sorteren op score descending
@@ -744,6 +747,7 @@ def main():
             "url":             item["url"],
             "title":           item["title"],
             "score":           item["score"],
+            "score_raw":       item["score_raw"],
             "feed_name":       item["feed_name"],
             "source_type":     item["source_type"],
             "timestamp":       now.isoformat(),

@@ -14,6 +14,8 @@ THRESHOLD_GREEN  = 50
 THRESHOLD_YELLOW = 40
 THRESHOLD_STAR   = 70  # items met score ≥ dit worden auto-gestefd in FreshRSS/NNW
 
+PRIOR_RELEVANCE = 0.70  # a priori kans dat een item uit de geselecteerde feeds relevant is
+
 # Items with PDF annotations are treated as strong positive signals (3× weight vs. unannotated)
 WEIGHT_DEFAULT     = 1
 WEIGHT_ANNOTATIONS = 3
@@ -39,6 +41,22 @@ def compute_weighted_profile(
     profile = (matrix * weights_arr).sum(axis=0) / weights_arr.sum()
     norm = np.linalg.norm(profile)
     return profile / norm if norm > 0 else profile
+
+
+def bayesian_score(raw: int, prior: float = PRIOR_RELEVANCE) -> int:
+    """Bayesiaanse herweging van een ruwe cosine-score (0–100).
+
+    Behandelt raw/100 als P(signaal | relevant) en (100-raw)/100 als
+    P(signaal | niet-relevant). De prior codeert de verwachte relevantie
+    van de geselecteerde feeds. Kantelpunt (Bayes = 50) ligt bij raw = (1-prior)×100.
+    """
+    s = raw / 100
+    if s <= 0:
+        return 0
+    if s >= 1:
+        return 100
+    p = (s * prior) / (s * prior + (1 - s) * (1 - prior))
+    return max(0, min(100, int(round(p * 100))))
 
 
 def score_label(score: int) -> str:
