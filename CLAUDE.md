@@ -164,10 +164,11 @@ De feedreader scoort RSS/YouTube/podcast-feeds automatisch op relevantie en prod
 **Bestanden:**
 - `.claude/feedreader-list.txt` — lijst van feed-URLs (één per regel, `#` = commentaar); bevat webartikel-, YouTube- en podcast-feeds ingedeeld per categorie met `# ── Naam ────` headers
 - `.claude/feedreader-score.py` — haalt feeds op, scoort items, detecteert brontype; voor YouTube-items haalt het eerst een transcript op via `youtube_transcript_api` (gecachet in `transcript_cache/`) en gebruikt de transcripttekst voor de scoreberekening; voor podcast-items met show notes ≥ 200 tekens (constante `SHOWNOTES_MIN_LENGTH`) worden de show notes gecachet in `transcript_cache/podcast_{episode_id}.json` (`episode_id` = `podcast_` + MD5-hash van de URL); schrijft `filtered.xml` en `filtered.html`
-- `.claude/feedreader_core.py` — gedeelde functies: `cosine_similarity`, `compute_weighted_profile`, `score_label`, `detect_source_type`; constanten: `THRESHOLD_GREEN`, `THRESHOLD_YELLOW`, `WEIGHT_DEFAULT`, `WEIGHT_ANNOTATIONS`
-- `.claude/feedreader-server.py` — lokale HTTP-server (poort 8765); handelt `POST /skip` af en serveert `GET /article/{video_id}` (YouTube) en `GET /article/podcast/{episode_id}` (podcast): genereert een leesbaar artikel via Ollama `qwen2.5:7b` (asynchroon, met laadpagina die elke 5 seconden herlaadt); na generatie wordt het volledige artikel ook als `abstract` opgeslagen in het cache-JSON-bestand; resultaten gecachet in `article_cache/`
-- `.claude/feedreader-learn.py` — leerloop: verwerkt skip-queue, matcht Zotero-toevoegingen, geeft drempeladvies (continu proces)
-- `.claude/score_log.jsonl` — groeiend logboek (URL, score, bron, source_type, timestamp, added_to_zotero, skipped)
+- `.claude/feedreader_core.py` — gedeelde functies: `cosine_similarity`, `compute_weighted_profile`, `score_label`, `detect_source_type`, `bayesian_score`; constanten: `THRESHOLD_GREEN`, `THRESHOLD_YELLOW`, `THRESHOLD_STAR`, `PRIOR_RELEVANCE`, `WEIGHT_DEFAULT`, `WEIGHT_ANNOTATIONS`
+- `.claude/freshrss_utils.py` — GReader API helpers: authenticatie, stream-fetch, auto-sterren; leest credentials uit `~/bin/.researchvault-env`
+- `.claude/feedreader-server.py` — lokale HTTP-server (poort 8765); handelt `GET /action?type=skip` af (skip-queue) en serveert Atom-feeds en statische bestanden; genereert leesartikelen via Ollama voor YouTube/podcast
+- `.claude/feedreader-learn.py` — leerloop: verwerkt skip-queue, haalt FreshRSS-signalen op (gestefd/gelezen), matcht Zotero-toevoegingen, geeft drempeladvies (continu proces)
+- `.claude/score_log.jsonl` — groeiend logboek (URL, score, score_raw, bron, source_type, timestamp, added_to_zotero, skipped)
 - `.claude/skip_queue.jsonl` — wachtrij van expliciet afgewezen items (👎); dagelijks verwerkt door feedreader-learn.py
 - `.claude/transcript_cache/` — JSON-cache van transcripten en show notes; YouTube: `{video_id}.json`; podcast: `podcast_{episode_id}.json`; na artikelgeneratie bevat het cache-bestand ook een `abstract`-veld met de volledige artikeltekst
 - `.claude/article_cache/` — HTML-cache van gegenereerde artikelen; YouTube: `{video_id}.html`; podcast: `podcast_{episode_id}.html`
@@ -181,7 +182,7 @@ De feedreader scoort RSS/YouTube/podcast-feeds automatisch op relevantie en prod
 - `http://localhost:8765/article/{video_id}` — gegenereerd leesartikel voor een YouTube-video (structuur: Inleiding · Kernpunten · Conclusie; taal = originele videotaal)
 - `http://localhost:8765/article/podcast/{episode_id}` — gegenereerd leesartikel voor een podcast-aflevering op basis van show notes (zelfde structuur; alleen voor afleveringen met show notes ≥ 200 tekens)
 
-**Scores en labels:** 🟢 ≥50 · 🟡 40–49 · 🔴 <40 (drempels worden bijgesteld via feedreader-learn.py)
+**Scores en labels:** 🟢 ≥50 · 🟡 40–49 · 🔴 <40 (Bayesiaanse scores met prior π=0.70; drempels worden bijgesteld via feedreader-learn.py). Items met score ≥70 worden auto-gestefd in FreshRSS/NNW.
 
 **Handmatig uitvoeren:**
 ```bash
@@ -189,9 +190,14 @@ De feedreader scoort RSS/YouTube/podcast-feeds automatisch op relevantie en prod
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/feedreader-learn.py
 ```
 
-**👎-knop:** elk item in de HTML-lezer heeft een 👎-knop. Klikken markeert het item als `skipped: true` in het logboek (via de server) en visueel als doorgestreept. Dit is een sterk expliciet negatief signaal, onderscheiden van "niet aangeklikt" (ambigu).
+**Leerloop — signaalhi­ërarchie (sterkste eerst):**
+1. ⭐ NNW-ster (FreshRSS starred) → positief
+2. ✅ Zotero URL-match of titelmatching → positief
+3. 📖 NNW gelezen maar niet in Zotero na >1 dag → negatief
+4. ❌ Timeout >3 dagen zonder actie → negatief (sterkste)
+5. 👎 Skip-knop in NNW → sterk expliciet negatief (apart bijgehouden)
 
-**Leerloop:** feedreader-learn.py verwerkt eerst de skip-queue (👎-signalen), matcht daarna recent aan Zotero toegevoegde items aan het logboek, en onderscheidt drie categorieën: ✅ positieven · 👎 expliciet afgewezen · ❌ zwak negatief (niet toegevoegd na timeout). Na ≥30 positieven verschijnt een initieel drempeladvies; pas dan `THRESHOLD_GREEN` en `THRESHOLD_YELLOW` in `feedreader-score.py` aan. Het leren gaat daarna continu door.
+Na ≥30 positieven verschijnt een drempeladvies; pas dan `THRESHOLD_GREEN` en `THRESHOLD_YELLOW` aan.
 
 **launchd-daemons (alle drie in `/Library/LaunchDaemons/`, draaien zonder ingelogde gebruiker):**
 - `nl.researchvault.feedreader-server` — HTTP-server permanent actief (poort 8765); log: `~/Library/Logs/feedreader-server.log`
