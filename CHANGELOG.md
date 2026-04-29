@@ -1,5 +1,41 @@
 # Changelog
 
+## v1.15 — 29 april 2026
+
+### 📡 FreshRSS & NetNewsWire integratie
+
+- FreshRSS actualize omgezet van SSH+`docker exec` naar HTTP curl-aanroep (Protection Mode op HA SSH add-on staat nu aan)
+- Deduplicatiefilter toegevoegd: items die al in Zotero staan worden niet meer getoond in de HTML-lezer
+- HTML-lezer verwijderd uit FreshRSS-context (NNW via Atom-feeds is leidend geworden)
+- FreshRSS/NNW/Tailscale workflow gedocumenteerd in CLAUDE.md
+
+### 🎙️ Feedreader: podcast-support en leerloop
+
+- Podcast-support toegevoegd: show notes worden gescoord en gecachet; podcast-items verschijnen in `filtered-podcast.xml`
+- Titelmatching toegevoegd als tweede pass in `feedreader-learn.py`: Zotero-titels worden vergeleken met logboek-entries ook zonder URL-match
+- nature.com RSS-feed toegevoegd aan `feedreader-list.txt`
+- Dubbele skip-registratie in feedreader-server opgelost
+
+### 📹 YouTube transcript attachment pipeline
+
+- `attach-transcript.py` toegevoegd: haalt transcript op, genereert cleaned versie + abstract via Qwen, slaat op als bijlage in Zotero
+- Ingest-procedure uitgebreid met transcript-stap vóór Go/No-go
+- Notitiestructuur voor video/podcast gedocumenteerd (geen `## Relevant quotes`; tijdcodes onbetrouwbaar)
+
+### ⚙️ Launchd-structuur
+
+- `feedreader-server` en `ttyd` omgezet van LaunchAgent naar LaunchDaemon (draaien nu als root, ongeacht ingelogde gebruiker)
+- `pmset` wake vervroegd naar 05:30; race condition met UserEventAgent gedocumenteerd
+- rclone TCC-vereiste gedocumenteerd (Full Disk Access nodig voor headless runs)
+- Shutdown-guard: 21:00-run sluit Mac alleen af als geen gebruiker ingelogd is
+
+### 🧹 Overige
+
+- `pure_cache/` en `read_queue.jsonl` toegevoegd aan `.gitignore`
+- Vault opgeschoond: `craft/`-map verwijderd
+
+---
+
 ## v1.14 — 8 april 2026
 
 ### 🔄 Automatische Zotero database-update
