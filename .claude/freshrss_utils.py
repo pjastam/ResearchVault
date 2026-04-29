@@ -39,7 +39,8 @@ def load_freshrss_creds() -> dict:
                 ("user",     "FRESHRSS_USER"),
                 ("password", "FRESHRSS_API_WACHTWOORD"),
             ]:
-                if line.startswith(f"export {var}="):
+                prefix = f"{var}="
+                if line.startswith(prefix) or line.startswith(f"export {prefix}"):
                     creds[key] = line.split("=", 1)[1].strip().strip('"').strip("'")
     return creds
 
