@@ -227,13 +227,11 @@ THRESHOLD_YELLOW = ...   # from the recommendation
 <p>Then type <code>beoordeel inbox</code> to begin the Go/No-go review.</p>
 <h3 id="netnewswire-as-an-alternative-reader"><a class="header" href="#netnewswire-as-an-alternative-reader">NetNewsWire as an alternative reader</a></h3>
 <p>The three type-specific feeds can be subscribed to in NetNewsWire on macOS or iOS. Titles are prefixed with score and label (<code>🟢 54 | Title…</code>). Sorting by <strong>Newest First</strong> equals sorting by relevance (the feedreader encodes scores as synthetic dates).</p>
-<p>Each article in NNW shows three action buttons (requires JavaScript enabled in NNW Article Content settings):</p>
+<p>Each article in NNW shows one action button (requires JavaScript enabled in NNW Article Content settings):</p>
 <ul>
-<li><strong>✅ Zotero</strong> — adds the item to Zotero <code>_inbox</code> with tag <code>✅</code></li>
-<li><strong>📖 Later lezen</strong> — adds with tag <code>📖</code></li>
 <li><strong>👎 Overslaan</strong> — sends a negative signal to the learning loop</li>
 </ul>
-<p>Using these buttons directly sends items to <code>_inbox</code> — it behaves like <strong>source 2</strong> (a deliberate choice) and contributes a clean positive calibration signal.</p>
+<p>Pressing 👎 fades the item and writes the URL to <code>skip_queue.jsonl</code>; <code>feedreader-learn.py</code> processes it the next morning. To send items to Zotero <code>_inbox</code>, use the Zotero browser extension or iOS app instead.</p>
 <hr />
 <h2 id="source-2-ios-share-sheet"><a class="header" href="#source-2-ios-share-sheet">Source 2: iOS share sheet</a></h2>
 <p>Items you share directly from YouTube, Overcast, Safari, or NetNewsWire arrive in Zotero <code>_inbox</code> as deliberate choices. You have typically already consumed the content (watched the video, listened to the podcast, read the article) or you made a specific decision to save it.</p>

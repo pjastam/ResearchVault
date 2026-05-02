@@ -182,13 +182,13 @@
                         <h1 id="privacy-overview"><a class="header" href="#privacy-overview">Privacy overview</a></h1>
 <div class="table-wrapper"><table><thead><tr><th>Component</th><th>Data local?</th><th>Notes</th></tr></thead><tbody>
 <tr><td>Zotero + local API</td><td>✅ Fully</td><td>Runs on <code>localhost</code>, no cloud</td></tr>
-<tr><td>Zotero MCP + Web API</td><td>⚠️ Partially</td><td>Read operations local; action buttons (✅/📖) use Zotero Web API — item metadata (URL, title, type) goes to zotero.org</td></tr>
+<tr><td>Zotero MCP + Web API</td><td>⚠️ Partially</td><td>Read operations local; removing items from <code>_inbox</code> uses the Zotero Web API — item metadata (URL, title, type) goes to zotero.org</td></tr>
 <tr><td>Obsidian vault</td><td>✅ Fully</td><td>Regular files on your Mac</td></tr>
 <tr><td>Ollama + Qwen3.5:9b</td><td>✅ Fully</td><td>Model runs locally on M4; default for all generative tasks</td></tr>
 <tr><td>yt-dlp</td><td>✅ Fully</td><td>Scraping executed locally</td></tr>
 <tr><td>whisper.cpp</td><td>✅ Fully</td><td>Transcription locally on M4 via Metal</td></tr>
 <tr><td>NetNewsWire</td><td>✅ Fully</td><td>RSS data stored locally, no account</td></tr>
-<tr><td>FreshRSS (Docker)</td><td>✅ Fully</td><td>Self-hosted on Mac mini; read/unread sync stays on LAN</td></tr>
+<tr><td>FreshRSS (Docker)</td><td>✅ Fully</td><td>Self-hosted on Home Assistant Green (always-on); read/unread sync stays on your Tailscale network</td></tr>
 <tr><td>feedreader (score/server/learn)</td><td>✅ Fully</td><td>Runs locally; scoring uses local ChromaDB embeddings</td></tr>
 <tr><td>ttyd</td><td>✅ Fully</td><td>Browser terminal runs locally on Mac mini</td></tr>
 <tr><td>Obsidian Spaced Repetition</td><td>✅ Fully</td><td>Cards and review data in vault files</td></tr>
