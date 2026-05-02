@@ -2,6 +2,28 @@
 
 > **Bevroren specificatie.** Pas dit bestand alleen aan na expliciete beslissing. Elke wijziging verandert het gedrag van alle toekomstige ingests en lint-runs.
 
+## Gedragsregels voor Claude Code
+
+- **Stel eerst vragen, neem niets aan.** Bij probleemanalyse en diagnose: stel gerichte vragen vóór je oorzaken of oplossingen formuleert. Werk iteratief: één hypothese tegelijk toetsen. Neem nooit situationele feiten aan (Ollama bereikbaar, Zotero draait, scriptpad klopt, config correct) zonder die eerst te verifiëren.
+- **Plan eerst, voer pas uit na goedkeuring.** Presenteer bij elke voorgestelde wijziging (scripts, configuratie, bestanden) eerst het plan. Stel vragen als er keuzes te maken zijn. Voer pas iets door na expliciet akkoord.
+- **Eén hypothese tegelijk.** Bij bugs of onverwacht gedrag: toets één oorzaak per stap. Maak niet meerdere wijzigingen tegelijk — dat maakt de oorzaak onherleidbaar.
+- **"Update github" = wrap-up eerst.** Wanneer de gebruiker vraagt om naar GitHub te pushen ("update github", "push naar github", "commit en push" of soortgelijk), activeer dan altijd eerst `.claude/skills/wrap-up/SKILL.md` vóórdat je git-commando's uitvoert.
+
+## Sessie-startup
+
+Verifieer bij elke sessie vóór de eerste actie of de services beschikbaar zijn:
+
+```bash
+# Zotero bereikbaar?
+curl -s http://localhost:23119/better-bibtex/cayw | head -c 80
+
+# Ollama bereikbaar + qwen3.5:9b aanwezig?
+curl -s http://localhost:11434/api/tags | python3 -c "import sys,json; m=[x['name'] for x in json.load(sys.stdin)['models']]; print('Ollama OK:', m)"
+```
+
+Als Zotero niet bereikbaar is: meld dit direct en vraag of de sessie zinvol is zonder Zotero-toegang.
+Als Ollama niet bereikbaar is: meld dit en vraag of de gebruiker wil overschakelen naar `--hd` (Anthropic API) of de sessie wil uitstellen.
+
 ## Obsidian-conventies
 - Alle bestanden zijn Markdown (.md)
 - Gebruik [[dubbele haken]] voor interne links tussen notes
@@ -225,6 +247,7 @@ Na ≥30 positieven verschijnt een drempeladvies; pas dan `THRESHOLD_GREEN` en `
 - **Subagent-patroon**: `process_item.py` en `summarize_item.py` worden aangeroepen als lokale Python-subprocessen. Claude Code stuurt ze aan maar voert zelf geen inhoudsverwerking uit.
 - **`--hd` flag**: activeert Claude Sonnet 4.6 in plaats van Qwen3.5:9b. Vereist altijd expliciete bevestiging van de gebruiker vóór verzending naar de API.
 - **Zotero**: alle interacties via de lokale REST API (localhost:23119) — vereist dat de Zotero app draait. Nooit via de Zotero Web API of andere cloud-diensten.
+- **Ontwikkelsessies**: ook tijdens het schrijven of testen van nieuwe scripts gelden dezelfde privacyregels. Test nooit met echte paper-inhoud als die inhoud als tool-output in Claude's context kan komen. Gebruik synthetische testdata of alleen metadata bij ontwikkeling en debugging.
 
 ## Privacyregel: broninhoud blijft lokaal
 
@@ -272,3 +295,4 @@ Dit geldt ook voor snapshot-HTML, VTT-transcripten en podcast-transcripten: nooi
 
 ## Actieve skills
 - Lees en volg `.claude/skills/SKILL.md` bij elke research-sessie.
+- `.claude/skills/wrap-up/SKILL.md` — activeer bij "update github" of `/wrap-up`.
