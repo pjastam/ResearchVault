@@ -18,7 +18,7 @@ Claude Code adjusts its evaluation based on the Zotero tag of the item:
 | Tag | Treatment |
 |-----|------------|
 | `✅` | Previously approved — skip Go/No-go, go directly to processing |
-| `📖` | Marked as interesting — only ask the Go/No-go question, no summary |
+| `📖` | Marked as interesting — generate a compact summary via `summarize_item.py` (local, Qwen3.5:9b); show path; wait for Go/No-go |
 | `/unread`, no tag, or another tag | Generate summary + relevance indication, ask Go or No-go |
 
 Items with unknown tags (e.g. your own project tags or type indicators) are therefore treated as `/unread`: Claude Code generates a summary and asks for a Go/No-go decision.
@@ -108,14 +108,15 @@ Fetch the show notes from [URL] and give a 3-sentence summary.
 
 ### Feedback signals in the HTML reader
 
-The HTML reader captures five distinct behaviour types that feed into the learning loop (`feedreader-learn.py`):
+The HTML reader captures six distinct behaviour types that feed into the learning loop (`feedreader-learn.py`):
 
-| # | Behaviour | Signal | Recorded as |
-|---|-----------|--------|-------------|
-| 1 | Headline clicked + added to Zotero | Strong positive | `added_to_zotero: true` |
-| 2 | Headline clicked, not added to Zotero | Weak negative (seen, not interesting enough) | `added_to_zotero: false` after 3 days |
-| 3 | Not clicked, no 👎 | Ambiguous — not seen, or implicitly ignored | `added_to_zotero: false` after 3 days (indistinguishable from type 2) |
-| 4 | 👎 pressed without clicking | Strong explicit negative (headline was enough to reject) | `skipped: true` immediately |
-| 5 | Headline clicked, then 👎 pressed | Strongest negative signal (read and rejected) | `skipped: true` + `added_to_zotero: false` |
+| # | Signal | Source | Recorded as |
+|---|--------|--------|-------------|
+| 1 | ⭐ Starred in NetNewsWire | FreshRSS GReader API | `added_to_zotero: true`, `starred_in_freshrss: true` |
+| 2 | URL found in Zotero library | Zotero SQLite | `added_to_zotero: true` |
+| 3 | Title match in Zotero library | Zotero SQLite | `added_to_zotero: true` |
+| 4 | Read in NNW, not in Zotero after 1 day | FreshRSS GReader API | `added_to_zotero: false`, `read_in_nnw: true` |
+| 5 | No action after 3 days (timeout) — **strongest negative** | score_log age | `added_to_zotero: false` |
+| 6 | 👎 pressed (tracked separately) | skip_queue.jsonl | `skipped: true` |
 
-Only types 4 and 5 are unambiguous rejections. Type 3 remains ambiguous even with the 👎 button. See [Step 12d](rss.md#12d-feedback-signals-training-the-scoring) for details on how these signals are used to calibrate scoring thresholds.
+Signals 1–3 are positive; signals 4–5 are implicit negatives; signal 6 is an explicit rejection. The 👎 skip queue is processed separately from the other signals. See [Step 12d](rss.md#12d-feedback-signals-training-the-scoring) for details on how these signals are used to calibrate scoring thresholds.
