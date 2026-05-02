@@ -1196,7 +1196,7 @@ http://onlinelibrary.wiley.com/rss/journal/10.1002/(ISSN)1099-1050
 <blockquote>
 <p><strong>Note:</strong> the daemon runs as root (no <code>UserName</code> key). The <code>HOME</code> environment variable must point to your user's home directory so that Python tools can find their configuration files. Without <code>HOME</code>, tools like <code>rclone</code> and <code>zotero-mcp</code> will fail to locate their config paths during headless runs.</p>
 </blockquote>
-<p>The nightly batch jobs run via <code>~/bin/nachtelijke-taken.sh</code>, called from a LaunchDaemon in <code>/Library/LaunchDaemons/</code>. Because it is a system-level daemon running as root, it fires at 06:00 even without an active user session — which is required when the Mac wakes from a scheduled <code>pmset</code> power-on. The script runs sequentially in 4 steps: Zotero DB update → feedreader-score → FreshRSS actualize → feedreader-learn → shutdown. Proton Drive backup and mirror run separately at 06:45 via a dedicated <code>nl.pietstam.proton-taken</code> daemon and are not part of the ResearchVault pipeline. The FreshRSS actualize step runs immediately after feedreader-score so that FreshRSS fetches the freshly generated feeds before the Mac shuts down. Without this step, FreshRSS would not update until the next time the Mac is awake and the FreshRSS actualize is triggered again. See <a href="extensions/rss.html#12c-freshrss--readunread-sync-across-devices">Step 12c</a> for how the actualize step differs between setup options.</p>
+<p>The nightly batch jobs run via <code>~/bin/nachtelijke-taken.sh</code>, called from a LaunchDaemon in <code>/Library/LaunchDaemons/</code>. Because it is a system-level daemon running as root, it fires at 06:00 even without an active user session — which is required when the Mac wakes from a scheduled <code>pmset</code> power-on. The script runs sequentially in 6 steps: Zotero DB update → feedreader-score → FreshRSS actualize → feedreader-learn → proton-backup → proton-mirror → shutdown. The FreshRSS actualize step runs immediately after feedreader-score so that FreshRSS fetches the freshly generated feeds before the Mac shuts down. Without this step, FreshRSS would not update until the next time the Mac is awake and the FreshRSS actualize is triggered again. See <a href="extensions/rss.html#12c-freshrss--readunread-sync-across-devices">Step 12c</a> for how the actualize step differs between setup options.</p>
 <p>A second LaunchDaemon (<code>nl.pietstam.overdagtaken</code>) runs the same steps 1–4 (Zotero → feedreader-score → FreshRSS actualize → feedreader-learn) at 09:00, 12:00, 15:00, 18:00, and 21:00, keeping feeds fresh throughout the day. After the 21:00 run the Mac also shuts down — but only if no user is logged in at the console. If you have manually turned on the Mac and are logged in (even with the screen locked), shutdown is skipped and a message is logged. The check uses <code>stat -f%Su /dev/console</code>: if it returns anything other than <code>root</code>, a user session is active. If the Mac was off when a scheduled time passed, launchd fires the missed job <strong>once</strong> immediately at next boot — not once per missed interval. The remaining scheduled times then run normally.</p>
 <pre><code class="language-xml">&lt;!-- /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist --&gt;
 &lt;?xml version="1.0" encoding="UTF-8"?&gt;
@@ -1312,6 +1312,7 @@ sudo launchctl load /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
 <blockquote>
 <p><strong>Note:</strong> the ✅ and 📖 Zotero action buttons have been removed. NNW stars (via FreshRSS) now serve as the primary positive signal to the learning loop. Only the 👎 skip button remains active — it is fully local and does not require Zotero.</p>
 </blockquote>
+<p><strong>Auto-starring</strong> — items with a Bayesian score ≥70 (<code>THRESHOLD_STAR</code>) are automatically starred in FreshRSS/NNW. <code>feedreader-score.py</code> writes their URLs to <code>/tmp/feedreader-star-queue.txt</code>; <code>feedreader-learn.py</code> reads that queue each morning and stars the items via the FreshRSS GReader API before processing any other signals. This means high-confidence items appear starred in NetNewsWire without any manual action.</p>
 <p><strong>Add your source feeds</strong> to <code>.claude/feedreader-list.txt</code> instead of directly to NetNewsWire. Useful sources:</p>
 <ul>
 <li>Journal RSS (e.g. BMJ, NEJM, Wiley Health Economics)</li>
@@ -1521,7 +1522,7 @@ Use the Obsidian Spaced Repetition format with ? as separator.
 <p>Claude Code adjusts its evaluation based on the Zotero tag of the item:</p>
 <div class="table-wrapper"><table><thead><tr><th>Tag</th><th>Treatment</th></tr></thead><tbody>
 <tr><td><code>✅</code></td><td>Previously approved — skip Go/No-go, go directly to processing</td></tr>
-<tr><td><code>📖</code></td><td>Marked as interesting — only ask the Go/No-go question, no summary</td></tr>
+<tr><td><code>📖</code></td><td>Marked as interesting — generate a compact summary via <code>summarize_item.py</code> (local, Qwen3.5:9b); show path; wait for Go/No-go</td></tr>
 <tr><td><code>/unread</code>, no tag, or another tag</td><td>Generate summary + relevance indication, ask Go or No-go</td></tr>
 </tbody></table>
 </div>
@@ -1587,16 +1588,17 @@ summary per item and a relevance assessment for my research on [topic].
 </tbody></table>
 </div>
 <h3 id="feedback-signals-in-the-html-reader"><a class="header" href="#feedback-signals-in-the-html-reader">Feedback signals in the HTML reader</a></h3>
-<p>The HTML reader captures five distinct behaviour types that feed into the learning loop (<code>feedreader-learn.py</code>):</p>
-<div class="table-wrapper"><table><thead><tr><th>#</th><th>Behaviour</th><th>Signal</th><th>Recorded as</th></tr></thead><tbody>
-<tr><td>1</td><td>Headline clicked + added to Zotero</td><td>Strong positive</td><td><code>added_to_zotero: true</code></td></tr>
-<tr><td>2</td><td>Headline clicked, not added to Zotero</td><td>Weak negative (seen, not interesting enough)</td><td><code>added_to_zotero: false</code> after 3 days</td></tr>
-<tr><td>3</td><td>Not clicked, no 👎</td><td>Ambiguous — not seen, or implicitly ignored</td><td><code>added_to_zotero: false</code> after 3 days (indistinguishable from type 2)</td></tr>
-<tr><td>4</td><td>👎 pressed without clicking</td><td>Strong explicit negative (headline was enough to reject)</td><td><code>skipped: true</code> immediately</td></tr>
-<tr><td>5</td><td>Headline clicked, then 👎 pressed</td><td>Strongest negative signal (read and rejected)</td><td><code>skipped: true</code> + <code>added_to_zotero: false</code></td></tr>
+<p>The HTML reader captures six distinct behaviour types that feed into the learning loop (<code>feedreader-learn.py</code>):</p>
+<div class="table-wrapper"><table><thead><tr><th>#</th><th>Signal</th><th>Source</th><th>Recorded as</th></tr></thead><tbody>
+<tr><td>1</td><td>⭐ Starred in NetNewsWire</td><td>FreshRSS GReader API</td><td><code>added_to_zotero: true</code>, <code>starred_in_freshrss: true</code></td></tr>
+<tr><td>2</td><td>URL found in Zotero library</td><td>Zotero SQLite</td><td><code>added_to_zotero: true</code></td></tr>
+<tr><td>3</td><td>Title match in Zotero library</td><td>Zotero SQLite</td><td><code>added_to_zotero: true</code></td></tr>
+<tr><td>4</td><td>Read in NNW, not in Zotero after 1 day</td><td>FreshRSS GReader API</td><td><code>added_to_zotero: false</code>, <code>read_in_nnw: true</code></td></tr>
+<tr><td>5</td><td>No action after 3 days (timeout) — <strong>strongest negative</strong></td><td>score_log age</td><td><code>added_to_zotero: false</code></td></tr>
+<tr><td>6</td><td>👎 pressed (tracked separately)</td><td>skip_queue.jsonl</td><td><code>skipped: true</code></td></tr>
 </tbody></table>
 </div>
-<p>Only types 4 and 5 are unambiguous rejections. Type 3 remains ambiguous even with the 👎 button. See <a href="extensions/rss.html#12d-feedback-signals-training-the-scoring">Step 12d</a> for details on how these signals are used to calibrate scoring thresholds.</p>
+<p>Signals 1–3 are positive; signals 4–5 are implicit negatives; signal 6 is an explicit rejection. The 👎 skip queue is processed separately from the other signals. See <a href="extensions/rss.html#12d-feedback-signals-training-the-scoring">Step 12d</a> for details on how these signals are used to calibrate scoring thresholds.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="step-15-future-perspective--local-orchestrator"><a class="header" href="#step-15-future-perspective--local-orchestrator">Step 15: Future perspective — local orchestrator</a></h1>
 <p>The only component in this stack that does not run fully locally is Claude Code as orchestrator. All generation tasks (summaries, literature notes, syntheses, flashcards) already run via Qwen3.5:9b on Ollama — fully local, fully private. What goes through the Anthropic API are the prompts with which Claude Code steers the workflow: the intake, the phase monitoring, the vault conventions, the iterative Go/No-go dialogue.</p>
 <p>For those who also want to solve this layer locally, two serious candidates are emerging.</p>
