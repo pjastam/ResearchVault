@@ -38,8 +38,7 @@ Als Ollama niet bereikbaar is: meld dit en vraag of de gebruiker wil overschakel
 | --- | --- | --- |
 | `literature/` | Source notes | Één note per paper of bron uit Zotero |
 | `syntheses/` | Syntheses | Thematische syntheses van meerdere bronnen |
-| `projects/` | Projects | Projectspecifieke documentatie en Talma-koppelingen |
-| `daily/` | — | Dagelijkse notities en logboek |
+| `notes/` | — | Persoonlijke en werknotities |
 | `inbox/` | — | Ruwe input die nog verwerkt moet worden |
 | `meta/candidates/` | — | Staging area: Qwen-drafts vóór promotie naar `literature/` (zie Ingest-procedure) |
 
