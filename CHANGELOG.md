@@ -1,5 +1,38 @@
 # Changelog
 
+## v1.17 — 2 mei 2026
+
+### 🧹 Vault-structuurvereenvoudiging
+
+- `daily/` en `projects/` verwijderd uit de git-repo (leeg, geen functie meer in de vault)
+- `assets/` verplaatst naar `notes/assets/` via Obsidian; interne links bijgewerkt
+- `notes/` en `.stignore` toegevoegd aan `.gitignore` (persoonlijke content buiten versiebeheer)
+
+### 🤖 Sessiegedrag en wrap-up skill
+
+- `.claude/skills/wrap-up/SKILL.md` toegevoegd: gestructureerde afsluiting van Claude Code-sessies
+- Gedragsregels en sessie-startup gedocumenteerd in `CLAUDE.md`
+- `.claude/*.local.md` toegevoegd aan `.gitignore` (hookify lokale regels buiten versiebeheer)
+
+### ⭐ Auto-sterren: star-queue via /tmp/
+
+- Auto-sterren verplaatst naar een star-queue in `/tmp/` zodat sterren pas ná FreshRSS actualize worden doorgevoerd
+- `feedreader-learn.py`: star-queue verwerking toegevoegd
+- Voorkomt race condition waarbij sterren werden gezet vóór FreshRSS de items had bijgewerkt
+
+### 📖 Documentatie
+
+- `CLAUDE.md`: Architectuurprincipes toegevoegd, daemon-lijst bijgewerkt (alle vier inclusief overdagtaken), FreshRSS Option C en correcte beschrijving `zotero-inbox.py` (lokale REST API)
+- `docs/src/extensions/rss.md`: nachtelijke taken bijgewerkt (4 → 6 stappen), auto-starring gedocumenteerd (`THRESHOLD_STAR=70`, star-queue)
+- `docs/src/extensions/filter-layer.md`: signaal-tabel volledig herschreven naar actuele signaalhi­ërarchie (⭐ NNW-ster › Zotero-URL › Zotero-titel › gelezen › timeout › 👎)
+- `docs/src/reference/`: privacy, troubleshooting en daily-workflow gesynchroniseerd met codestand
+
+### ⚙️ Feedreader
+
+- `feedreader_core.py`: `PRIOR_RELEVANCE` tijdelijk op 0.80 (testwaarde; productiewaarde: 0.70)
+
+---
+
 ## v1.16 — 29 april 2026
 
 ### ⭐ NNW-sterren als leersignaal + auto-sterren
