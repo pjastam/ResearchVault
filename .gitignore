@@ -7,6 +7,7 @@
 
 # Claude Code lokale instellingen (bevatten persoonlijke paden en IDs)
 .claude/settings.local.json
+.claude/*.local.md
 
 # Persoonlijke onderzoeksinhoud — niet delen, maar mapstructuur wel bewaren
 meta/candidates/*.md

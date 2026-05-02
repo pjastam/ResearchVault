@@ -27,7 +27,7 @@ From that point on, the skill is active as soon as you open Claude Code in your 
 
 Once everything is set up, the daily workflow is straightforward. The feedreader runs automatically — no action required.
 
-1. **Browse the filtered feed** at `http://localhost:8765/filtered.html` (or in NetNewsWire via the three type-specific Atom feeds). Items are sorted by relevance score. Send interesting ones to Zotero `_inbox` via the action buttons (✅/📖) or the browser extension.
+1. **Browse the filtered feed** at `http://localhost:8765/filtered.html` (or in NetNewsWire via the three type-specific Atom feeds). Items are sorted by relevance score. Send interesting ones to Zotero `_inbox` via the Zotero browser extension or iOS app. Press 👎 on clearly off-topic items to give a negative signal to the learning loop.
 2. **Open Terminal in your vault:** `cd ~/Documents/ResearchVault && claude`
 3. **Activate the skill:** type `/research` or "start research workflow"
 4. Claude Code asks an intake question and guides you interactively from there

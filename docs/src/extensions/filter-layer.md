@@ -118,4 +118,4 @@ The HTML reader captures five distinct behaviour types that feed into the learni
 | 4 | 👎 pressed without clicking | Strong explicit negative (headline was enough to reject) | `skipped: true` immediately |
 | 5 | Headline clicked, then 👎 pressed | Strongest negative signal (read and rejected) | `skipped: true` + `added_to_zotero: false` |
 
-Only types 4 and 5 are unambiguous rejections. Type 3 remains ambiguous even with the 👎 button. See [Step 12c](rss.md#12c-feedback-signals-training-the-scoring) for details on how these signals are used to calibrate scoring thresholds.
+Only types 4 and 5 are unambiguous rejections. Type 3 remains ambiguous even with the 👎 button. See [Step 12d](rss.md#12d-feedback-signals-training-the-scoring) for details on how these signals are used to calibrate scoring thresholds.

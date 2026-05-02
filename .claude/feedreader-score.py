@@ -64,11 +64,6 @@ from feedreader_core import (
     extract_snippet,
     make_item_summary,
 )
-from freshrss_utils import (
-    load_freshrss_creds,
-    freshrss_auth,
-    freshrss_star_by_urls,
-)
 from zotero_utils import make_sqlite_copy, get_library_keys_with_weights
 
 # optionele afhankelijkheid — transcript-verrijking werkt alleen als dit pakket geïnstalleerd is
@@ -87,6 +82,7 @@ SCRIPT_DIR    = Path(__file__).parent
 FEEDS_FILE    = SCRIPT_DIR / "feedreader-list.txt"
 SERVE_DIR     = Path.home() / ".local" / "share" / "feedreader-serve"
 LOG_FILE      = SCRIPT_DIR / "score_log.jsonl"
+STAR_QUEUE    = Path("/tmp/feedreader-star-queue.txt")
 CHROMA_PATH   = Path.home() / ".config" / "zotero-mcp" / "chroma_db"
 ZOTERO_SQLITE = Path.home() / "Zotero" / "zotero.sqlite"
 INBOX_ID      = 333
@@ -758,20 +754,13 @@ def main():
         if item["url"]
     ]
 
-    # 4b. Auto-sterren: items met score ≥ THRESHOLD_STAR in FreshRSS/NNW markeren
+    # 4b. Star-kandidaten opslaan voor verwerking in feedreader-learn.py (na freshrss actualize)
     star_candidates = [i["url"] for i in all_items if i.get("score", 0) >= THRESHOLD_STAR and i.get("url")]
     if star_candidates:
-        print(f"     ⭐ {len(star_candidates)} item(s) met score ≥{THRESHOLD_STAR} auto-sterren in FreshRSS...")
-        fr_creds = load_freshrss_creds()
-        if all(fr_creds.values()):
-            fr_auth, fr_post = freshrss_auth(fr_creds)
-            if fr_auth and fr_post:
-                starred = freshrss_star_by_urls(fr_creds["url"], fr_auth, fr_post, star_candidates)
-                print(f"     ⭐ {starred}/{len(star_candidates)} gestefd in FreshRSS.")
-            else:
-                print("     ⚠️  FreshRSS GReader auth mislukt; auto-sterren overgeslagen.")
-        else:
-            print("     ⚠️  FRESHRSS_API_WACHTWOORD niet ingesteld; auto-sterren overgeslagen.")
+        STAR_QUEUE.write_text("\n".join(star_candidates) + "\n", encoding="utf-8")
+        print(f"     ⭐ {len(star_candidates)} item(s) met score ≥{THRESHOLD_STAR} opgeslagen in star-queue.")
+    else:
+        print("     Geen star-kandidaten.")
 
     # 5. Atom-feeds schrijven
     print("[5/5] Atom-feeds genereren...")

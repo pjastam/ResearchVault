@@ -109,12 +109,12 @@ Controleer welke syntheses relevant zijn en voeg een bullet of sectie toe.
 - Output: gesorteerde lijst met scores 0–100, labels 🟢 (≥70) · 🟡 (40–69) · 🔴 (<40)
 
 ## Zotero-hulpscripts
-- `.claude/zotero-inbox.py` — voegt een item toe aan de Zotero `_inbox` collectie via de web API; wordt intern aangeroepen door de feedreader-server bij ✅/📖 acties vanuit de HTML-lezer of NetNewsWire
+- `.claude/zotero-inbox.py` — leest alle items uit de Zotero `_inbox` collectie via de lokale REST API (localhost:23119); gebruik voor overzicht of scripting: `python3 zotero-inbox.py --json`; vereist dat Zotero draait
 - `.claude/zotero-remove-from-inbox.py` — verwijdert een item uit de `_inbox` na verwerking:
   ```bash
   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/zotero-remove-from-inbox.py ITEMKEY
   ```
-- `.claude/zotero_utils.py` — gedeelde hulpfuncties voor beide scripts (API-sleutel uitlezen uit `~/.zprofile`, collectie-ID opzoeken)
+- `.claude/zotero_utils.py` — gedeelde SQLite-hulpfuncties voor feedreader-score.py, feedreader-learn.py en index-score.py; leest items en gewichten direct uit de Zotero-database (geen API-aanroepen)
 
 ## YouTube-transcripten (attach-transcript.py)
 
@@ -199,10 +199,13 @@ De feedreader scoort RSS/YouTube/podcast-feeds automatisch op relevantie en prod
 
 Na ≥30 positieven verschijnt een drempeladvies; pas dan `THRESHOLD_GREEN` en `THRESHOLD_YELLOW` aan.
 
-**launchd-daemons (alle drie in `/Library/LaunchDaemons/`, draaien zonder ingelogde gebruiker):**
+**launchd-daemons (alle vier in `/Library/LaunchDaemons/`, draaien zonder ingelogde gebruiker):**
 - `nl.researchvault.feedreader-server` — HTTP-server permanent actief (poort 8765); log: `~/Library/Logs/feedreader-server.log`
-- `nl.pietstam.nachtelijke-taken` — nachtelijke batchrun dagelijks om 06:00: zotero update-db → feedreader-score → freshrss actualize → feedreader-learn → proton-backup → proton-mirror → shutdown; Mac wordt gewekt via `pmset wakeorpoweron` om 05:30 (minimaal 30 min vóór de trigger om race condition met UserEventAgent-System te voorkomen); log: `~/Library/Logs/nachtelijke-taken.log`; rclone heeft **Full Disk Access** nodig (Systeeminstellingen → Privacy en beveiliging → Volledige schijftoegang → `/opt/homebrew/bin/rclone`) — zonder FDA blokkeert macOS TCC de toegang tot `~/Documents` stil tijdens headless runs
+- `nl.pietstam.nachtelijke-taken` — nachtelijke batchrun dagelijks om 06:00: zotero update-db → feedreader-score → freshrss actualize → feedreader-learn → proton-backup → proton-mirror → shutdown; Mac wordt gewekt via `pmset wakeorpoweron` om 05:55 (5 min vóór de trigger; zie RUNBOOK.md voor race condition historie); log: `~/Library/Logs/nachtelijke-taken.log`; rclone heeft **Full Disk Access** nodig (Systeeminstellingen → Privacy en beveiliging → Volledige schijftoegang → `/opt/homebrew/bin/rclone`) — zonder FDA blokkeert macOS TCC de toegang tot `~/Documents` stil tijdens headless runs; **veiligheidsregel: de shutdown-stap vuurt alleen als `LAUNCHD_RUN=1` gezet is (door de plist) — handmatig uitvoeren van het script sluit de Mac nooit af**
+- `nl.pietstam.overdagtaken` — dagbatchrun op 09:00, 12:00, 15:00, 18:00 en 21:00: stappen 1–4 (zotero update-db → feedreader-score → freshrss actualize → feedreader-learn); sluit de Mac alleen af na de 21:00-run én alleen als er geen actieve gebruikerssessie is; log: `~/Library/Logs/overdagtaken.log`
 - `nl.researchvault.ttyd` — browser-terminal permanent actief (poort 7681, `--writable`); log: `~/Library/Logs/ttyd.log`
+
+> **FreshRSS-setup (huidige configuratie — Option C):** FreshRSS draait in Docker op Home Assistant Green (altijd aan), niet op de Mac Mini. De actualize-stap in `nachtelijke-taken.sh` stuurt een HTTP curl-verzoek naar het HA Green Tailscale IP (poort 8080) — geen `docker exec`. FreshRSS haalt de feeds vervolgens op van de Mac Mini (poort 8765 via Tailscale). De Mac Mini kan daarna afsluiten; FreshRSS op HA Green blijft de items de rest van de dag serveren. NetNewsWire verbindt via het HA Green Tailscale IP.
 
 ## RSS-feeds
 - RSS-feeds worden gefilterd door de feedreader; de HTML-lezer (`http://localhost:8765/filtered.html`) of de Atom-feed in NetNewsWire toont items gesorteerd op relevantiescore
@@ -215,6 +218,13 @@ Na ≥30 positieven verschijnt een drempeladvies; pas dan `THRESHOLD_GREEN` en `
 - Formaat: vraag en antwoord gescheiden door `?` op een nieuwe regel, omsloten door `#flashcard`-tag
 - Maak maximaal 5 kaarten per bron — kies de meest relevante concepten
 - Dagelijkse review via Obsidian Spaced Repetition plugin (zijbalk → Kaarten beoordelen)
+
+## Architectuurprincipes (niet onderhandelbaar)
+
+- **Privacy-grens**: source content (volledige tekst van papers, podcasts, video's) gaat NOOIT naar de Anthropic API. Alleen JSON status-objecten en metadata mogen Claude Code bereiken vanuit de subagents.
+- **Subagent-patroon**: `process_item.py` en `summarize_item.py` worden aangeroepen als lokale Python-subprocessen. Claude Code stuurt ze aan maar voert zelf geen inhoudsverwerking uit.
+- **`--hd` flag**: activeert Claude Sonnet 4.6 in plaats van Qwen3.5:9b. Vereist altijd expliciete bevestiging van de gebruiker vóór verzending naar de API.
+- **Zotero**: alle interacties via de lokale REST API (localhost:23119) — vereist dat de Zotero app draait. Nooit via de Zotero Web API of andere cloud-diensten.
 
 ## Privacyregel: broninhoud blijft lokaal
 

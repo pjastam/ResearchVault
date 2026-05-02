@@ -73,12 +73,10 @@ Then type `beoordeel inbox` to begin the Go/No-go review.
 
 The three type-specific feeds can be subscribed to in NetNewsWire on macOS or iOS. Titles are prefixed with score and label (`🟢 54 | Title…`). Sorting by **Newest First** equals sorting by relevance (the feedreader encodes scores as synthetic dates).
 
-Each article in NNW shows three action buttons (requires JavaScript enabled in NNW Article Content settings):
-- **✅ Zotero** — adds the item to Zotero `_inbox` with tag `✅`
-- **📖 Later lezen** — adds with tag `📖`
+Each article in NNW shows one action button (requires JavaScript enabled in NNW Article Content settings):
 - **👎 Overslaan** — sends a negative signal to the learning loop
 
-Using these buttons directly sends items to `_inbox` — it behaves like **source 2** (a deliberate choice) and contributes a clean positive calibration signal.
+Pressing 👎 fades the item and writes the URL to `skip_queue.jsonl`; `feedreader-learn.py` processes it the next morning. To send items to Zotero `_inbox`, use the Zotero browser extension or iOS app instead.
 
 ---
 

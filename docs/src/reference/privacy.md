@@ -3,13 +3,13 @@
 | Component | Data local? | Notes |
 |---|---|---|
 | Zotero + local API | ✅ Fully | Runs on `localhost`, no cloud |
-| Zotero MCP + Web API | ⚠️ Partially | Read operations local; action buttons (✅/📖) use Zotero Web API — item metadata (URL, title, type) goes to zotero.org |
+| Zotero MCP + Web API | ⚠️ Partially | Read operations local; removing items from `_inbox` uses the Zotero Web API — item metadata (URL, title, type) goes to zotero.org |
 | Obsidian vault | ✅ Fully | Regular files on your Mac |
 | Ollama + Qwen3.5:9b | ✅ Fully | Model runs locally on M4; default for all generative tasks |
 | yt-dlp | ✅ Fully | Scraping executed locally |
 | whisper.cpp | ✅ Fully | Transcription locally on M4 via Metal |
 | NetNewsWire | ✅ Fully | RSS data stored locally, no account |
-| FreshRSS (Docker) | ✅ Fully | Self-hosted on Mac mini; read/unread sync stays on LAN |
+| FreshRSS (Docker) | ✅ Fully | Self-hosted on Home Assistant Green (always-on); read/unread sync stays on your Tailscale network |
 | feedreader (score/server/learn) | ✅ Fully | Runs locally; scoring uses local ChromaDB embeddings |
 | ttyd | ✅ Fully | Browser terminal runs locally on Mac mini |
 | Obsidian Spaced Repetition | ✅ Fully | Cards and review data in vault files |

@@ -28,6 +28,7 @@ from pathlib import Path
 from freshrss_utils import (
     load_freshrss_creds,
     freshrss_auth,
+    freshrss_star_by_urls,
     freshrss_starred_urls,
     freshrss_read_urls,
 )
@@ -38,6 +39,7 @@ from zotero_utils import make_sqlite_copy
 SCRIPT_DIR      = Path(__file__).parent
 LOG_FILE        = SCRIPT_DIR / "score_log.jsonl"
 SKIP_QUEUE      = SCRIPT_DIR / "skip_queue.jsonl"
+STAR_QUEUE      = Path("/tmp/feedreader-star-queue.txt")
 ZOTERO_SQLITE   = Path.home() / "Zotero" / "zotero.sqlite"
 INBOX_ID        = 333
 LABEL_AFTER_DAYS     = 3  # items ouder dan N dagen zonder match krijgen added_to_zotero: false
@@ -193,8 +195,14 @@ def main():
     fr_read:    set[str] = set()
     fr_creds = load_freshrss_creds()
     if all(fr_creds.values()):
-        fr_auth, _ = freshrss_auth(fr_creds)
+        fr_auth, fr_post = freshrss_auth(fr_creds)
         if fr_auth:
+            if STAR_QUEUE.exists():
+                queue_urls = [u for u in STAR_QUEUE.read_text(encoding="utf-8").splitlines() if u]
+                if queue_urls:
+                    starred = freshrss_star_by_urls(fr_creds["url"], fr_auth, fr_post, queue_urls)
+                    print(f"     ⭐ {starred}/{len(queue_urls)} item(s) gestefd via star-queue.")
+                STAR_QUEUE.unlink()
             fr_starred = freshrss_starred_urls(fr_creds["url"], fr_auth)
             fr_read    = freshrss_read_urls(fr_creds["url"], fr_auth)
             print(f"     ⭐ {len(fr_starred)} gestefd, 📖 {len(fr_read)} gelezen in FreshRSS.")

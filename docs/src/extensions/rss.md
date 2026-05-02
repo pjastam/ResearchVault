@@ -61,7 +61,7 @@ Create the HTTP server daemon in `/Library/LaunchDaemons/`:
 
 > **Note:** the daemon runs as root (no `UserName` key). The `HOME` environment variable must point to your user's home directory so that Python tools can find their configuration files. Without `HOME`, tools like `rclone` and `zotero-mcp` will fail to locate their config paths during headless runs.
 
-The nightly batch jobs run via `~/bin/nachtelijke-taken.sh`, called from a LaunchDaemon in `/Library/LaunchDaemons/`. Because it is a system-level daemon running as root, it fires at 06:00 even without an active user session — which is required when the Mac wakes from a scheduled `pmset` power-on. The script runs sequentially in 6 steps: Zotero DB update → feedreader-score → FreshRSS actualize → feedreader-learn → proton-backup → proton-mirror → shutdown. The FreshRSS actualize step runs immediately after feedreader-score so that FreshRSS fetches the freshly generated feeds before the Mac shuts down. Without this step, FreshRSS would not update until the next time the Mac is awake and the FreshRSS actualize is triggered again. See [Step 12c](#12c-freshrss--readunread-sync-across-devices) for how the actualize step differs between setup options.
+The nightly batch jobs run via `~/bin/nachtelijke-taken.sh`, called from a LaunchDaemon in `/Library/LaunchDaemons/`. Because it is a system-level daemon running as root, it fires at 06:00 even without an active user session — which is required when the Mac wakes from a scheduled `pmset` power-on. The script runs sequentially in 4 steps: Zotero DB update → feedreader-score → FreshRSS actualize → feedreader-learn → shutdown. Proton Drive backup and mirror run separately at 06:45 via a dedicated `nl.pietstam.proton-taken` daemon and are not part of the ResearchVault pipeline. The FreshRSS actualize step runs immediately after feedreader-score so that FreshRSS fetches the freshly generated feeds before the Mac shuts down. Without this step, FreshRSS would not update until the next time the Mac is awake and the FreshRSS actualize is triggered again. See [Step 12c](#12c-freshrss--readunread-sync-across-devices) for how the actualize step differs between setup options.
 
 A second LaunchDaemon (`nl.pietstam.overdagtaken`) runs the same steps 1–4 (Zotero → feedreader-score → FreshRSS actualize → feedreader-learn) at 09:00, 12:00, 15:00, 18:00, and 21:00, keeping feeds fresh throughout the day. After the 21:00 run the Mac also shuts down — but only if no user is logged in at the console. If you have manually turned on the Mac and are logged in (even with the screen locked), shutdown is skipped and a message is logged. The check uses `stat -f%Su /dev/console`: if it returns anything other than `root`, a user session is active. If the Mac was off when a scheduled time passed, launchd fires the missed job **once** immediately at next boot — not once per missed interval. The remaining scheduled times then run normally.
 
@@ -123,9 +123,9 @@ sudo launchctl load /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
 
 1. **Scheduled wake for the nightly daemon** — set a recurring daily wake time at least 30 minutes before the batch job so that `UserEventAgent-System` has time to fully initialize before the 06:00 trigger fires:
    ```bash
-   sudo pmset repeat wakeorpoweron MTWRFSU 05:30:00
+   sudo pmset repeat wakeorpoweron MTWRFSU 05:55:00
    ```
-   The Mac wakes at 05:30, the daemon fires at 06:00, and the Mac shuts down automatically at the end of the script. Check the schedule with `pmset -g sched`; cancel with `sudo pmset repeat cancel`. If the wake time is too close to 06:00 (< 30 min), `UserEventAgent-System` may not be ready in time and launchd silently skips the trigger — the job will then only run the next day.
+   The Mac wakes at 05:55, the daemon fires at 06:00, and the Mac shuts down automatically at the end of the script. Check the schedule with `pmset -g sched`; cancel with `sudo pmset repeat cancel`. If the wake time is too close to 06:00 (< 30 min), `UserEventAgent-System` may not be ready in time and launchd silently skips the trigger — the job will then only run the next day.
 
 2. **Network wake for iPhone/iPad access** — in **System Settings → Energy** (Dutch: *Energie-instellingen*), enable **"Schakel sluimerstand uit voor netwerktoegang"**. Despite the wording ("disable sleep for network access"), this puts the Mac into a lighter sleep state rather than deep sleep, keeping the network interface active so the HTTP server on port 8765 remains reachable from iPhone or iPad. The Mac still saves significant power compared to staying fully awake.
 
@@ -151,11 +151,11 @@ The HTML reader includes an **⌨️ terminal** button in the header. Clicking i
 
 **Podcast articles:** clicking a podcast headline opens a similar generated article at `http://localhost:8765/article/podcast/{episode_id}`, based on the episode's show notes rather than an audio transcript. Only episodes with show notes of at least 200 characters get an article page; episodes with thinner show notes link directly to the source. Generation follows the same async pattern as YouTube articles.
 
-The article page (for both YouTube and podcast) includes three tag buttons — **✅ verwerken**, **📖 later lezen**, **geen tag** (default) — that control which Zotero tag is attached when you save the page via the Zotero Connector. The selected tag is injected as a COinS span (`<span class="Z3988">`); the full article text is also injected as `rft.description`, so it appears automatically in the Abstract field of the saved Zotero item.
+The article page (for both YouTube and podcast) injects the full article text as `rft.description` in a COinS span (`<span class="Z3988">`), so the text appears automatically in the Abstract field when you save the page via the Zotero Connector.
 
 > **Serve directory:** the HTTP server serves files from `~/.local/share/feedreader-serve/`, not from `~/Documents/`, because macOS TCC prevents system Python from accessing the Documents folder when launched via launchd.
 
-**Learning loop** — `feedreader-learn.py` runs daily as part of the nightly batch job and matches recently added Zotero items (by URL) against the score log. After ≥30 positives it prints a threshold recommendation. Once the threshold is stable, activate score filtering in `feedreader-score.py` by adjusting `THRESHOLD_GREEN` and `THRESHOLD_YELLOW`.
+**Learning loop** — `feedreader-learn.py` runs daily as part of the nightly batch job. It reads NNW stars and read items from FreshRSS, matches Zotero additions by URL and title, and processes the 👎 skip queue — labelling each item in `score_log.jsonl` as positive or negative. After ≥30 positives it prints a threshold recommendation. Once the threshold is stable, activate score filtering in `feedreader-score.py` by adjusting `THRESHOLD_GREEN` and `THRESHOLD_YELLOW`.
 
 > **Privacy note:** `feedreader-score.py` runs entirely locally. Feed URLs are fetched directly from the source; no feed content is sent to any cloud service.
 
@@ -183,7 +183,7 @@ Titles are prefixed with score and label (`🟢 54 | Title…`). Items in each A
 
 Each Atom feed is limited to the top 300 items by score. Items older than 30 days (web articles, podcasts, YouTube) or 365 days (academic journal feeds) are automatically excluded.
 
-**Enable JavaScript in NetNewsWire** — required for the action buttons to work:
+**Enable JavaScript in NetNewsWire** — required for the 👎 action button to work:
 
 1. NetNewsWire → **Settings** → **Article Content**
 2. Check **"Enable JavaScript"**
@@ -192,17 +192,11 @@ Each Atom feed is limited to the top 300 items by score. Items older than 30 day
 
 | Button | Action |
 |--------|--------|
-| **✅ Zotero** | Adds the item to Zotero `_inbox` with tag `✅` (processed) via the Zotero Web API |
-| **📖 Later lezen** | Adds the item to Zotero `_inbox` with tag `📖` (read later) |
 | **👎 Overslaan** | Marks the item as skipped — sends a negative signal to the learning loop |
 
-The buttons fire a silent HTTP request to the local server via `new Image().src` — no browser tab opens. The item's title, URL, source, publication date, and type are sent along so the Zotero entry is complete.
+The button fires a silent HTTP request to the local feedreader server via `new Image().src` — no browser tab opens. The item's URL and title are written to `skip_queue.jsonl`; `feedreader-learn.py` processes the queue the next morning.
 
-> **Zotero Web API key required:** the action buttons use the Zotero Web API to add items directly. Set your API key in `~/.zprofile`:
-> ```bash
-> export ZOTERO_API_KEY="your-key-here"
-> ```
-> Obtain your key at [zotero.org/settings/keys](https://www.zotero.org/settings/keys) (read/write access to library).
+> **Note:** the ✅ and 📖 Zotero action buttons have been removed. NNW stars (via FreshRSS) now serve as the primary positive signal to the learning loop. Only the 👎 skip button remains active — it is fully local and does not require Zotero.
 
 **Add your source feeds** to `.claude/feedreader-list.txt` instead of directly to NetNewsWire. Useful sources:
 - Journal RSS (e.g. BMJ, NEJM, Wiley Health Economics)
@@ -215,10 +209,7 @@ The buttons fire a silent HTTP request to the local server via `new Image().src`
 
 **From NetNewsWire to the vault (phase 1 → phase 2 → phase 3):**
 
-Interesting articles are saved via two routes:
-
-- **Via action buttons** (✅ / 📖): click directly in the NNW article view — the item is added to Zotero `_inbox` immediately, with the correct type (webpage / videoRecording / podcast), source, date, and tag.
-- **Via Zotero browser extension or iOS app:** open the article in a browser, click the Zotero icon → item is saved with full metadata to Zotero `_inbox`. Use this route when you want annotation capabilities or need richer metadata.
+Interesting articles are saved via the Zotero browser extension or iOS app: open the article in a browser, click the Zotero icon → item is saved with full metadata to Zotero `_inbox`. Use this route when you want annotation capabilities or need richer metadata.
 
 > **Privacy note:** NetNewsWire stores feed data locally. No reading habits are sent to external servers.
 
@@ -305,7 +296,7 @@ This makes FreshRSS available at `https://[machine-name].[tailnet].ts.net/`. Tai
 
 ### Option C: FreshRSS on Home Assistant Green (current setup)
 
-FreshRSS runs in a Docker container on a Home Assistant Green device, which runs 24/7 independently of the Mac mini. The Mac mini generates the filtered feeds as before; after generating them it triggers FreshRSS on the HA Green via SSH to fetch them. From that point the Mac can shut down — FreshRSS keeps the feeds available all day from the HA Green.
+FreshRSS runs in a Docker container on a Home Assistant Green device, which runs 24/7 independently of the Mac mini. The Mac mini generates the filtered feeds as before; after generating them it triggers FreshRSS on the HA Green via an HTTP actualize request (over Tailscale) to fetch them. From that point the Mac can shut down — FreshRSS keeps the feeds available all day from the HA Green.
 
 **Advantages over Option B:** FreshRSS is available 24/7 even when the Mac mini is off. NetNewsWire can sync at any time, not only during Mac awake windows. Docker Desktop is not needed on the Mac mini. Remote access requires only Tailscale (no public Funnel URL).
 
@@ -346,7 +337,7 @@ curl -s --max-time 60 \
   "http://[ha-green-tailscale-ip]:8080/i/?c=feed&a=actualize&ajax=1&maxFeeds=50&user=${FRESHRSS_USER}&token=${FRESHRSS_TOKEN}"
 ```
 
-The flow has two directions. First, the Mac mini initiates: it sends a curl request to FreshRSS on HA Green ("please actualize"). Then the direction reverses: FreshRSS on HA Green pulls the XML feeds from the Mac mini's feedreader server (port 8765, reachable via Tailscale Funnel). The Mac mini must therefore still be running when the actualize step fires — and it is, because shutdown only happens after all six steps complete.
+The flow has two directions. First, the Mac mini initiates: it sends a curl request to FreshRSS on HA Green ("please actualize"). Then the direction reverses: FreshRSS on HA Green pulls the XML feeds from the Mac mini's feedreader server (port 8765, reachable via Tailscale Funnel). The Mac mini must therefore still be running when the actualize step fires — and it is, because shutdown only happens after all pipeline steps complete.
 
 The full sequence: feedreader-score generates the XML files → Mac mini's HTTP server serves them on port 8765 → curl tells FreshRSS on HA Green to actualize → FreshRSS pulls the feeds from the Mac mini → FreshRSS stores the items internally → Mac mini shuts down. After shutdown, FreshRSS on HA Green continues to serve the stored items to NetNewsWire.
 
@@ -363,22 +354,38 @@ Tailscale must be installed and active on iPhone and iPad for the Tailscale IP t
 
 ## 12d. Feedback signals: training the scoring
 
-The HTML reader (`http://localhost:8765/filtered.html`) captures three types of user behaviour that feed into the learning loop:
+`feedreader-learn.py` runs daily and labels each item in `score_log.jsonl` based on signals from FreshRSS, Zotero, and the skip queue. The labels are used to calibrate the scoring threshold.
 
-| # | Behaviour | Signal strength | Recorded as |
-|---|-----------|-----------------|-------------|
-| 1 | Item clicked + added to Zotero | Strong positive | `added_to_zotero: true` |
-| 2 | Item clicked, not added to Zotero | Weak negative (seen but not interesting enough) | `added_to_zotero: false` after 3 days |
-| 3 | Item not clicked, no 👎 pressed | Ambiguous — not seen, or implicitly ignored | `added_to_zotero: false` after 3 days — indistinguishable from type 2 |
-| 4 | 👎 pressed without clicking | **Strong explicit negative** (headline was enough to reject) | `skipped: true` immediately |
-| 5 | Item clicked, then 👎 pressed | **Strongest negative signal** (read and rejected) | `skipped: true` + `added_to_zotero: false` |
+**Signal hierarchy — positive (highest priority first):**
 
-> **Type 3 remains ambiguous** even with the 👎 button. Items you never looked at receive the same label as items you chose not to add. Only types 4 and 5 are unambiguous rejections. `feedreader-learn.py` reports all three categories separately so you can track signal quality over time.
+| # | Signal | Source | Recorded as |
+|---|--------|--------|-------------|
+| 1 | ⭐ Starred in NetNewsWire | FreshRSS GReader API | `added_to_zotero: true`, `starred_in_freshrss: true` |
+| 2 | URL found in Zotero library | Zotero SQLite | `added_to_zotero: true` |
+| 3 | Title match in Zotero library | Zotero SQLite | `added_to_zotero: true` |
+
+**Signal hierarchy — negative:**
+
+| # | Signal | Source | Recorded as |
+|---|--------|--------|-------------|
+| 4 | Read in NNW, not in Zotero after N days | FreshRSS GReader API | `added_to_zotero: false`, `read_in_nnw: true` |
+| 5 | No action after 3 days (timeout) | score_log age | `added_to_zotero: false` — strongest negative |
+
+**Explicit negative (tracked separately):**
+
+| # | Signal | Source | Recorded as |
+|---|--------|--------|-------------|
+| 6 | 👎 pressed in NetNewsWire | feedreader-server skip queue | `skipped: true` immediately |
+
+> **Ambiguity:** items labelled by timeout (type 5) are indistinguishable from items you never saw. Only types 1–4 and 6 carry a clear intent signal. `feedreader-learn.py` reports all categories separately so you can track signal quality over time.
+
+**How to use the ⭐ star:**
+- Star an item in NetNewsWire to send the strongest positive signal. `feedreader-learn.py` reads starred items from FreshRSS each morning.
+- You do not need to save the item to Zotero for the star to count — though saving it to Zotero (signal 2) also works.
 
 **How to use the 👎 button:**
-- When a headline is clearly off-topic, press 👎 directly — no need to open the article.
-- The item is immediately faded and struck through in the reader.
-- The rejection is sent to the server and queued in `skip_queue.jsonl`; `feedreader-learn.py` processes it the next morning.
+- When a headline is clearly off-topic, press 👎 in NetNewsWire — no need to open the article.
+- The rejection is queued in `skip_queue.jsonl`; `feedreader-learn.py` processes it the next morning.
 
 **Future use of explicit negatives:** once enough `skipped: true` items have accumulated, they can be used to build a negative profile that penalises similarity to rejected content: `score = sim(item, positive_profile) − λ × sim(item, negative_profile)`. The learning loop will advise when enough data is available.
 
@@ -388,6 +395,5 @@ The HTML reader (`http://localhost:8765/filtered.html`) captures three types of 
 
 For academic articles from NetNewsWire, the recommended route is to always add them to Zotero first before having them processed. This way you have BibTeX metadata and annotation capabilities available:
 
-1. Click **✅ Zotero** or **📖 Later lezen** in the article view — the item is saved directly to `_inbox`
-2. Or open the article in a browser → click the Zotero icon → item is saved to `_inbox` with richer metadata
-3. In the next research session, run `index-score.py` and process items from `_inbox` via the skill
+1. Open the article in a browser → click the Zotero icon → item is saved to `_inbox` with richer metadata
+2. In the next research session, run `index-score.py` and process items from `_inbox` via the skill

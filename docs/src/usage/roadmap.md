@@ -66,7 +66,7 @@ The research workflow skill (`SKILL.md`) will be updated to reflect the fully au
 
 ### NetNewsWire integration (ongoing, optional)
 
-The three type-specific Atom feeds (`filtered-webpage.xml`, `filtered-youtube.xml`, `filtered-podcast.xml`) are available in NetNewsWire on macOS and iOS. The action buttons (✅/📖/👎) in the NNW article view send items directly to Zotero `_inbox` or to the skip queue, generating clean calibration signals — making NetNewsWire a permanent optional calibration channel, not just a calibration-phase tool.
+The three type-specific Atom feeds (`filtered-webpage.xml`, `filtered-youtube.xml`, `filtered-podcast.xml`) are available in NetNewsWire on macOS and iOS. The **👎** button in the NNW article view sends an explicit negative signal to the skip queue, making NetNewsWire a permanent optional calibration channel. Items you want to save go to Zotero via the browser extension or iOS app.
 
 ---
 

@@ -14,7 +14,7 @@ THRESHOLD_GREEN  = 50
 THRESHOLD_YELLOW = 40
 THRESHOLD_STAR   = 70  # items met score ≥ dit worden auto-gestefd in FreshRSS/NNW
 
-PRIOR_RELEVANCE = 0.70  # a priori kans dat een item uit de geselecteerde feeds relevant is
+PRIOR_RELEVANCE = 0.80  # a priori kans dat een item uit de geselecteerde feeds relevant is — tijdelijk 0.80 voor testdoeleinden (was 0.70)
 
 # Items with PDF annotations are treated as strong positive signals (3× weight vs. unannotated)
 WEIGHT_DEFAULT     = 1
