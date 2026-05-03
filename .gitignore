@@ -10,6 +10,7 @@
 .claude/*.local.md
 
 # Persoonlijke onderzoeksinhoud — niet delen, maar mapstructuur wel bewaren
+notes/
 meta/candidates/*.md
 literature/*.md
 literature/annotations/*
@@ -47,6 +48,9 @@ inbox/*.md
 
 # OPML-exports (persoonlijke abonnementsdata, al verwerkt in feedreader-list.txt)
 *.opml
+
+# Syncthing configuratie (lokaal, apparaat-specifiek)
+.stignore
 
 # Laat lege mappen zichtbaar via .gitkeep (zie per map)
 .env
