@@ -122,6 +122,32 @@ Controleer welke syntheses relevant zijn en voeg een bullet of sectie toe.
 - Coördinatie, beslissingen, review → Claude (orchestrator)
 - Navigatie, zoeken, link management → hyalo (geen LLM)
 
+## kytmanov / obsidian-llm-wiki (wiki.toml)
+
+kytmanov (PyPI: `obsidian-llm-wiki`, CLI: `olw`) is de wiki-compiler die LLM-notities omzet naar een kennisgraaf. Besluit genomen 2026-05-04. Configuratie: `wiki.toml` in de vault-root.
+
+**Architectuurlaag:**
+
+| Laag | Map | Beheerd door |
+|---|---|---|
+| Immutable originals | Zotero (PDFs, transcripts) | Zotero |
+| LLM-notities | `llm-notes/` (≡ `literature/` vóór migratie) | `process_item.py` |
+| kytmanov input | `raw/` → symlink naar `llm-notes/` | symlink |
+| Wiki output | `wiki/sources/` + `wiki/concepts/` | kytmanov (`olw`) |
+
+**Modellen (via Ollama):** `gemma3:12b` (fast) · `mistral-small:22b` (heavy). Let op: `qwen3.5:9b` is incompatibel — thinking mode produceert lege respons bij `format=json`.
+
+**Gebruik:**
+```bash
+olw ingest    # verwerk nieuwe llm-notes/ naar wiki/sources/ + wiki/concepts/
+olw build     # herbouw alle conceptpagina's
+olw clean     # GEVAARLIJK: wist volledig wiki/ — nooit uitvoeren met llm-notes/ onder wiki/
+```
+
+**Veiligheidsregel:** `llm-notes/` staat op vault-rootniveau (NIET onder `wiki/`). `olw clean` wist de volledige `wiki/`-map — notities in `llm-notes/` zijn daartegen beschermd door hun locatie.
+
+**Lokale state (.gitignore):** `.olw/` · `wiki/chroma` · `wiki/state.db`
+
 ## _inbox prioritering (index-score.py)
 - Gebruik `.claude/index-score.py` om items in de Zotero `_inbox` te scoren op relevantie vóór de fase 2-review
 - Het script vergelijkt de embeddings van inbox-items met het gewogen gemiddelde van je bestaande bibliotheek (via ChromaDB, model: all-MiniLM-L6-v2)
@@ -184,7 +210,7 @@ De feedreader scoort RSS/YouTube/podcast-feeds automatisch op relevantie en prod
 
 **Bestanden:**
 - `.claude/feedreader-list.txt` — lijst van feed-URLs (één per regel, `#` = commentaar); bevat webartikel-, YouTube- en podcast-feeds ingedeeld per categorie met `# ── Naam ────` headers
-- `.claude/feedreader-score.py` — haalt feeds op, scoort items, detecteert brontype; voor YouTube-items haalt het eerst een transcript op via `youtube_transcript_api` (gecachet in `transcript_cache/`) en gebruikt de transcripttekst voor de scoreberekening; voor podcast-items met show notes ≥ 200 tekens (constante `SHOWNOTES_MIN_LENGTH`) worden de show notes gecachet in `transcript_cache/podcast_{episode_id}.json` (`episode_id` = `podcast_` + MD5-hash van de URL); schrijft `filtered.xml` en `filtered.html`
+- `.claude/feedreader-score.py` — haalt feeds op, scoort items, detecteert brontype; voor YouTube-items haalt het eerst een transcript op via `youtube_transcript_api` (gecachet in `transcript_cache/`) en gebruikt de transcripttekst voor de scoreberekening; voor podcast-items met show notes ≥ 200 tekens (constante `SHOWNOTES_MIN_LENGTH`) worden de show notes gecachet in `transcript_cache/podcast_{episode_id}.json` (`episode_id` = `podcast_` + MD5-hash van de URL); schrijft `filtered.xml` en `filtered.html`; elke Atom-feed bevat een `<link rel="self">` met de Tailscale HTTPS-URL (poort 8443) zodat NetNewsWire de feed correct herkent bij toegang via Tailscale
 - `.claude/feedreader_core.py` — gedeelde functies: `cosine_similarity`, `compute_weighted_profile`, `score_label`, `detect_source_type`, `bayesian_score`; constanten: `THRESHOLD_GREEN`, `THRESHOLD_YELLOW`, `THRESHOLD_STAR`, `PRIOR_RELEVANCE`, `WEIGHT_DEFAULT`, `WEIGHT_ANNOTATIONS`
 - `.claude/freshrss_utils.py` — GReader API helpers: authenticatie, stream-fetch, auto-sterren; leest credentials uit `~/bin/.researchvault-env`
 - `.claude/feedreader-server.py` — lokale HTTP-server (poort 8765); handelt `GET /action?type=skip` af (skip-queue) en serveert Atom-feeds en statische bestanden; genereert leesartikelen via Ollama voor YouTube/podcast

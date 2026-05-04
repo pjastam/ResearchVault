@@ -1,0 +1,24 @@
+[models]
+fast = "gemma3:12b"
+heavy = "mistral-small:22b"
+# Optional: set heavy = fast to use a single model for everything
+
+[ollama]
+url = "http://localhost:11434"
+timeout = 600
+fast_ctx = 16384                  # context window for fast model (tokens)
+heavy_ctx = 32768                 # context window for heavy model (tokens)
+
+[pipeline]
+auto_approve = false
+auto_commit = true
+auto_maintain = false
+watch_debounce = 3.0
+max_concepts_per_source = 8
+ingest_parallel = false   # true = parallel chunks
+article_max_tokens = 16384 # soft cap on generated tokens per article; auto-reduced to fit context
+# inline_source_citations = false  # Experimental: add inline source links
+# source_citation_style = "legend-only"  # legend-only | inline-wikilink
+# draft_media = "reference"  # reference | embed | omit
+graph_quality_checks = true
+# language = "en"  # ISO 639-1 output language; autodetects from notes if unset

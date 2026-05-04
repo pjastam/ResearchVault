@@ -52,5 +52,10 @@ inbox/*.md
 # Syncthing configuratie (lokaal, apparaat-specifiek)
 .stignore
 
+# kytmanov/obsidian-llm-wiki — lokale state (vector DB, ingest-status)
+.olw/
+wiki/chroma
+wiki/state.db
+
 # Laat lege mappen zichtbaar via .gitkeep (zie per map)
 .env
