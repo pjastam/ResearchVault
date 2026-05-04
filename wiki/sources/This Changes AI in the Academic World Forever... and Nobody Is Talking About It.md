@@ -14,7 +14,7 @@ title: This Changes AI in the Academic World Forever... and Nobody Is Talking Ab
 # This Changes AI in the Academic World Forever... and Nobody Is Talking About It
 
 ## Summary
-This work addresses the limitation of large language models lacking domain-specific knowledge by integrating the Consensus AI Model Context Protocol (MCP). The central claim is that connecting Consensus to LLMs like ChatGPT enables custom research workflows within peer-reviewed data.
+Cette étude aborde la limitation des grands modèles de langage (LLM) manquant de connaissances spécifiques au domaine dans la recherche universitaire en intégrant le protocole de contexte de modèle d'IA Consensus (MCP). L'intégration de Consensus aux LLM tels que ChatGPT ou Claude permet des flux de travail de recherche personnalisés, tels que des revues de littérature automatisées et l'identification de lacunes, directement au sein de données évaluées par les pairs.
 
 ## Concepts
 - [[Consensus AI Model Context Protocol]]
