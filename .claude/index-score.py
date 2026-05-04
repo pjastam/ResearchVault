@@ -16,7 +16,7 @@ Vereisten:
 Configuratie (pas aan indien nodig):
     ZOTERO_SQLITE   — pad naar Zotero SQLite database
     CHROMA_PATH     — pad naar ChromaDB directory
-    VAULT_LIT_PATH  — pad naar literature/ map in Obsidian vault
+    VAULT_LIT_PATH  — pad naar llm-notes/ map in Obsidian vault
     INBOX_ID        — collectionID van _inbox in Zotero (standaard 333)
 """
 

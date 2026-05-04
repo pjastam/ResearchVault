@@ -34,7 +34,7 @@ Gebruik (podcast — episode_id = MD5-hash van aflevering-URL):
         --cache-id EPISODE_ID
 
 Output (stdout, JSON):
-    {"status": "ok",   "path": "inbox/_summary_ITEMKEY.md"}
+    {"status": "ok",   "path": ".cache/_summary_ITEMKEY.md"}
     {"status": "error", "message": "..."}
 
 Geen samenvatting of brontekst wordt als output teruggegeven — alleen het pad.
@@ -54,7 +54,7 @@ from pathlib import Path
 
 VAULT_ROOT        = Path(__file__).resolve().parent.parent   # ResearchVault/
 CLAUDE_DIR        = VAULT_ROOT / ".claude"
-INBOX_DIR         = VAULT_ROOT / "inbox"
+INBOX_DIR         = VAULT_ROOT / ".cache"
 TRANSCRIPT_CACHE  = CLAUDE_DIR / "transcript_cache"
 PYTHON            = Path(
     os.environ.get(

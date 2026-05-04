@@ -10,24 +10,17 @@
 .claude/*.local.md
 
 # Persoonlijke onderzoeksinhoud — niet delen, maar mapstructuur wel bewaren
-notes/
-meta/candidates/*.md
-literature/*.md
-literature/annotations/*
-!literature/annotations/.gitkeep
-daily/*
-!daily/.gitkeep
-syntheses/*
-!syntheses/.gitkeep
-craft/dev/*.md
-craft/methods/*.md
-projects/*
-!projects/.gitkeep
-inbox/*.vtt
-inbox/*.mp3
-inbox/*.txt
-inbox/*.md
-!inbox/.gitkeep
+.cache/candidates/*.md
+llm-notes/*.md
+llm-notes/annotations/*
+!llm-notes/annotations/.gitkeep
+wiki/syntheses/*
+!wiki/syntheses/.gitkeep
+.cache/*.vtt
+.cache/*.mp3
+.cache/*.txt
+.cache/*.md
+!.cache/.gitkeep
 
 # Feedreader — gegenereerde output en persoonlijke leesgeschiedenis
 .claude/score_log.jsonl
@@ -59,3 +52,4 @@ wiki/state.db
 
 # Laat lege mappen zichtbaar via .gitkeep (zie per map)
 .env
+authoring

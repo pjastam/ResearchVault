@@ -8,7 +8,7 @@ Gebruikt /no_think om het denkproces van qwen3.5:9b te onderdrukken.
 Gebruik:
     python3 .claude/ollama-generate.py \\
         --input  inbox/bron.txt \\
-        --output literature/notitie.md \\
+        --output llm-notes/notitie.md \\
         --prompt "Schrijf een literatuurnotitie in het Nederlands..."
         [--model qwen3.5:9b]
         [--no-think]  (standaard aan)

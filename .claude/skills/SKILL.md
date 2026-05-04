@@ -63,7 +63,7 @@ Gebruik deze context om de zoekopdracht en de uitvoer beter af te stemmen. Stel 
 Na elke sessie:
 - Check of nieuwe notes gelinkt zijn aan relevante bestaande notes (`[[dubbele haken]]`)
 - Stel voor om bestaande syntheses bij te werken als er nieuwe relevante literatuur is toegevoegd
-- Vraag of `inbox/` opgeruimd moet worden (verwerkte transcripten verwijderen)
+- Vraag of `.cache/` opgeruimd moet worden (verwerkte transcripten verwijderen)
 - Herinner aan database-update als er nieuwe papers zijn toegevoegd en de laatste update meer dan een week geleden was: "Je hebt recent nieuwe papers toegevoegd. Zal ik de Zotero-zoekdatabase bijwerken zodat semantisch zoeken ze ook vindt? (`update-zotero`)"
 - Stel voor om flashcards aan te maken als er een nieuwe literatuurnotitie of synthese is gemaakt en er nog geen kaarten bij zijn
 
@@ -74,7 +74,7 @@ Na elke sessie:
 Elke actie die Claude Code uitvoert, kondigt het kort aan vóór uitvoering:
 - "Ik zoek nu in Zotero op [zoekterm]..."
 - "Ik haal de volledige tekst op van [titel]..."
-- "Ik schrijf de note naar literature/[bestandsnaam].md..."
+- "Ik schrijf de note naar llm-notes/[bestandsnaam].md..."
 
 Na elke stap: bevestig het resultaat en vraag of de gebruiker verder wil of iets wil aanpassen.
 
@@ -193,7 +193,7 @@ Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laa
 
 **Samenvatting voor 📖-items via `summarize_item.py`:**
 
-Roep de subagent aan met het juiste type. De samenvatting wordt naar `inbox/_summary_ITEMKEY.md` geschreven; alleen het pad wordt teruggegeven — geen afgeleide tekst bereikt Claude Code.
+Roep de subagent aan met het juiste type. De samenvatting wordt naar `.cache/_summary_ITEMKEY.md` geschreven; alleen het pad wordt teruggegeven — geen afgeleide tekst bereikt Claude Code.
 
 Paper met abstract (geen modelaanroep):
 ```bash
@@ -224,7 +224,7 @@ Podcast (episode_id = `podcast_` + MD5-hash van aflevering-URL, zonder prefix):
   --title "Afleveringstitel" --cache-id EPISODE_ID
 ```
 
-Na ontvangst van `{"status": "ok", "path": "inbox/_summary_ITEMKEY.md"}`:
+Na ontvangst van `{"status": "ok", "path": ".cache/_summary_ITEMKEY.md"}`:
 - Toon het pad aan de gebruiker: "Samenvatting klaar: `inbox/_summary_ITEMKEY.md`"
 - Wacht op Go of No-go
 
@@ -253,7 +253,7 @@ Na ontvangst van `{"status": "ok", "path": "inbox/_summary_ITEMKEY.md"}`:
      --tags "thema1" --tags "thema2" \
      --status read|unread
    ```
-   De subagent haalt de volledige tekst lokaal op, genereert de notitie via Qwen3.5:9b en schrijft het `.md`-bestand naar `literature/`. Claude Code ontvangt alleen het JSON-statusobject `{"status": "ok", "path": "literature/..."}` — geen bron-inhoud.
+   De subagent haalt de volledige tekst lokaal op, genereert de notitie via Qwen3.5:9b en schrijft het `.md`-bestand naar `llm-notes/`. Claude Code ontvangt alleen het JSON-statusobject `{"status": "ok", "path": "llm-notes/..."}` — geen bron-inhoud.
    - `--status read` als het item de tag `✅` had in Zotero; anders `--status unread`.
    - Na ontvangst van het statusobject: voeg `[[interne links]]` toe naar gerelateerde notes.
 7. **No-go-items:** vraag altijd om bevestiging vóór verwijdering, verwijder daarna uit `_inbox`. Een no-go betekent altijd: geen notitie aanmaken én verwijderen uit `_inbox` — er is geen tussenoptie.
@@ -281,7 +281,7 @@ Na ontvangst van `{"status": "ok", "path": "inbox/_summary_ITEMKEY.md"}`:
      --tags "thema1" --tags "thema2" \
      --status unread
    ```
-   De subagent haalt de volledige tekst lokaal op, genereert de notitie via Qwen3.5:9b, bouwt de YAML frontmatter en schrijft het `.md`-bestand naar `literature/`. Geen bron-inhoud bereikt de Anthropic API. Claude Code ontvangt alleen `{"status": "ok", "path": "literature/..."}`.
+   De subagent haalt de volledige tekst lokaal op, genereert de notitie via Qwen3.5:9b, bouwt de YAML frontmatter en schrijft het `.md`-bestand naar `llm-notes/`. Geen bron-inhoud bereikt de Anthropic API. Claude Code ontvangt alleen `{"status": "ok", "path": "llm-notes/..."}`.
 5. Na ontvangst van het statusobject: voeg `[[interne links]]` naar gerelateerde notes toe via de Edit-tool (lees de gegenereerde note om relevante links te identificeren op basis van de titel en tags — nooit de volledige inhoud in context laden).
 6. Gebruik `--status read` als het item de tag `✅` had; anders `--status unread`.
 7. Verwijder het item uit de Zotero `_inbox` collectie via de web API:
@@ -311,22 +311,22 @@ Na ontvangst van `{"status": "ok", "path": "inbox/_summary_ITEMKEY.md"}`:
 1. Haal de URL op uit het `_inbox` item in Zotero, of vraag de gebruiker hem te plakken
 2. **Als beoordeling gewenst:** haal metadata op (titel, kanaal, duur, beschrijving) en geef een relevantie-advies; wacht op Go van de gebruiker
 3. **Bij Go:** controleer in deze volgorde of het transcript al beschikbaar is:
-   - **Feedreader-cache:** extraheer het video-ID uit de URL (`[?&]v=([a-zA-Z0-9_-]{11})`) en controleer of `.claude/transcript_cache/{video_id}.json` bestaat. Zo ja: kopieer de `text`-waarde naar `inbox/` via een script — **nooit de inhoud lezen of printen**:
+   - **Feedreader-cache:** extraheer het video-ID uit de URL (`[?&]v=([a-zA-Z0-9_-]{11})`) en controleer of `.claude/transcript_cache/{video_id}.json` bestaat. Zo ja: kopieer de `text`-waarde naar `.cache/` via een script — **nooit de inhoud lezen of printen**:
      ```bash
-     ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 -c "import json; d=json.load(open('.claude/transcript_cache/{video_id}.json')); open('inbox/{video_id}.txt','w').write(d.get('text',''))" && echo "Gekopieerd naar inbox/{video_id}.txt"
+     ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 -c "import json; d=json.load(open('.claude/transcript_cache/{video_id}.json')); open('.cache/{video_id}.txt','w').write(d.get('text',''))" && echo "Gekopieerd naar .cache/{video_id}.txt"
      ```
-   - **inbox/:** controleer of er al een `.vtt`-bestand met een vergelijkbare naam in `inbox/` staat. Zo ja: gebruik dat bestand.
-   - **yt-dlp:** ontbreekt het transcript in beide caches, haal het dan op via yt-dlp en sla op in `inbox/`.
+   - **`.cache/`:** controleer of er al een `.vtt`-bestand met een vergelijkbare naam in `.cache/` staat. Zo ja: gebruik dat bestand.
+   - **yt-dlp:** ontbreekt het transcript in beide caches, haal het dan op via yt-dlp en sla op in `.cache/`.
 4. Meld bestandsnaam en grootte — **toon nooit de ruwe transcripttekst**
 5. Genereer de gestructureerde note lokaal via qwen3.5:9b:
    ```bash
    ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
-     --input inbox/[bestandsnaam].vtt \
-     --output literature/[naam].md \
+     --input .cache/[bestandsnaam].vtt \
+     --output llm-notes/[naam].md \
      --prompt "You are a research assistant. Write a structured note in the same language as the video transcript. Use these sections: title, speaker, channel, date, URL / summary (3-5 sentences) / key points with timestamps / relevant quotes with timestamps / links to related notes. No frontmatter."
    ```
 6. Voeg daarna toe: frontmatter, `[[interne links]]` en `#video` tag
-7. Verwijder het ruwe `.vtt`-bestand uit `inbox/` en het Zotero `_inbox` item:
+7. Verwijder het ruwe `.vtt`-bestand uit `.cache/` en het Zotero `_inbox` item:
    ```bash
    ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/zotero-remove-from-inbox.py ITEMKEY
    ```
@@ -345,20 +345,20 @@ Na ontvangst van `{"status": "ok", "path": "inbox/_summary_ITEMKEY.md"}`:
    ```
    Controleer of `.claude/transcript_cache/{episode_id}.json` bestaat. Zo ja: lees **alleen** het `title`- en eventueel een samenvatting-veld — **nooit de volledige `text`-waarde printen**. Zo nee: haal de beschrijving op via de URL. Geef in beide gevallen een samenvatting van 3 zinnen; wacht op Go.
 3. **Bij Go:**
-   - Controleer eerst of er al een `.mp3` of `.txt`-bestand in `inbox/` staat met een vergelijkbare naam. Zo ja: "Ik zie al een audiobestand/transcript voor deze aflevering in inbox/. Wil je dat ik het bestaande bestand gebruik?"
-   - Zo nee: download audio via yt-dlp naar `inbox/`: `yt-dlp -x --audio-format mp3 "[url]" -o "inbox/%(title)s.%(ext)s"`
-   - Bepaal de taal op basis van de metadata (titel, kanaal, beschrijving). Transcribeer via whisper.cpp zonder `--language` vlag voor automatische taaldetectie, tenzij de taal onduidelijk is — geef dan `--language nl` of `--language en` expliciet mee: `whisper-cpp --model small inbox/[bestand].mp3`
+   - Controleer eerst of er al een `.mp3` of `.txt`-bestand in `.cache/` staat met een vergelijkbare naam. Zo ja: "Ik zie al een audiobestand/transcript voor deze aflevering in .cache/. Wil je dat ik het bestaande bestand gebruik?"
+   - Zo nee: download audio via yt-dlp naar `.cache/`: `yt-dlp -x --audio-format mp3 "[url]" -o ".cache/%(title)s.%(ext)s"`
+   - Bepaal de taal op basis van de metadata (titel, kanaal, beschrijving). Transcribeer via whisper.cpp zonder `--language` vlag voor automatische taaldetectie, tenzij de taal onduidelijk is — geef dan `--language nl` of `--language en` expliciet mee: `whisper-cpp --model small .cache/[bestand].mp3`
 4. Meld bestandsnaam en grootte — **toon nooit de ruwe transcripttekst**
 5. Genereer de gestructureerde note lokaal via qwen3.5:9b:
    ```bash
    ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
-     --input inbox/[bestandsnaam].txt \
-     --output literature/[naam].md \
+     --input .cache/[bestandsnaam].txt \
+     --output llm-notes/[naam].md \
      --prompt "You are a research assistant. Write a structured note in the same language as the transcript. Use these sections: title, speaker(s), programme/channel, date, URL / summary (3-5 sentences) / key points with timestamps / relevant quotes with timestamps (original language) / links to related notes. No frontmatter."
    ```
 6. Voeg daarna toe: frontmatter, `[[interne links]]` en `#podcast` tag
 7. Bij lange podcasts (> 45 min): vraag qwen3.5:9b eerst een gelaagde samenvatting te maken (hoofdlijn → per segment) voordat de definitieve note wordt geschreven
-8. Verwijder de ruwe `.mp3` en `.txt` bestanden uit `inbox/` en het Zotero `_inbox` item:
+8. Verwijder de ruwe `.mp3` en `.txt` bestanden uit `.cache/` en het Zotero `_inbox` item:
    ```bash
    ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/zotero-remove-from-inbox.py ITEMKEY
    ```
@@ -369,20 +369,20 @@ Na ontvangst van `{"status": "ok", "path": "inbox/_summary_ITEMKEY.md"}`:
 > **Fase 2** (filter): de gebruiker heeft kopteksten gescand; alleen interessante items komen hier.
 > **Fase 3** (verwerken): opslaan in Zotero of verwerken naar de vault.
 
-1. Vraag: wil je het item toevoegen aan Zotero (voor BibTeX, annotaties en opname in de semantische database), of direct opslaan als notitie in `inbox/`?
+1. Vraag: wil je het item toevoegen aan Zotero (voor BibTeX, annotaties en opname in de semantische database), of direct opslaan als notitie in `.cache/`?
 2. **Via Zotero:** het item is al opgeslagen via de Zotero Connector of iOS-app; haal het op via Zotero MCP en verwerk naar literatuurnotitie (zie type 1)
-3. **Direct naar `inbox/`:** geef de opdracht `inbox [URL]` — Claude Code haalt de inhoud op en slaat het op als Markdown-bestand in `inbox/`, zonder Zotero. Verwerk daarna naar `literature/` als dat gewenst is.
+3. **Direct naar `.cache/`:** geef de opdracht `inbox [URL]` — Claude Code haalt de inhoud op en slaat het op als Markdown-bestand in `.cache/`, zonder Zotero. Verwerk daarna naar `llm-notes/` als dat gewenst is.
 4. Voeg `#web` of `#beleid` toe aan niet-academische items
 
 ### Type 6: Synthese maken
 
 1. Vraag naar het thema en het doel van de synthese
-2. Zoek relevante notes in `literature/` en `syntheses/`
+2. Zoek relevante notes in `llm-notes/` en `syntheses/`
 3. Toon een overzicht van gevonden materiaal — klopt dit?
 4. Vraag naar de gewenste opbouw: chronologisch, thematisch, of pro/contra?
 5. Combineer de bronbestanden en genereer de synthese lokaal via qwen3.5:9b:
    ```
-   cat literature/[bron1].md literature/[bron2].md | ollama run qwen3.5:9b > syntheses/[thema].md
+   cat llm-notes/[bron1].md llm-notes/[bron2].md | ollama run qwen3.5:9b > syntheses/[thema].md
    ```
    > **Contextlimiet:** qwen3.5:9b heeft een contextvenster van 256K tokens — ruim voldoende voor tientallen literatuurnotities tegelijk. Batching is bij dit model zelden nodig.
 6. Voeg daarna toe: `[[interne links]]` naar alle verwerkte bronnen en `#tags`
@@ -401,7 +401,7 @@ Na ontvangst van `{"status": "ok", "path": "inbox/_summary_ITEMKEY.md"}`:
 1. Vraag: nieuwe kaarten aanmaken bij een bestaande note, of herinnering geven aan de dagelijkse review?
 2. **Nieuwe kaarten:** vraag bij welke note of synthese; genereer 3–5 kaarten lokaal via qwen3.5:9b:
    ```
-   ollama run qwen3.5:9b < literature/[notitie].md
+   ollama run qwen3.5:9b < llm-notes/[notitie].md
    ```
    Plak de gegenereerde kaarten in Spaced Repetition formaat (`?` als scheidingsteken, `#flashcard` tag) aan het einde van de bestaande note. Gebruik `flashcards/` alleen voor zelfstandige kaarten die niet aan één specifieke bron gebonden zijn.
 3. **Review herinnering:** herinner de gebruiker dat de dagelijkse review in Obsidian plaatsvindt via de zijbalk (kaartpictogram) — dit is niet iets dat Claude Code zelf uitvoert
@@ -409,7 +409,7 @@ Na ontvangst van `{"status": "ok", "path": "inbox/_summary_ITEMKEY.md"}`:
 
 ### Type 9: Inbox opruimen
 
-1. Toon wat er in `inbox/` staat
+1. Toon wat er in `.cache/` staat
 2. Per item: verwerken naar een note, verplaatsen, of verwijderen?
 3. Verwerk onverwerkte transcripten (YouTube of podcast) of ruwe notities naar de juiste map
 4. Bevestig na afloop: "Inbox is leeg. Alles verwerkt."
@@ -443,7 +443,7 @@ Na ontvangst van `{"status": "ok", "path": "inbox/_summary_ITEMKEY.md"}`:
 | "transcript [URL] --hd" | Start type 3 met Claude Sonnet 4.6 (na bevestiging) |
 | "podcast [URL]" | Start type 4: download audio, transcribeer via whisper.cpp, verwerk lokaal via Qwen3.5:9b; slaat Zotero `_inbox` over |
 | "podcast [URL] --hd" | Start type 4 met Claude Sonnet 4.6 (na bevestiging) |
-| "inbox [URL]" | Haal artikel op en sla op als Markdown in `inbox/`, zonder Zotero |
+| "inbox [URL]" | Haal artikel op en sla op als Markdown in `.cache/`, zonder Zotero |
 | "rss [URL of item]" | Start type 5 voor het opgegeven item |
 | "synthese over [thema]" | Start type 6 (lokaal via Qwen3.5:9b) |
 | "synthese over [thema] --hd" | Start type 6 met Claude Sonnet 4.6 (na bevestiging) |

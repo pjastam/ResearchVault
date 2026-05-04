@@ -36,11 +36,12 @@ Als Ollama niet bereikbaar is: meld dit en vraag of de gebruiker wil overschakel
 
 | Map | Paginatype | Inhoud |
 | --- | --- | --- |
-| `literature/` | Source notes | Één note per paper of bron uit Zotero |
-| `syntheses/` | Syntheses | Thematische syntheses van meerdere bronnen |
-| `notes/` | — | Persoonlijke en werknotities |
-| `inbox/` | — | Ruwe input die nog verwerkt moet worden |
-| `meta/candidates/` | — | Staging area: Qwen-drafts vóór promotie naar `literature/` (zie Ingest-procedure) |
+| `llm-notes/` | Source notes | Één note per paper of bron uit Zotero |
+| `wiki/syntheses/` | Syntheses | Thematische syntheses van meerdere bronnen |
+| `wiki/concepts/` | Concepts | LLM-onderhouden conceptpagina's (Prioriteit 2) |
+| `authoring/notes/` | — | Persoonlijke werknotities (via symlink → myfiles/notes/) |
+| `.cache/` | — | Tijdelijke verwerkingsbestanden (transcripts, audio) |
+| `.cache/candidates/` | — | Staging area: Qwen-drafts vóór promotie naar `llm-notes/` (zie Ingest-procedure) |
 
 ## Literatuurnotities (uit Zotero)
 
@@ -82,7 +83,7 @@ Na de frontmatter bevat elke notitie:
 
 ## Zotero-workflow
 - Gebruik Zotero MCP om papers op te halen via hun titel of sleutelwoorden
-- Sla literatuurnotities op als `literature/[auteur-jaar-kernwoord].md`
+- Sla literatuurnotities op als `llm-notes/[auteur-jaar-kernwoord].md`
 - Voeg altijd een #tag toe voor het thema van de paper
 
 ## Ingest-procedure
@@ -95,22 +96,22 @@ Beoordeel of het item de vault waard is via `index-score.py`. Items met score < 
 **Stap 2 — Kandidaat aanmaken (Qwen via `process_item.py`)**
 ```bash
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/process_item.py \
-  --item-key ITEMKEY --output-dir meta/candidates/ [overige vlaggen]
+  --item-key ITEMKEY --output-dir .cache/candidates/ [overige vlaggen]
 ```
-De draft verschijnt in `meta/candidates/[auteur-jaar-kw].md`. Geen bron-inhoud bereikt Claude Code.
+De draft verschijnt in `.cache/candidates/[auteur-jaar-kw].md`. Geen bron-inhoud bereikt Claude Code.
 
 **Stap 3 — Human review**
-Lees de kandidaat-notitie. Geef Go of No-go. Bij No-go: verwijder het bestand uit `meta/candidates/`.
+Lees de kandidaat-notitie. Geef Go of No-go. Bij No-go: verwijder het bestand uit `.cache/candidates/`.
 
-**Stap 4 — Promotie naar `literature/` (bij Go)**
+**Stap 4 — Promotie naar `llm-notes/` (bij Go)**
 ```bash
-mv meta/candidates/[bestand].md literature/[bestand].md
+mv .cache/candidates/[bestand].md llm-notes/[bestand].md
 ```
 
 **Stap 5 — Cross-links toevoegen (hyalo + Qwen)**
 Zoek verwante notities:
 ```bash
-hyalo find "[kernbegrip]" --glob "literature/*.md" --format text
+hyalo find "[kernbegrip]" --glob "llm-notes/*.md" --format text
 ```
 Voeg `[[links]]` toe aan de nieuwe notitie én aan de 2–5 meest verwante bestaande notities (alleen bij drempelwaarde — zie Literatuurnotities).
 
@@ -131,7 +132,7 @@ kytmanov (PyPI: `obsidian-llm-wiki`, CLI: `olw`) is de wiki-compiler die LLM-not
 | Laag | Map | Beheerd door |
 |---|---|---|
 | Immutable originals | Zotero (PDFs, transcripts) | Zotero |
-| LLM-notities | `llm-notes/` (≡ `literature/` vóór migratie) | `process_item.py` |
+| LLM-notities | `llm-notes/` | `process_item.py` |
 | kytmanov input | `raw/` → symlink naar `llm-notes/` | symlink |
 | Wiki output | `wiki/sources/` + `wiki/concepts/` | kytmanov (`olw`) |
 
@@ -191,10 +192,10 @@ Dit doet:
 - Check de status met `zotero-status` of `zotero-mcp db-status`
 
 ## Podcast-transcripten (whisper.cpp + yt-dlp)
-- Audio wordt gedownload via yt-dlp en opgeslagen in `inbox/` als `.mp3`
+- Audio wordt gedownload via yt-dlp en opgeslagen in `.cache/` als `.mp3`
 - Transcriptie verloopt lokaal via whisper.cpp (volledig offline)
 - Whisper detecteert de taal automatisch; geef `--language` alleen expliciet mee als de automatische detectie onjuist is
-- Verwerk een transcript naar een note in `literature/` met de volgende structuur:
+- Verwerk een transcript naar een note in `llm-notes/` met de volgende structuur:
   - Titel, spreker(s), programma/kanaal, datum, URL of bronvermelding
   - Samenvatting (3–5 zinnen)
   - Kernpunten met tijdcodes
@@ -202,7 +203,7 @@ Dit doet:
   - Links naar gerelateerde notes in de vault
 - Bestandsnaam voor podcast-notes: `[spreker-jaar-kernwoord].md` met #tag `#podcast`
 - Bij lange podcasts (> 45 min): maak eerst een gelaagde samenvatting (hoofdlijn → per segment)
-- Ruwe `.mp3` en `.txt`-bestanden verwijder je uit `inbox/` nadat de note is aangemaakt
+- Ruwe `.mp3` en `.txt`-bestanden verwijder je uit `.cache/` nadat de note is aangemaakt
 
 ## Feedreader — RSS-filtering (feedreader-score.py)
 
@@ -287,7 +288,7 @@ Correcte aanpak voor het genereren van literatuurnotities: gebruik `.claude/proc
   --journal "..." --citation-key auteur2024kw \
   --zotero-url "zotero://select/library/items/ITEMKEY" \
   --tags "thema" --status unread
-# → {"status": "ok", "path": "literature/auteur2024kw.md"}
+# → {"status": "ok", "path": "llm-notes/auteur2024kw.md"}
 ```
 
 De subagent roept intern `fetch-fulltext.py` en `ollama-generate.py` aan. Geen bron-inhoud bereikt Claude Code als tool-output.
@@ -299,7 +300,7 @@ Correcte aanpak voor compacte samenvattingen (fase 2, 📖-items): gebruik `.cla
   --item-key ITEMKEY \
   --type paper|youtube|podcast \
   --title "Titel" --authors "Achternaam, V." --year 2024
-# → {"status": "ok", "path": "inbox/_summary_ITEMKEY.md"}
+# → {"status": "ok", "path": ".cache/_summary_ITEMKEY.md"}
 ```
 
 Claude Code toont het pad; de gebruiker leest het bestand en geeft Go of No-go.
@@ -307,13 +308,13 @@ Claude Code toont het pad; de gebruiker leest het bestand en geeft Go of No-go.
 Voor losse stappen of speciale gevallen (transcripten, snapshots): gebruik `.claude/fetch-fulltext.py` direct:
 
 ```bash
-~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/fetch-fulltext.py ITEMKEY inbox/bestand.txt
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/fetch-fulltext.py ITEMKEY .cache/bestand.txt
 ```
 
 Daarna verwerken via Ollama:
 ```bash
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
-  --input inbox/bestand.txt --output literature/bestand.md --prompt "..."
+  --input .cache/bestand.txt --output llm-notes/bestand.md --prompt "..."
 ```
 
 Dit geldt ook voor snapshot-HTML, VTT-transcripten en podcast-transcripten: nooit `cat` of `print` op de volledige inhoud uitvoeren als Bash-tool.

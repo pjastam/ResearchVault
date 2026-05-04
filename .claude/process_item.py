@@ -4,7 +4,7 @@ process_item.py — Privacy-preserving subagent voor ResearchVault.
 
 Neemt een Zotero item key en metadata, haalt de volledige tekst lokaal op,
 genereert een gestructureerde literatuurnotitie via Qwen3.5:9b (Ollama),
-schrijft het .md-bestand naar literature/ en retourneert een JSON-statusobject.
+schrijft het .md-bestand naar llm-notes/ en retourneert een JSON-statusobject.
 
 Gebruik:
     python3 .claude/process_item.py \
@@ -25,7 +25,7 @@ aanroep vanuit Claude Code:
         --meta-json '{"title": "...", "authors": [...], "year": 2024, ...}'
 
 Output (stdout, JSON):
-    {"status": "ok", "path": "literature/auteur2024kernwoord.md"}
+    {"status": "ok", "path": "llm-notes/auteur2024kernwoord.md"}
     {"status": "error", "message": "..."}
 
 Geen bron-inhoud wordt als output teruggegeven — alleen het statusobject.
@@ -55,8 +55,8 @@ PYTHON       = Path(
 )
 FETCH_SCRIPT    = CLAUDE_DIR / "fetch-fulltext.py"
 GENERATE_SCRIPT = CLAUDE_DIR / "ollama-generate.py"
-LITERATURE_DIR  = VAULT_ROOT / "literature"
-INBOX_DIR       = VAULT_ROOT / "inbox"
+LITERATURE_DIR  = VAULT_ROOT / "llm-notes"
+INBOX_DIR       = VAULT_ROOT / ".cache"
 
 # ── Ollama-prompt ─────────────────────────────────────────────────────────────
 
@@ -408,7 +408,7 @@ def main() -> None:
     parser.add_argument("--status",       default="unread", choices=["read", "unread"])
     parser.add_argument("--model",        default="qwen3.5:9b")
     parser.add_argument("--output-dir",   default=None,
-                        help="Uitvoermap voor de notitie (standaard: literature/). "
+                        help="Uitvoermap voor de notitie (standaard: llm-notes/). "
                              "Gebruik 'meta/candidates/' voor de candidate buffer.")
     parser.add_argument("--keep-temp",    action="store_true",
                         help="Verwijder tijdelijk inbox-bestand NIET na afronding")
