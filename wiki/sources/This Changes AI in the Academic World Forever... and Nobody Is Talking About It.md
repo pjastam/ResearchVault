@@ -3,7 +3,7 @@ aliases:
 - this changes ai in the academic world forever... and nobody is talking about it
 created: '2026-05-04'
 quality: high
-source_file: literature/stapleton-2026-academic-research-literature-consensus.md
+source_file: llm-notes/stapleton-2026-academic-research-literature-consensus.md
 status: published
 tags:
 - source
