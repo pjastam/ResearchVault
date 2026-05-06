@@ -82,8 +82,8 @@ The workflow uses three helper scripts in `.claude/`. They keep source content o
 Fetches the full text of a Zotero attachment and saves it to a local file. Only prints status; never prints content.
 
 ```bash
-~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/fetch-fulltext.py ITEMKEY inbox/bron.txt
-# Output: Saved: inbox/bron.txt (12,345 chars, type: application/pdf)
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/fetch-fulltext.py ITEMKEY vault/.cache/bron.txt
+# Output: Saved: vault/.cache/bron.txt (12,345 chars, type: application/pdf)
 ```
 
 ### `ollama-generate.py` — generate text via Ollama REST API
@@ -92,10 +92,10 @@ Calls Ollama's REST API directly (no CLI, no ANSI codes). Prepends `/no_think` t
 
 ```bash
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
-  --input  inbox/bron.txt \
-  --output literature/notitie.md \
+  --input  vault/.cache/bron.txt \
+  --output vault/llm-notes/notitie.md \
   --prompt "Write a literature note in Dutch..."
-# Output: Input: inbox/bron.txt (12,345 chars) | Written: literature/notitie.md (3,200 chars)
+# Output: Input: vault/.cache/bron.txt (12,345 chars) | Written: vault/llm-notes/notitie.md (3,200 chars)
 ```
 
 ### `zotero-remove-from-inbox.py` — remove processed item from `_inbox`

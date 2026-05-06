@@ -54,7 +54,7 @@ from pathlib import Path
 
 VAULT_ROOT        = Path(__file__).resolve().parent.parent   # ResearchVault/
 CLAUDE_DIR        = VAULT_ROOT / ".claude"
-INBOX_DIR         = VAULT_ROOT / ".cache"
+INBOX_DIR         = VAULT_ROOT / "vault" / ".cache"
 TRANSCRIPT_CACHE  = CLAUDE_DIR / "transcript_cache"
 PYTHON            = Path(
     os.environ.get(

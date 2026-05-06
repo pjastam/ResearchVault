@@ -36,12 +36,12 @@ Als Ollama niet bereikbaar is: meld dit en vraag of de gebruiker wil overschakel
 
 | Map | Paginatype | Inhoud |
 | --- | --- | --- |
-| `llm-notes/` | Source notes | Één note per paper of bron uit Zotero |
-| `wiki/syntheses/` | Syntheses | Thematische syntheses van meerdere bronnen |
-| `wiki/concepts/` | Concepts | LLM-onderhouden conceptpagina's (Prioriteit 2) |
-| `authoring/notes/` | — | Persoonlijke werknotities (via symlink → myfiles/notes/) |
-| `.cache/` | — | Tijdelijke verwerkingsbestanden (transcripts, audio) |
-| `.cache/candidates/` | — | Staging area: Qwen-drafts vóór promotie naar `llm-notes/` (zie Ingest-procedure) |
+| `vault/llm-notes/` | Source notes | Één note per paper of bron uit Zotero |
+| `vault/wiki/syntheses/` | Syntheses | Thematische syntheses van meerdere bronnen |
+| `vault/wiki/concepts/` | Concepts | LLM-onderhouden conceptpagina's (Prioriteit 2) |
+| `vault/authoring/notes/` | — | Persoonlijke werknotities (via symlink → myfiles/notes/) |
+| `vault/.cache/` | — | Tijdelijke verwerkingsbestanden (transcripts, audio) |
+| `vault/.cache/candidates/` | — | Staging area: Qwen-drafts vóór promotie naar `vault/llm-notes/` (zie Ingest-procedure) |
 
 ## Literatuurnotities (uit Zotero)
 
@@ -83,7 +83,7 @@ Na de frontmatter bevat elke notitie:
 
 ## Zotero-workflow
 - Gebruik Zotero MCP om papers op te halen via hun titel of sleutelwoorden
-- Sla literatuurnotities op als `llm-notes/[auteur-jaar-kernwoord].md`
+- Sla literatuurnotities op als `vault/llm-notes/[auteur-jaar-kernwoord].md`
 - Voeg altijd een #tag toe voor het thema van de paper
 
 ## Ingest-procedure
@@ -96,22 +96,22 @@ Beoordeel of het item de vault waard is via `index-score.py`. Items met score < 
 **Stap 2 — Kandidaat aanmaken (Qwen via `process_item.py`)**
 ```bash
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/process_item.py \
-  --item-key ITEMKEY --output-dir .cache/candidates/ [overige vlaggen]
+  --item-key ITEMKEY --output-dir vault/.cache/candidates/ [overige vlaggen]
 ```
-De draft verschijnt in `.cache/candidates/[auteur-jaar-kw].md`. Geen bron-inhoud bereikt Claude Code.
+De draft verschijnt in `vault/.cache/candidates/[auteur-jaar-kw].md`. Geen bron-inhoud bereikt Claude Code.
 
 **Stap 3 — Human review**
-Lees de kandidaat-notitie. Geef Go of No-go. Bij No-go: verwijder het bestand uit `.cache/candidates/`.
+Lees de kandidaat-notitie. Geef Go of No-go. Bij No-go: verwijder het bestand uit `vault/.cache/candidates/`.
 
-**Stap 4 — Promotie naar `llm-notes/` (bij Go)**
+**Stap 4 — Promotie naar `vault/llm-notes/` (bij Go)**
 ```bash
-mv .cache/candidates/[bestand].md llm-notes/[bestand].md
+mv vault/.cache/candidates/[bestand].md vault/llm-notes/[bestand].md
 ```
 
 **Stap 5 — Cross-links toevoegen (hyalo + Qwen)**
 Zoek verwante notities:
 ```bash
-hyalo find "[kernbegrip]" --glob "llm-notes/*.md" --format text
+hyalo find "[kernbegrip]" --glob "vault/llm-notes/*.md" --format text
 ```
 Voeg `[[links]]` toe aan de nieuwe notitie én aan de 2–5 meest verwante bestaande notities (alleen bij drempelwaarde — zie Literatuurnotities).
 
@@ -132,22 +132,22 @@ kytmanov (PyPI: `obsidian-llm-wiki`, CLI: `olw`) is de wiki-compiler die LLM-not
 | Laag | Map | Beheerd door |
 |---|---|---|
 | Immutable originals | Zotero (PDFs, transcripts) | Zotero |
-| LLM-notities | `llm-notes/` | `process_item.py` |
-| kytmanov input | `raw/` → symlink naar `llm-notes/` | symlink |
-| Wiki output | `wiki/sources/` + `wiki/concepts/` | kytmanov (`olw`) |
+| LLM-notities | `vault/llm-notes/` | `process_item.py` |
+| kytmanov input | `vault/raw/` → symlink naar `llm-notes/` | symlink |
+| Wiki output | `vault/wiki/sources/` + `vault/wiki/concepts/` | kytmanov (`olw`) |
 
 **Modellen (via Ollama):** `gemma3:12b` (fast) · `mistral-small:22b` (heavy). Let op: `qwen3.5:9b` is incompatibel — thinking mode produceert lege respons bij `format=json`.
 
-**Gebruik:**
+**Gebruik** (vanuit repo-root — `olw` zoekt `wiki.toml` in `vault/`):
 ```bash
-olw ingest    # verwerk nieuwe llm-notes/ naar wiki/sources/ + wiki/concepts/
-olw build     # herbouw alle conceptpagina's
-olw clean     # GEVAARLIJK: wist volledig wiki/ — nooit uitvoeren met llm-notes/ onder wiki/
+(cd vault && olw ingest)    # verwerk nieuwe llm-notes/ naar wiki/sources/ + wiki/concepts/
+(cd vault && olw build)     # herbouw alle conceptpagina's
+(cd vault && olw clean)     # GEVAARLIJK: wist volledig vault/wiki/ — nooit uitvoeren
 ```
 
-**Veiligheidsregel:** `llm-notes/` staat op vault-rootniveau (NIET onder `wiki/`). `olw clean` wist de volledige `wiki/`-map — notities in `llm-notes/` zijn daartegen beschermd door hun locatie.
+**Veiligheidsregel:** `vault/llm-notes/` staat NIET onder `vault/wiki/`. `olw clean` wist de volledige `vault/wiki/`-map — notities in `vault/llm-notes/` zijn daartegen beschermd door hun locatie.
 
-**Lokale state (.gitignore):** `.olw/` · `wiki/chroma` · `wiki/state.db`
+**Lokale state (.gitignore):** `vault/.olw/` · `vault/wiki/chroma` · `vault/wiki/state.db`
 
 ## _inbox prioritering (index-score.py)
 - Gebruik `.claude/index-score.py` om items in de Zotero `_inbox` te scoren op relevantie vóór de fase 2-review
@@ -192,10 +192,10 @@ Dit doet:
 - Check de status met `zotero-status` of `zotero-mcp db-status`
 
 ## Podcast-transcripten (whisper.cpp + yt-dlp)
-- Audio wordt gedownload via yt-dlp en opgeslagen in `.cache/` als `.mp3`
+- Audio wordt gedownload via yt-dlp en opgeslagen in `vault/.cache/` als `.mp3`
 - Transcriptie verloopt lokaal via whisper.cpp (volledig offline)
 - Whisper detecteert de taal automatisch; geef `--language` alleen expliciet mee als de automatische detectie onjuist is
-- Verwerk een transcript naar een note in `llm-notes/` met de volgende structuur:
+- Verwerk een transcript naar een note in `vault/llm-notes/` met de volgende structuur:
   - Titel, spreker(s), programma/kanaal, datum, URL of bronvermelding
   - Samenvatting (3–5 zinnen)
   - Kernpunten met tijdcodes
@@ -203,7 +203,7 @@ Dit doet:
   - Links naar gerelateerde notes in de vault
 - Bestandsnaam voor podcast-notes: `[spreker-jaar-kernwoord].md` met #tag `#podcast`
 - Bij lange podcasts (> 45 min): maak eerst een gelaagde samenvatting (hoofdlijn → per segment)
-- Ruwe `.mp3` en `.txt`-bestanden verwijder je uit `.cache/` nadat de note is aangemaakt
+- Ruwe `.mp3` en `.txt`-bestanden verwijder je uit `vault/.cache/` nadat de note is aangemaakt
 
 ## Feedreader — RSS-filtering (feedreader-score.py)
 
@@ -288,7 +288,7 @@ Correcte aanpak voor het genereren van literatuurnotities: gebruik `.claude/proc
   --journal "..." --citation-key auteur2024kw \
   --zotero-url "zotero://select/library/items/ITEMKEY" \
   --tags "thema" --status unread
-# → {"status": "ok", "path": "llm-notes/auteur2024kw.md"}
+# → {"status": "ok", "path": "vault/llm-notes/auteur2024kw.md"}
 ```
 
 De subagent roept intern `fetch-fulltext.py` en `ollama-generate.py` aan. Geen bron-inhoud bereikt Claude Code als tool-output.
@@ -300,7 +300,7 @@ Correcte aanpak voor compacte samenvattingen (fase 2, 📖-items): gebruik `.cla
   --item-key ITEMKEY \
   --type paper|youtube|podcast \
   --title "Titel" --authors "Achternaam, V." --year 2024
-# → {"status": "ok", "path": ".cache/_summary_ITEMKEY.md"}
+# → {"status": "ok", "path": "vault/.cache/_summary_ITEMKEY.md"}
 ```
 
 Claude Code toont het pad; de gebruiker leest het bestand en geeft Go of No-go.
@@ -308,13 +308,13 @@ Claude Code toont het pad; de gebruiker leest het bestand en geeft Go of No-go.
 Voor losse stappen of speciale gevallen (transcripten, snapshots): gebruik `.claude/fetch-fulltext.py` direct:
 
 ```bash
-~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/fetch-fulltext.py ITEMKEY .cache/bestand.txt
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/fetch-fulltext.py ITEMKEY vault/.cache/bestand.txt
 ```
 
 Daarna verwerken via Ollama:
 ```bash
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
-  --input .cache/bestand.txt --output llm-notes/bestand.md --prompt "..."
+  --input vault/.cache/bestand.txt --output vault/llm-notes/bestand.md --prompt "..."
 ```
 
 Dit geldt ook voor snapshot-HTML, VTT-transcripten en podcast-transcripten: nooit `cat` of `print` op de volledige inhoud uitvoeren als Bash-tool.

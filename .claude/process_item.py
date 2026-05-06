@@ -55,8 +55,8 @@ PYTHON       = Path(
 )
 FETCH_SCRIPT    = CLAUDE_DIR / "fetch-fulltext.py"
 GENERATE_SCRIPT = CLAUDE_DIR / "ollama-generate.py"
-LITERATURE_DIR  = VAULT_ROOT / "llm-notes"
-INBOX_DIR       = VAULT_ROOT / ".cache"
+LITERATURE_DIR  = VAULT_ROOT / "vault" / "llm-notes"
+INBOX_DIR       = VAULT_ROOT / "vault" / ".cache"
 
 # ── Ollama-prompt ─────────────────────────────────────────────────────────────
 

@@ -15,8 +15,8 @@ verwerk recente papers
 Claude Code:
 1. Retrieves metadata from Zotero MCP (title, authors, year, journal, citation key, tags) — no full text
 2. Calls the local subagent `process_item.py` with only the item key and metadata:
-   - `process_item.py` fetches the full text locally, generates a structured note via Qwen3.5:9b, builds the YAML frontmatter, and writes the `.md` file to `literature/`
-   - Claude Code receives only `{"status": "ok", "path": "literature/..."}` — no source content
+   - `process_item.py` fetches the full text locally, generates a structured note via Qwen3.5:9b, builds the YAML frontmatter, and writes the `.md` file to `vault/llm-notes/`
+   - Claude Code receives only `{"status": "ok", "path": "vault/llm-notes/..."}` — no source content
 3. Adds `[[internal links]]` to related notes in the vault
 4. Removes the item from Zotero `_inbox`
 
@@ -28,7 +28,7 @@ The generated note contains:
 - Relevant quotes (original language)
 - Links to related notes
 
-Notes are saved to `literature/[author-year-keyword1-keyword2].md` — Qwen selects 2–4 nouns from the title and TLDR.
+Notes are saved to `vault/llm-notes/[author-year-keyword1-keyword2].md` — Qwen selects 2–4 nouns from the title and TLDR.
 
 > **Privacy:** no paper content ever appears in Claude Code's context. `process_item.py` is a self-contained local subagent — it fetches, generates, and writes without returning any source text to the orchestration layer.
 
@@ -66,7 +66,7 @@ The generated note contains:
 - Links to related notes
 - Flashcards (max 3)
 
-Notes are saved to `literature/[author-year-keyword1-keyword2].md` — Qwen selects 2–4 nouns from the title and TLDR.
+Notes are saved to `vault/llm-notes/[author-year-keyword1-keyword2].md` — Qwen selects 2–4 nouns from the title and TLDR.
 
 ---
 
@@ -88,9 +88,9 @@ Claude Code:
    - Key points with timestamps
    - Relevant quotes with timestamps (original language)
 5. Adds frontmatter, `[[internal links]]`, and `#podcast` tag
-6. Removes raw `.mp3` and `.txt` files from `inbox/` and the item from Zotero `_inbox`
+6. Removes raw `.mp3` and `.txt` files from `vault/.cache/` and the item from Zotero `_inbox`
 
-Notes are saved to `literature/[speaker-year-keyword].md`.
+Notes are saved to `vault/llm-notes/[speaker-year-keyword].md`.
 
 ---
 
@@ -113,11 +113,11 @@ Notes get `#web` or `#beleid` as appropriate.
 After each session, check whether:
 
 - New notes are linked to related existing notes (`[[double brackets]]`)
-- Relevant syntheses in `syntheses/` need updating
+- Relevant syntheses in `vault/wiki/syntheses/` need updating
 - Flashcards should be created for the new notes:
 
 ```
-maak flashcards voor literature/[note].md
+maak flashcards voor vault/llm-notes/[note].md
 ```
 
 If new papers were added to Zotero, update the semantic search database:

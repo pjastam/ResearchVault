@@ -2,12 +2,8 @@
 # De .gitignore houdt persoonlijke onderzoeksinhoud buiten git.
 # Dit bestand maakt diezelfde bestanden toegankelijk voor lokale zoekopdrachten.
 
-!meta/candidates/*.md
-!literature/*.md
-!literature/annotations/*
-!daily/*
-!syntheses/*
-!syntheses/**/*.md
-!projects/*
-!projects/**/*.md
-!inbox/*.md
+!vault/llm-notes/*.md
+!vault/llm-notes/annotations/*
+!vault/.cache/candidates/*.md
+!vault/wiki/syntheses/*.md
+!vault/wiki/syntheses/**/*.md

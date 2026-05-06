@@ -40,7 +40,7 @@ from pathlib import Path
 VAULT_ROOT           = Path(__file__).resolve().parent.parent
 CLAUDE_DIR           = VAULT_ROOT / ".claude"
 TRANSCRIPT_CACHE_DIR = CLAUDE_DIR / "transcript_cache"
-INBOX_DIR            = VAULT_ROOT / "inbox"
+INBOX_DIR            = VAULT_ROOT / "vault" / ".cache"
 PYTHON               = Path(os.environ.get(
     "ZOTERO_PYTHON",
     "/Users/pietstam/.local/share/uv/tools/zotero-mcp-server/bin/python3",
