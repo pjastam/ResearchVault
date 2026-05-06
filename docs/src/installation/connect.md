@@ -44,8 +44,10 @@ cd ~/Documents/ResearchVault
 ```
 
 The script:
-1. Auto-detects your home path
-2. Asks for your Zotero library ID (the userID from `zotero-mcp setup-info`)
-3. Writes `.claude/settings.local.json` with the correct paths
+1. Checks that `olw` and `zotero-mcp` are installed
+2. Auto-detects your home path
+3. Asks for your Zotero library ID (the userID from `zotero-mcp setup-info`)
+4. Writes `.claude/settings.local.json` with the correct paths
+5. Creates or updates `~/.config/olw/config.toml` with the vault path
 
 > **Note:** If you ever move your vault or reinstall tools, re-run `./setup.sh` to regenerate the file.
