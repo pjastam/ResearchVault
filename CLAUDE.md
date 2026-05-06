@@ -91,7 +91,7 @@ Na de frontmatter bevat elke notitie:
 Zotero (PDFs, annotaties, child notes)
     ↓ build-zotero-bundle.py  [geen LLM — puur format-conversie]
 vault/raw/{citekey}__{itemKey}.md
-    ↓ olw ingest (gemma3:12b)
+    ↓ olw ingest (mistral-small:22b)
 vault/wiki/sources/{titel}.md
     ↓ olw compile (mistral-small:22b)
 vault/wiki/concepts/{concept}.md
@@ -127,7 +127,7 @@ Daarna `build-zotero-bundle.py` uitvoeren — het script leest de bijlage via `f
 
 **Ollama-routing:**
 - Bundle-aanmaak → geen Ollama (pure format-conversie)
-- kytmanov ingest/compile → gemma3:12b (fast) / mistral-small:22b (heavy)
+- kytmanov ingest/compile → mistral-small:22b (fast + heavy)
 - Coördinatie, beslissingen, review → Claude (orchestrator)
 - Navigatie, zoeken → hyalo (geen LLM)
 
@@ -143,7 +143,7 @@ kytmanov (PyPI: `obsidian-llm-wiki`, CLI: `olw`) is de wiki-compiler die LLM-not
 | Canonical bundles | `vault/raw/` | `build-zotero-bundle.py` (geen LLM) |
 | Wiki output | `vault/wiki/sources/` + `vault/wiki/concepts/` | kytmanov (`olw`) |
 
-**Modellen (via Ollama):** `gemma3:12b` (fast) · `mistral-small:22b` (heavy). Let op: `qwen3.5:9b` is incompatibel — thinking mode produceert lege respons bij `format=json`.
+**Modellen (via Ollama):** `mistral-small:22b` (fast + heavy). Let op: `qwen3.5:9b` is incompatibel — thinking mode produceert lege respons bij `format=json`. `gemma3:12b` heeft cross-linguïstische contaminator bij quality=low items in gemengde (NL/EN) batches — niet gebruiken als fast model.
 
 **Gebruik** (vanuit repo-root — `olw` zoekt `wiki.toml` in `vault/`):
 ```bash

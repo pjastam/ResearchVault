@@ -1,5 +1,5 @@
 [models]
-fast = "gemma3:12b"
+fast = "mistral-small:22b"
 heavy = "mistral-small:22b"
 # Optional: set heavy = fast to use a single model for everything
 
