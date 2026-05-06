@@ -50,6 +50,7 @@ Lees vóór elke update de huidige sectie zodat je gericht aanvult of corrigeert
 
 | Gewijzigd bestand | Bij te werken documentatie |
 |---|---|
+| `.claude/build-zotero-bundle.py` | `CLAUDE.md` § Ingest-procedure + `docs/src/usage/phase3-process.md` |
 | `.claude/process_item.py` | `CLAUDE.md` § Ingest-procedure + `docs/src/usage/phase3-process.md` |
 | `.claude/summarize_item.py` | `CLAUDE.md` § Ingest-procedure + `docs/src/usage/phase3-process.md` |
 | `.claude/fetch-fulltext.py` | `CLAUDE.md` § Privacyregel + `docs/src/reference/daily-workflow.md` |

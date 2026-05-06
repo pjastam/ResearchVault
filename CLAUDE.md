@@ -28,20 +28,18 @@ Als Ollama niet bereikbaar is: meld dit en vraag of de gebruiker wil overschakel
 - Alle bestanden zijn Markdown (.md)
 - Gebruik [[dubbele haken]] voor interne links tussen notes
 - Gebruik #tags voor thematische categorisatie
-- Bestandsnamen: gebruik koppeltekens, geen spaties (bijv. `auteur-2024-kernwoord1-kernwoord2.md`)
-  - Na het jaar: 2–4 zelfstandige naamwoorden gekozen door Qwen op basis van titel en TLDR
-  - `process_item.py` genereert de bestandsnaam automatisch — niet handmatig opgeven
+- Bestandsnamen canonical bundles: `{citekey}__{itemKey}.md` (dubbele underscore; `build-zotero-bundle.py` genereert automatisch)
 
 ## Vault-structuur
 
 | Map | Paginatype | Inhoud |
 | --- | --- | --- |
-| `vault/llm-notes/` | Source notes | Één note per paper of bron uit Zotero |
+| `vault/raw/` | Canonical bundles | Één bundle per Zotero-item: verbatim notes + annotaties + volledige tekst |
+| `vault/wiki/sources/` | Wiki-bronnen | kytmanov-gegenereerde kruisverwijzingen (lees-only) |
 | `vault/wiki/syntheses/` | Syntheses | Thematische syntheses van meerdere bronnen |
-| `vault/wiki/concepts/` | Concepts | LLM-onderhouden conceptpagina's (Prioriteit 2) |
+| `vault/wiki/concepts/` | Concepts | LLM-onderhouden conceptpagina's |
 | `vault/authoring/notes/` | — | Persoonlijke werknotities (via symlink → myfiles/notes/) |
 | `vault/.cache/` | — | Tijdelijke verwerkingsbestanden (transcripts, audio) |
-| `vault/.cache/candidates/` | — | Staging area: Qwen-drafts vóór promotie naar `vault/llm-notes/` (zie Ingest-procedure) |
 
 ## Literatuurnotities (uit Zotero)
 
@@ -83,45 +81,55 @@ Na de frontmatter bevat elke notitie:
 
 ## Zotero-workflow
 - Gebruik Zotero MCP om papers op te halen via hun titel of sleutelwoorden
-- Sla literatuurnotities op als `vault/llm-notes/[auteur-jaar-kernwoord].md`
-- Voeg altijd een #tag toe voor het thema van de paper
+- Genereer canonical bundle: `python3 .claude/build-zotero-bundle.py --item-key ITEMKEY`
+- Bundle wordt opgeslagen in `vault/raw/{citekey}__{itemKey}.md`
 
 ## Ingest-procedure
 
-De LLM compileert bestaande kennis — hij genereert geen nieuwe kennis. Prompts voor Qwen zijn kort en structureel.
+**Pipeline (geen LLM in de bundle-stap):**
+```
+Zotero (PDFs, annotaties, child notes)
+    ↓ build-zotero-bundle.py  [geen LLM — puur format-conversie]
+vault/raw/{citekey}__{itemKey}.md
+    ↓ olw ingest (gemma3:12b)
+vault/wiki/sources/{titel}.md
+    ↓ olw compile (mistral-small:22b)
+vault/wiki/concepts/{concept}.md
+```
 
-**Stap 1 — Kwaliteitscheck (Qwen)**
+**Stap 1 — Kwaliteitscheck**
 Beoordeel of het item de vault waard is via `index-score.py`. Items met score < 40 (🔴) worden niet ingested tenzij er een expliciete reden is.
 
-**Stap 2 — Kandidaat aanmaken (Qwen via `process_item.py`)**
+**Stap 2 — Canonical bundle aanmaken**
 ```bash
-~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/process_item.py \
-  --item-key ITEMKEY --output-dir vault/.cache/candidates/ [overige vlaggen]
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/build-zotero-bundle.py \
+  --item-key ITEMKEY
+# → {"status": "ok", "path": "vault/raw/{citekey}__{ITEMKEY}.md"}
 ```
-De draft verschijnt in `vault/.cache/candidates/[auteur-jaar-kw].md`. Geen bron-inhoud bereikt Claude Code.
+Haalt verbatim op: metadata, abstract, child notes (HTML→MD), PDF-annotaties (per pagina), volledige PDF-tekst. Geen LLM betrokken. Geen bron-inhoud bereikt Claude Code.
 
-**Stap 3 — Human review**
-Lees de kandidaat-notitie. Geef Go of No-go. Bij No-go: verwijder het bestand uit `vault/.cache/candidates/`.
-
-**Stap 4 — Promotie naar `vault/llm-notes/` (bij Go)**
+**Stap 3 — kytmanov verwerkt nieuwe bundles**
 ```bash
-mv vault/.cache/candidates/[bestand].md vault/llm-notes/[bestand].md
+(cd vault && olw ingest)   # verwerkt vault/raw/ → wiki/sources/ + wiki/concepts/
 ```
 
-**Stap 5 — Cross-links toevoegen (hyalo + Qwen)**
-Zoek verwante notities:
+**Stap 4 — Human review (optioneel)**
 ```bash
-hyalo find "[kernbegrip]" --glob "vault/llm-notes/*.md" --format text
+(cd vault && olw review)   # approve/reject per draft in wiki/.drafts/
 ```
-Voeg `[[links]]` toe aan de nieuwe notitie én aan de 2–5 meest verwante bestaande notities (alleen bij drempelwaarde — zie Literatuurnotities).
 
-**Stap 6 — Syntheses bijwerken (Qwen)**
-Controleer welke syntheses relevant zijn en voeg een bullet of sectie toe.
+**YouTube-transcripten (eager pipeline):**
+Bij ✅ in de feedreader eerst transcript-bijlage aanmaken vóór Go/No-go:
+```bash
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/attach-transcript.py ITEMKEY
+```
+Daarna `build-zotero-bundle.py` uitvoeren — het script leest de bijlage via `fetch-fulltext.py`.
 
 **Ollama-routing:**
-- Kwaliteitscheck, tekstgeneratie, cross-link-suggesties, synthese-aanvullingen → Qwen (lokaal)
+- Bundle-aanmaak → geen Ollama (pure format-conversie)
+- kytmanov ingest/compile → gemma3:12b (fast) / mistral-small:22b (heavy)
 - Coördinatie, beslissingen, review → Claude (orchestrator)
-- Navigatie, zoeken, link management → hyalo (geen LLM)
+- Navigatie, zoeken → hyalo (geen LLM)
 
 ## kytmanov / obsidian-llm-wiki (wiki.toml)
 
@@ -132,20 +140,19 @@ kytmanov (PyPI: `obsidian-llm-wiki`, CLI: `olw`) is de wiki-compiler die LLM-not
 | Laag | Map | Beheerd door |
 |---|---|---|
 | Immutable originals | Zotero (PDFs, transcripts) | Zotero |
-| LLM-notities | `vault/llm-notes/` | `process_item.py` |
-| kytmanov input | `vault/raw/` → symlink naar `llm-notes/` | symlink |
+| Canonical bundles | `vault/raw/` | `build-zotero-bundle.py` (geen LLM) |
 | Wiki output | `vault/wiki/sources/` + `vault/wiki/concepts/` | kytmanov (`olw`) |
 
 **Modellen (via Ollama):** `gemma3:12b` (fast) · `mistral-small:22b` (heavy). Let op: `qwen3.5:9b` is incompatibel — thinking mode produceert lege respons bij `format=json`.
 
 **Gebruik** (vanuit repo-root — `olw` zoekt `wiki.toml` in `vault/`):
 ```bash
-(cd vault && olw ingest)    # verwerk nieuwe llm-notes/ naar wiki/sources/ + wiki/concepts/
+(cd vault && olw ingest)    # verwerk nieuwe raw/ bundles naar wiki/sources/ + wiki/concepts/
 (cd vault && olw build)     # herbouw alle conceptpagina's
 (cd vault && olw clean)     # GEVAARLIJK: wist volledig vault/wiki/ — nooit uitvoeren
 ```
 
-**Veiligheidsregel:** `vault/llm-notes/` staat NIET onder `vault/wiki/`. `olw clean` wist de volledige `vault/wiki/`-map — notities in `vault/llm-notes/` zijn daartegen beschermd door hun locatie.
+**Veiligheidsregel:** `vault/raw/` staat NIET onder `vault/wiki/`. `olw clean` wist de volledige `vault/wiki/`-map — bundles in `vault/raw/` zijn daartegen beschermd door hun locatie.
 
 **Lokale state (.gitignore):** `vault/.olw/` · `vault/wiki/chroma` · `vault/wiki/state.db`
 
@@ -177,11 +184,11 @@ Dit doet:
 2. Qwen genereert een cleaned versie + abstract (3–5 zinnen)
 3. Cleaned transcript als `.txt`-bijlage naar Zotero; abstract als `abstractNote`
 
-**Na Go: literatuurnotitie aanmaken via `process_item.py`** — zelfde als papers (zie Ingest-procedure).
+**Na Go: canonical bundle aanmaken via `build-zotero-bundle.py`** — het script leest de transcript-bijlage automatisch via `fetch-fulltext.py` (zie Ingest-procedure).
 
-**Notitiestructuur voor video/podcast:**
-- Geen `## Relevant quotes`-sectie — tijdcodes zijn onbetrouwbaar zonder geverifieerde bron
-- Overige secties zoals papers: TLDR, Key findings, Methodological notes, Related notes, Flashcards
+**Bundelinhoud voor video/podcast:**
+- Abstract: de door `attach-transcript.py` gegenereerde samenvatting (3–5 zinnen)
+- Volledige tekst: het transcript zoals opgeslagen als Zotero-bijlage
 
 **Fallback:** `fetch-fulltext.py` leest de transcript-bijlage uit het Zotero-item (lokale API); yt-dlp is niet meer nodig voor de pipeline.
 
@@ -195,7 +202,7 @@ Dit doet:
 - Audio wordt gedownload via yt-dlp en opgeslagen in `vault/.cache/` als `.mp3`
 - Transcriptie verloopt lokaal via whisper.cpp (volledig offline)
 - Whisper detecteert de taal automatisch; geef `--language` alleen expliciet mee als de automatische detectie onjuist is
-- Verwerk een transcript naar een note in `vault/llm-notes/` met de volgende structuur:
+- Verwerk een transcript naar een bundle via `build-zotero-bundle.py` of sla op in `vault/.cache/` als tijdelijk bestand met de volgende structuur:
   - Titel, spreker(s), programma/kanaal, datum, URL of bronvermelding
   - Samenvatting (3–5 zinnen)
   - Kernpunten met tijdcodes
@@ -261,16 +268,10 @@ Na ≥30 positieven verschijnt een drempeladvies; pas dan `THRESHOLD_GREEN` en `
 - Academische artikelen die interessant zijn: voeg ze toe aan Zotero via de browser-extensie of iOS-app → komen in `_inbox` terecht
 - Niet-academische artikelen: voeg toe via Zotero Connector of de iOS share sheet — alle bronnen komen via de Zotero `_inbox` de vault in
 
-## Spaced repetition (Obsidian plugin)
-- Flashcards worden aangemaakt na elke literatuurnotitie of synthese
-- Formaat: vraag en antwoord gescheiden door `?` op een nieuwe regel, omsloten door `#flashcard`-tag
-- Maak maximaal 5 kaarten per bron — kies de meest relevante concepten
-- Dagelijkse review via Obsidian Spaced Repetition plugin (zijbalk → Kaarten beoordelen)
-
 ## Architectuurprincipes (niet onderhandelbaar)
 
 - **Privacy-grens**: source content (volledige tekst van papers, podcasts, video's) gaat NOOIT naar de Anthropic API. Alleen JSON status-objecten en metadata mogen Claude Code bereiken vanuit de subagents.
-- **Subagent-patroon**: `process_item.py` en `summarize_item.py` worden aangeroepen als lokale Python-subprocessen. Claude Code stuurt ze aan maar voert zelf geen inhoudsverwerking uit.
+- **Subagent-patroon**: `build-zotero-bundle.py` en `summarize_item.py` worden aangeroepen als lokale Python-subprocessen. Claude Code stuurt ze aan maar voert zelf geen inhoudsverwerking uit.
 - **`--hd` flag**: activeert Claude Sonnet 4.6 in plaats van Qwen3.5:9b. Vereist altijd expliciete bevestiging van de gebruiker vóór verzending naar de API.
 - **Zotero**: alle interacties via de lokale REST API (localhost:23119) — vereist dat de Zotero app draait. Nooit via de Zotero Web API of andere cloud-diensten.
 - **Ontwikkelsessies**: ook tijdens het schrijven of testen van nieuwe scripts gelden dezelfde privacyregels. Test nooit met echte paper-inhoud als die inhoud als tool-output in Claude's context kan komen. Gebruik synthetische testdata of alleen metadata bij ontwikkeling en debugging.
@@ -279,19 +280,15 @@ Na ≥30 positieven verschijnt een drempeladvies; pas dan `THRESHOLD_GREEN` en `
 
 **Noch de volledige tekst van bronnen (papers, artikelen, transcripten), noch enige door het model gegenereerde tekst op basis daarvan (samenvattingen, parafrases, afgeleide tekst) mag ooit als output van een Bash-commando in Claude's context terechtkomen.** Zodra tekst als tool-output terugkomt, is hij naar de Anthropic API gegaan — ook als de intentie was om hem alleen lokaal te verwerken.
 
-Correcte aanpak voor het genereren van literatuurnotities: gebruik `.claude/process_item.py`. Dit is de privacy-preserving subagent die de volledige lokale pipeline uitvoert en alleen een JSON-statusobject teruggeeft:
+Correcte aanpak voor het genereren van canonical bundles: gebruik `.claude/build-zotero-bundle.py`. Dit is de privacy-preserving subagent die alle Zotero-data samenvoegt zonder LLM-tussenkomst en alleen een JSON-statusobject teruggeeft:
 
 ```bash
-~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/process_item.py \
-  --item-key ITEMKEY \
-  --title "Titel" --authors "Achternaam, V." --year 2024 \
-  --journal "..." --citation-key auteur2024kw \
-  --zotero-url "zotero://select/library/items/ITEMKEY" \
-  --tags "thema" --status unread
-# → {"status": "ok", "path": "vault/llm-notes/auteur2024kw.md"}
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/build-zotero-bundle.py \
+  --item-key ITEMKEY
+# → {"status": "ok", "path": "vault/raw/{citekey}__{ITEMKEY}.md"}
 ```
 
-De subagent roept intern `fetch-fulltext.py` en `ollama-generate.py` aan. Geen bron-inhoud bereikt Claude Code als tool-output.
+Het script roept intern `fetch-fulltext.py` aan voor de PDF-tekst. Geen bron-inhoud bereikt Claude Code als tool-output.
 
 Correcte aanpak voor compacte samenvattingen (fase 2, 📖-items): gebruik `.claude/summarize_item.py`. Zelfde privacy-patroon: de samenvatting wordt naar een lokaal bestand geschreven; alleen het pad wordt teruggegeven:
 
@@ -311,10 +308,10 @@ Voor losse stappen of speciale gevallen (transcripten, snapshots): gebruik `.cla
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/fetch-fulltext.py ITEMKEY vault/.cache/bestand.txt
 ```
 
-Daarna verwerken via Ollama:
+Daarna verwerken via Ollama (alleen voor losstaande stappen buiten de bundle-pipeline):
 ```bash
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
-  --input vault/.cache/bestand.txt --output vault/llm-notes/bestand.md --prompt "..."
+  --input vault/.cache/bestand.txt --output vault/.cache/bestand.md --prompt "..."
 ```
 
 Dit geldt ook voor snapshot-HTML, VTT-transcripten en podcast-transcripten: nooit `cat` of `print` op de volledige inhoud uitvoeren als Bash-tool.

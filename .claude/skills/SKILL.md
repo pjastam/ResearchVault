@@ -65,7 +65,6 @@ Na elke sessie:
 - Stel voor om bestaande syntheses bij te werken als er nieuwe relevante literatuur is toegevoegd
 - Vraag of `vault/.cache/` opgeruimd moet worden (verwerkte transcripten verwijderen)
 - Herinner aan database-update als er nieuwe papers zijn toegevoegd en de laatste update meer dan een week geleden was: "Je hebt recent nieuwe papers toegevoegd. Zal ik de Zotero-zoekdatabase bijwerken zodat semantisch zoeken ze ook vindt? (`update-zotero`)"
-- Stel voor om flashcards aan te maken als er een nieuwe literatuurnotitie of synthese is gemaakt en er nog geen kaarten bij zijn
 
 ---
 
@@ -74,7 +73,7 @@ Na elke sessie:
 Elke actie die Claude Code uitvoert, kondigt het kort aan vóór uitvoering:
 - "Ik zoek nu in Zotero op [zoekterm]..."
 - "Ik haal de volledige tekst op van [titel]..."
-- "Ik schrijf de note naar vault/llm-notes/[bestandsnaam].md..."
+- "Ik schrijf de bundle naar vault/raw/[citekey]__[itemKey].md..."
 
 Na elke stap: bevestig het resultaat en vraag of de gebruiker verder wil of iets wil aanpassen.
 
@@ -94,7 +93,6 @@ Standaard verloopt de volledige workflow lokaal via Qwen3.5:9b. Geen data verlaa
 | `podcast [URL] --hd` | Type 4 met Claude Sonnet 4.6 i.p.v. Qwen |
 | `verwerk recente papers --hd` | Type 1 met Claude Sonnet 4.6 i.p.v. Qwen |
 | `synthese over [thema] --hd` | Type 6 met Claude Sonnet 4.6 i.p.v. Qwen |
-| `maak flashcards voor [note] --hd` | Type 8 met Claude Sonnet 4.6 i.p.v. Qwen |
 | "gebruik maximale kwaliteit" / "gebruik Sonnet" | Idem — alternatieve formuleringen |
 
 **Gedragsregels bij `--hd`:**
@@ -240,22 +238,12 @@ Na ontvangst van `{"status": "ok", "path": "vault/.cache/_summary_ITEMKEY.md"}`:
 5. Per item, afhankelijk van tag én score (zie taglogica + scorelogica hierboven):
    - `📖`: roep `summarize_item.py` aan, toon pad, wacht op besluit
    - Overige items: genereer indien nodig samenvatting via Qwen3.5:9b; vraag Go/No-go
-6. **Go-items:** verplaats naar de juiste collectie en verwerk via de subagent:
+6. **Go-items:** verplaats naar de juiste collectie en maak de canonical bundle aan:
    ```bash
-   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/process_item.py \
-     --item-key ITEMKEY \
-     --title "Volledige titel" \
-     --authors "Achternaam, Voornaam" \
-     --year JJJJ \
-     --journal "Tijdschrift" \
-     --citation-key auteur2024kernwoord \
-     --zotero-url "zotero://select/library/1/items/ITEMKEY" \
-     --tags "thema1" --tags "thema2" \
-     --status read|unread
+   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/build-zotero-bundle.py \
+     --item-key ITEMKEY
    ```
-   De subagent haalt de volledige tekst lokaal op, genereert de notitie via Qwen3.5:9b en schrijft het `.md`-bestand naar `vault/llm-notes/`. Claude Code ontvangt alleen het JSON-statusobject `{"status": "ok", "path": "vault/llm-notes/..."}` — geen bron-inhoud.
-   - `--status read` als het item de tag `✅` had in Zotero; anders `--status unread`.
-   - Na ontvangst van het statusobject: voeg `[[interne links]]` toe naar gerelateerde notes.
+   Het script haalt verbatim op: metadata, abstract, child notes (HTML→MD), PDF-annotaties en volledige tekst. Geen LLM betrokken. Claude Code ontvangt alleen `{"status": "ok", "path": "vault/raw/..."}` — geen bron-inhoud.
 7. **No-go-items:** vraag altijd om bevestiging vóór verwijdering, verwijder daarna uit `_inbox`. Een no-go betekent altijd: geen notitie aanmaken én verwijderen uit `_inbox` — er is geen tussenoptie.
 8. Sluit af met een overzicht: "X items goedgekeurd, Y items verwijderd."
 
@@ -268,23 +256,17 @@ Na ontvangst van `{"status": "ok", "path": "vault/.cache/_summary_ITEMKEY.md"}`:
 1. Vraag: recent toegevoegd, of specifiek thema?
 2. Haal via Zotero MCP de meest recente items op, of zoek op thema
 3. Toon lijst met titels — vraag welke verwerkt moeten worden
-4. Per paper: haal metadata op (alleen titel, auteurs, jaar, journal, citation key, tags — geen volledige tekst). Roep de subagent aan:
+4. Per paper: maak de canonical bundle aan via de subagent:
    ```bash
-   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/process_item.py \
-     --item-key ITEMKEY \
-     --title "Volledige titel" \
-     --authors "Achternaam, Voornaam" \
-     --year JJJJ \
-     --journal "Tijdschrift" \
-     --citation-key auteur2024kernwoord \
-     --zotero-url "zotero://select/library/1/items/ITEMKEY" \
-     --tags "thema1" --tags "thema2" \
-     --status unread
+   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/build-zotero-bundle.py \
+     --item-key ITEMKEY
    ```
-   De subagent haalt de volledige tekst lokaal op, genereert de notitie via Qwen3.5:9b, bouwt de YAML frontmatter en schrijft het `.md`-bestand naar `vault/llm-notes/`. Geen bron-inhoud bereikt de Anthropic API. Claude Code ontvangt alleen `{"status": "ok", "path": "vault/llm-notes/..."}`.
-5. Na ontvangst van het statusobject: voeg `[[interne links]]` naar gerelateerde notes toe via de Edit-tool (lees de gegenereerde note om relevante links te identificeren op basis van de titel en tags — nooit de volledige inhoud in context laden).
-6. Gebruik `--status read` als het item de tag `✅` had; anders `--status unread`.
-7. Verwijder het item uit de Zotero `_inbox` collectie via de web API:
+   Het script haalt verbatim op uit Zotero: metadata, abstract, child notes (HTML→MD), PDF-annotaties per pagina en volledige PDF-tekst. Geen LLM betrokken. Geen bron-inhoud bereikt de Anthropic API. Claude Code ontvangt alleen `{"status": "ok", "path": "vault/raw/..."}`.
+5. Na de bundle: run kytmanov om de wiki bij te werken:
+   ```bash
+   (cd vault && olw ingest)
+   ```
+6. Verwijder het item uit de Zotero `_inbox` collectie:
    ```bash
    ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/zotero-remove-from-inbox.py ITEMKEY
    ```
@@ -322,7 +304,7 @@ Na ontvangst van `{"status": "ok", "path": "vault/.cache/_summary_ITEMKEY.md"}`:
    ```bash
    ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
      --input vault/.cache/[bestandsnaam].vtt \
-     --output vault/llm-notes/[naam].md \
+     --output vault/.cache/[naam].md \
      --prompt "You are a research assistant. Write a structured note in the same language as the video transcript. Use these sections: title, speaker, channel, date, URL / summary (3-5 sentences) / key points with timestamps / relevant quotes with timestamps / links to related notes. No frontmatter."
    ```
 6. Voeg daarna toe: frontmatter, `[[interne links]]` en `#video` tag
@@ -353,7 +335,7 @@ Na ontvangst van `{"status": "ok", "path": "vault/.cache/_summary_ITEMKEY.md"}`:
    ```bash
    ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
      --input vault/.cache/[bestandsnaam].txt \
-     --output vault/llm-notes/[naam].md \
+     --output vault/.cache/[naam].md \
      --prompt "You are a research assistant. Write a structured note in the same language as the transcript. Use these sections: title, speaker(s), programme/channel, date, URL / summary (3-5 sentences) / key points with timestamps / relevant quotes with timestamps (original language) / links to related notes. No frontmatter."
    ```
 6. Voeg daarna toe: frontmatter, `[[interne links]]` en `#podcast` tag
@@ -371,18 +353,18 @@ Na ontvangst van `{"status": "ok", "path": "vault/.cache/_summary_ITEMKEY.md"}`:
 
 1. Vraag: wil je het item toevoegen aan Zotero (voor BibTeX, annotaties en opname in de semantische database), of direct opslaan als notitie in `vault/.cache/`?
 2. **Via Zotero:** het item is al opgeslagen via de Zotero Connector of iOS-app; haal het op via Zotero MCP en verwerk naar literatuurnotitie (zie type 1)
-3. **Direct naar `vault/.cache/`:** geef de opdracht `inbox [URL]` — Claude Code haalt de inhoud op en slaat het op als Markdown-bestand in `vault/.cache/`, zonder Zotero. Verwerk daarna naar `vault/llm-notes/` als dat gewenst is.
+3. **Direct naar `vault/.cache/`:** geef de opdracht `inbox [URL]` — Claude Code haalt de inhoud op en slaat het op als Markdown-bestand in `vault/.cache/`, zonder Zotero. Voeg toe aan Zotero als je het wilt verwerken via `build-zotero-bundle.py`.
 4. Voeg `#web` of `#beleid` toe aan niet-academische items
 
 ### Type 6: Synthese maken
 
 1. Vraag naar het thema en het doel van de synthese
-2. Zoek relevante notes in `llm-notes/` en `syntheses/`
+2. Zoek relevante bundles in `raw/` en syntheses in `wiki/syntheses/`
 3. Toon een overzicht van gevonden materiaal — klopt dit?
 4. Vraag naar de gewenste opbouw: chronologisch, thematisch, of pro/contra?
 5. Combineer de bronbestanden en genereer de synthese lokaal via qwen3.5:9b:
    ```
-   cat llm-notes/[bron1].md llm-notes/[bron2].md | ollama run qwen3.5:9b > syntheses/[thema].md
+   cat raw/[bron1].md raw/[bron2].md | ollama run qwen3.5:9b > wiki/syntheses/[thema].md
    ```
    > **Contextlimiet:** qwen3.5:9b heeft een contextvenster van 256K tokens — ruim voldoende voor tientallen literatuurnotities tegelijk. Batching is bij dit model zelden nodig.
 6. Voeg daarna toe: `[[interne links]]` naar alle verwerkte bronnen en `#tags`
@@ -396,18 +378,7 @@ Na ontvangst van `{"status": "ok", "path": "vault/.cache/_summary_ITEMKEY.md"}`:
 4. Stel voor om `[[links]]` toe te voegen — vraag per suggestie om bevestiging
 5. Stel voor om verouderde of dunne notes bij te werken als er nieuwer materiaal is
 
-### Type 8: Flashcards aanmaken of beoordelen
-
-1. Vraag: nieuwe kaarten aanmaken bij een bestaande note, of herinnering geven aan de dagelijkse review?
-2. **Nieuwe kaarten:** vraag bij welke note of synthese; genereer 3–5 kaarten lokaal via qwen3.5:9b:
-   ```
-   ollama run qwen3.5:9b < llm-notes/[notitie].md
-   ```
-   Plak de gegenereerde kaarten in Spaced Repetition formaat (`?` als scheidingsteken, `#flashcard` tag) aan het einde van de bestaande note. Gebruik `flashcards/` alleen voor zelfstandige kaarten die niet aan één specifieke bron gebonden zijn.
-3. **Review herinnering:** herinner de gebruiker dat de dagelijkse review in Obsidian plaatsvindt via de zijbalk (kaartpictogram) — dit is niet iets dat Claude Code zelf uitvoert
-4. Na het aanmaken: "Wil je dat ik ook flashcards maak voor andere recent toegevoegde notes?"
-
-### Type 9: Inbox opruimen
+### Type 8: Inbox opruimen
 
 1. Toon wat er in `vault/.cache/` staat
 2. Per item: verwerken naar een note, verplaatsen, of verwijderen?
@@ -448,12 +419,10 @@ Na ontvangst van `{"status": "ok", "path": "vault/.cache/_summary_ITEMKEY.md"}`:
 | "synthese over [thema]" | Start type 6 (lokaal via Qwen3.5:9b) |
 | "synthese over [thema] --hd" | Start type 6 met Claude Sonnet 4.6 (na bevestiging) |
 | "wat staat er in de vault" | Start type 7, geef overzicht |
-| "maak flashcards voor [note]" | Start type 8 (lokaal via Qwen3.5:9b) |
-| "maak flashcards voor [note] --hd" | Start type 8 met Claude Sonnet 4.6 (na bevestiging) |
-| "ruim inbox op" | Start type 9 |
+| "ruim inbox op" | Start type 8 |
 | "update database" | Voer `zotero-mcp update-db --fulltext` uit |
 | "wat heb ik gisteren gedaan" | Zoek in `daily/` naar de meest recente dagnotitie |
 
 ---
 
-*Skill versie 1.21 — april 2026 — HTML-lezer verwijderd; NNW + FreshRSS sync operationeel; deduplicatiefilter toegevoegd aan feedreader-score.py*
+*Skill versie 1.22 — mei 2026 — canonical bundles (`build-zotero-bundle.py`); `vault/llm-notes/` hernoemd naar `vault/raw/`; flashcards uit geautomatiseerde pipeline verwijderd*

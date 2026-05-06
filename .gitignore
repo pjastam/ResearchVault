@@ -11,9 +11,9 @@
 
 # Persoonlijke onderzoeksinhoud — niet delen, maar mapstructuur wel bewaren
 vault/.cache/candidates/*.md
-vault/llm-notes/*.md
-vault/llm-notes/annotations/*
-!vault/llm-notes/annotations/.gitkeep
+vault/raw/*.md
+vault/raw/annotations/*
+!vault/raw/annotations/.gitkeep
 vault/wiki/syntheses/*
 !vault/wiki/syntheses/.gitkeep
 vault/.cache/*.vtt

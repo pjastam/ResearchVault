@@ -75,11 +75,22 @@ You do not need to know exactly what you are looking for — the skill is design
 
 ## Helper scripts
 
-The workflow uses three helper scripts in `.claude/`. They keep source content out of Claude Code's context and handle Zotero write operations.
+The workflow uses several helper scripts in `.claude/`. They keep source content out of Claude Code's context and handle Zotero operations.
+
+### `build-zotero-bundle.py` — create canonical bundle
+
+Assembles a canonical Markdown bundle from all Zotero data for one item. No LLM involved.
+
+```bash
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/build-zotero-bundle.py --item-key ITEMKEY
+# Output: {"status": "ok", "path": "vault/raw/{citekey}__{ITEMKEY}.md"}
+```
+
+Bundle contains: YAML frontmatter, abstract, child notes (HTML→MD), PDF annotations by page, full text.
 
 ### `fetch-fulltext.py` — retrieve and save attachment text
 
-Fetches the full text of a Zotero attachment and saves it to a local file. Only prints status; never prints content.
+Fetches the full text of a Zotero attachment and saves it to a local file. Only prints status; never prints content. Called internally by `build-zotero-bundle.py`.
 
 ```bash
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/fetch-fulltext.py ITEMKEY vault/.cache/bron.txt
@@ -88,14 +99,14 @@ Fetches the full text of a Zotero attachment and saves it to a local file. Only 
 
 ### `ollama-generate.py` — generate text via Ollama REST API
 
-Calls Ollama's REST API directly (no CLI, no ANSI codes). Prepends `/no_think` to suppress Qwen3.5:9b's reasoning step. Prints only status lines.
+Calls Ollama's REST API directly (no CLI, no ANSI codes). For standalone generation tasks outside the bundle pipeline. Prints only status lines.
 
 ```bash
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
   --input  vault/.cache/bron.txt \
-  --output vault/llm-notes/notitie.md \
-  --prompt "Write a literature note in Dutch..."
-# Output: Input: vault/.cache/bron.txt (12,345 chars) | Written: vault/llm-notes/notitie.md (3,200 chars)
+  --output vault/.cache/notitie.md \
+  --prompt "Write a summary in Dutch..."
+# Output: Input: vault/.cache/bron.txt (12,345 chars) | Written: vault/.cache/notitie.md (3,200 chars)
 ```
 
 ### `zotero-remove-from-inbox.py` — remove processed item from `_inbox`
