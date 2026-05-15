@@ -14,8 +14,16 @@ vault/.cache/candidates/*.md
 vault/raw/*.md
 vault/raw/annotations/*
 !vault/raw/annotations/.gitkeep
+vault/wiki/*
+!vault/wiki/syntheses/
 vault/wiki/syntheses/*
 !vault/wiki/syntheses/.gitkeep
+!vault/wiki/.drafts/
+vault/wiki/.drafts/*
+!vault/wiki/.drafts/.gitkeep
+!vault/wiki/sources/
+vault/wiki/sources/*
+!vault/wiki/sources/.gitkeep
 vault/.cache/*.vtt
 vault/.cache/*.mp3
 vault/.cache/*.txt
@@ -47,8 +55,6 @@ vault/.cache/*.md
 
 # kytmanov/obsidian-llm-wiki — lokale state (vector DB, ingest-status)
 **/.olw/
-vault/wiki/chroma
-vault/wiki/state.db
 
 # Laat lege mappen zichtbaar via .gitkeep (zie per map)
 .env
