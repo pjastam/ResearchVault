@@ -42,6 +42,8 @@ VU_EZPROXY_PREFIX = "https://vu-nl.idm.oclc.org/login?url="
 
 PAPERS_DIR = Path.home() / "Zotero" / "Papers"
 SNAPSHOTS_DIR = Path.home() / "Zotero" / "Snapshots"
+TRANSCRIPTS_DIR = Path.home() / "Zotero" / "Transcripts"
+TRANSCRIPT_CACHE_DIR = Path(__file__).resolve().parent / "transcript_cache"
 
 UA = "Mozilla/5.0 (Macintosh) enrich-inbox/1.0 (mailto:piet@pietstam.nl)"
 
@@ -124,6 +126,23 @@ def detect_doi(data: dict) -> Optional[str]:
     if m:
         return m.group(1).rstrip(".,)")
     return None
+
+# ── YouTube-helpers ─────────────────────────────────────────────────────────────
+
+def extract_video_id(url: str) -> Optional[str]:
+    m = re.search(r'(?:v=|youtu\.be/)([A-Za-z0-9_-]{11})', url)
+    return m.group(1) if m else None
+
+
+def get_cached_transcript(video_id: str) -> Optional[str]:
+    cache_file = TRANSCRIPT_CACHE_DIR / f"{video_id}.json"
+    if not cache_file.exists():
+        return None
+    try:
+        data = json.loads(cache_file.read_text(encoding="utf-8"))
+        return data.get("text") or None
+    except Exception:
+        return None
 
 # ── Fase 1: Metadata ─────────────────────────────────────────────────────────────
 
@@ -264,7 +283,7 @@ def enrich_item(item: dict) -> dict:
             print(f"  OG-tags {key}: {e}", file=sys.stderr)
 
     # ── Fase 2: Bijlage (lokale opslag, vóór Zotero-PATCH) ───────────────────
-    pdf_path = snapshot_path = None
+    pdf_path = snapshot_path = transcript_path = None
     ezproxy_needed = False
 
     if doi:
@@ -283,10 +302,24 @@ def enrich_item(item: dict) -> dict:
                     snapshot_path = dest
                     actions.append("html-snapshot")
     elif url:
-        dest = SNAPSHOTS_DIR / f"{key}.html"
-        if fetch_html_snapshot(url, dest):
-            snapshot_path = dest
-            actions.append("html-snapshot")
+        video_id = extract_video_id(url)
+        if video_id:
+            # YouTube-item: ruwe transcript uit cache opslaan als linked_file
+            transcript_text = get_cached_transcript(video_id)
+            if transcript_text:
+                dest = TRANSCRIPTS_DIR / f"{key}.txt"
+                try:
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    dest.write_text(transcript_text, encoding="utf-8")
+                    transcript_path = dest
+                    actions.append("transcript-cache")
+                except Exception as e:
+                    print(f"  Transcript opslaan {key}: {e}", file=sys.stderr)
+        else:
+            dest = SNAPSHOTS_DIR / f"{key}.html"
+            if fetch_html_snapshot(url, dest):
+                snapshot_path = dest
+                actions.append("html-snapshot")
 
     # ── Zotero bijwerken: één GET → één PATCH → optioneel POST bijlage ────────
     try:
@@ -331,6 +364,8 @@ def enrich_item(item: dict) -> dict:
             new_tags.append({"tag": "_enriched-oa-missing"})
         if snapshot_path and "_enriched-snapshot" not in tag_names:
             new_tags.append({"tag": "_enriched-snapshot"})
+        if transcript_path and "_enriched-transcript" not in tag_names:
+            new_tags.append({"tag": "_enriched-transcript"})
         update["tags"] = new_tags
 
         _zotero(
@@ -345,6 +380,8 @@ def enrich_item(item: dict) -> dict:
             create_attachment(key, pdf_path, "application/pdf", f"PDF – {doi}")
         if snapshot_path:
             create_attachment(key, snapshot_path, "text/html", "Snapshot")
+        if transcript_path:
+            create_attachment(key, transcript_path, "text/plain", "Transcript")
 
         return {"key": key, "status": "ok", "actions": actions}
 
