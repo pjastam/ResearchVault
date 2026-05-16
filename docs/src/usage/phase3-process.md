@@ -41,13 +41,14 @@ YouTube items follow an **eager transcript pipeline**: when you mark a video ✅
 **If the transcript attachment is missing** (e.g. for manually added items), run it explicitly:
 
 ```bash
-~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/attach-transcript.py ITEMKEY
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/attach-transcript.py \
+  --item-key ITEMKEY --url "https://www.youtube.com/watch?v=..."
 ```
 
 This script:
 1. Fetches the transcript via `YouTubeTranscriptApi` (or from `.claude/transcript_cache/`)
-2. Qwen3.5:9b generates a cleaned transcript and a 3–5 sentence abstract
-3. Uploads the cleaned transcript as a `.txt` attachment to Zotero; sets `abstractNote`
+2. Qwen3.5:9b generates an abstract
+3. Uploads the transcript as a `.txt` attachment to Zotero; sets `abstractNote`
 
 After a **Go** decision, generate the literature note the same way as papers:
 
@@ -72,25 +73,25 @@ Notes are saved to `literature/[author-year-keyword1-keyword2].md` — Qwen sele
 
 ## Podcasts
 
-Podcast episodes added from Overcast (via iOS share sheet) arrive in Zotero `_inbox` as overcast.fm URLs. After a Go decision:
+Podcast transcripts are created manually via `attach-transcript.py` — whisper.cpp requires audio download and transcription (minutes of processing), so it cannot run in the batch pipeline.
 
+```bash
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/attach-transcript.py \
+  --item-key ITEMKEY --url "https://podcast-episode-page-url"
 ```
-podcast [URL]
-```
 
-Claude Code:
-1. Checks for a cached show notes file in `.claude/transcript_cache/podcast_{episode_id}.json`
-2. If no cache: downloads audio via yt-dlp, transcribes locally via whisper.cpp (automatic language detection)
-3. For long episodes (> 45 min): generates a layered summary first (main line → per segment), then the final note
-4. Generates a structured note locally via Qwen3.5:9b:
-   - Title, speaker(s), programme/channel, date, URL
-   - Summary (3–5 sentences)
-   - Key points with timestamps
-   - Relevant quotes with timestamps (original language)
-5. Adds frontmatter, `[[internal links]]`, and `#podcast` tag
-6. Removes raw `.mp3` and `.txt` files from `inbox/` and the item from Zotero `_inbox`
+This script:
+1. Downloads audio using the direct MP3 URL cached from the RSS `<enclosure>` tag (via `feedreader-score.py`) or falls back to yt-dlp
+2. Detects language automatically from cached show notes (Dutch show notes → `--language nl`); override with `--language` if needed
+3. Transcribes locally via `whisper-cli` (model: `large-v3-turbo`, Metal GPU, ~2–3 min per 30 min audio on M4)
+4. If `abstractNote` is already filled (show notes set by `enrich-inbox.py`): moves it to a child note titled "Shownotes"
+5. Generates an abstract via Qwen3.5:9b; sets `abstractNote`; stores transcript as `.txt` linked-file attachment; adds tag `_enriched-transcript`
 
-Notes are saved to `literature/[speaker-year-keyword].md`.
+After a **Go** decision, generate the literature note via `process_item.py` — same as papers.
+
+**If yt-dlp fails** with "Unsupported URL": add the feed to `feedreader-list.txt`. After the next `feedreader-score.py` run, the direct audio URL is cached and used automatically.
+
+Notes follow the same structure as YouTube: no "Relevant quotes" section (timestamps unreliable); all other sections as papers.
 
 ---
 

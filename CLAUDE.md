@@ -136,19 +136,32 @@ Controleer welke syntheses relevant zijn en voeg een bullet of sectie toe.
   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/zotero-remove-from-inbox.py ITEMKEY
   ```
 - `.claude/zotero_utils.py` — gedeelde SQLite-hulpfuncties voor feedreader-score.py, feedreader-learn.py en index-score.py; leest items en gewichten direct uit de Zotero-database (geen API-aanroepen)
+- `.claude/enrich-inbox.py` — batch-verrijking van `_inbox`-items zonder `_enriched`-tag; draait in nachtelijke en dagelijkse pipeline; per item: (1) metadata via CrossRef (DOI) of Open Graph (webartikel); (2) bijlage: OA-PDF via Unpaywall, HTML-snapshot, of voor podcast-items met show notes in feedreader-cache: show notes als `abstractNote` + tag `_enriched-shownotes`; VU EZProxy-URL in `extra` als fallback voor paywalled papers
 
-## YouTube-transcripten (attach-transcript.py)
+## Transcripten (attach-transcript.py)
 
-YouTube-items volgen een eager transcript-pipeline: bij ✅ in de feedreader wordt het transcript meteen opgehaald en als bijlage in Zotero opgeslagen, zodat de Go/No-go op inhoud kan worden gebaseerd.
+`attach-transcript.py` verwerkt zowel YouTube- als podcast-items: haalt audio/transcript op, genereert een abstract via Qwen en slaat het transcript als `.txt`-bijlage op in Zotero.
 
-**Transcript-bijlage aanmaken (voor Go/No-go):**
+**YouTube** — eager pipeline: bij ✅ in de feedreader wordt het transcript meteen opgehaald. Handmatig aanroepen:
 ```bash
-~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/attach-transcript.py ITEMKEY
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/attach-transcript.py \
+  --item-key ITEMKEY --url "https://www.youtube.com/watch?v=..."
+```
+Gebruikt `YouTubeTranscriptApi` (of `transcript_cache/`); Qwen genereert abstract.
+
+**Podcast** — altijd handmatig (whisper.cpp vereist audio-download, duurt minuten):
+```bash
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/attach-transcript.py \
+  --item-key ITEMKEY --url "https://podcast-episode-pagina-url"
 ```
 Dit doet:
-1. Transcript ophalen via `YouTubeTranscriptApi` (of uit `transcript_cache/`)
-2. Qwen genereert een cleaned versie + abstract (3–5 zinnen)
-3. Cleaned transcript als `.txt`-bijlage naar Zotero; abstract als `abstractNote`
+1. Audio downloaden via directe MP3-URL uit feedreader-cache (`audio_url` uit RSS `<enclosure>`) of yt-dlp
+2. Taal detecteren uit show notes in feedreader-cache (automatisch `--language nl` voor NL-podcasts); `--language` overschrijft dit
+3. Transcriberen via `whisper-cli` (model: `large-v3-turbo`, Metal GPU, ~2–3 min per 30 min audio op M4)
+4. Abstract genereren via Qwen; als `abstractNote` al gevuld is (show notes van `enrich-inbox.py`) → verplaatsen naar child note "Shownotes"
+5. Transcript als `.txt`-bijlage naar Zotero; abstract als `abstractNote`; tag `_enriched-transcript`
+
+Optioneel: `--whisper-model base` of `--language en` om defaults te overschrijven; `--force` om te hertranscriberen (overschrijft bestaand transcript-bestand, maakt geen duplicaat).
 
 **Na Go: literatuurnotitie aanmaken via `process_item.py`** — zelfde als papers (zie Ingest-procedure).
 
@@ -156,7 +169,7 @@ Dit doet:
 - Geen `## Relevant quotes`-sectie — tijdcodes zijn onbetrouwbaar zonder geverifieerde bron
 - Overige secties zoals papers: TLDR, Key findings, Methodological notes, Related notes, Flashcards
 
-**Fallback:** `fetch-fulltext.py` leest de transcript-bijlage uit het Zotero-item (lokale API); yt-dlp is niet meer nodig voor de pipeline.
+**Fallback:** `fetch-fulltext.py` leest de transcript-bijlage uit het Zotero-item (lokale API).
 
 ## Zotero database-onderhoud
 - De semantische zoekdatabase wordt automatisch bijgewerkt dagelijks om 06:00 via de nachtelijke-taken daemon (`nl.pietstam.nachtelijke-taken`) — geen handmatige actie nodig vóór een sessie
@@ -164,19 +177,15 @@ Dit doet:
 - Gebruik het commando `update-zotero` (alias) of `zotero-mcp update-db --fulltext` voor een handmatige volledige update
 - Check de status met `zotero-status` of `zotero-mcp db-status`
 
-## Podcast-transcripten (whisper.cpp + yt-dlp)
-- Audio wordt gedownload via yt-dlp en opgeslagen in `inbox/` als `.mp3`
-- Transcriptie verloopt lokaal via whisper.cpp (volledig offline)
-- Whisper detecteert de taal automatisch; geef `--language` alleen expliciet mee als de automatische detectie onjuist is
-- Verwerk een transcript naar een note in `literature/` met de volgende structuur:
-  - Titel, spreker(s), programma/kanaal, datum, URL of bronvermelding
-  - Samenvatting (3–5 zinnen)
-  - Kernpunten met tijdcodes
-  - Relevante uitspraken (met tijdcode, in de originele taal)
-  - Links naar gerelateerde notes in de vault
-- Bestandsnaam voor podcast-notes: `[spreker-jaar-kernwoord].md` met #tag `#podcast`
-- Bij lange podcasts (> 45 min): maak eerst een gelaagde samenvatting (hoofdlijn → per segment)
-- Ruwe `.mp3` en `.txt`-bestanden verwijder je uit `inbox/` nadat de note is aangemaakt
+## Podcast-transcripten (whisper.cpp via attach-transcript.py)
+
+Podcast-transcripten worden handmatig aangemaakt via `attach-transcript.py` (zie § Transcripten hierboven). Whisper.cpp draait volledig lokaal (Metal GPU, geen data naar buiten). Audio wordt tijdelijk opgeslagen in `inbox/` als `_audio_{ITEMKEY}.mp3` en na verwerking automatisch opgeruimd.
+
+**Taaldetectie:** whisper-cli detecteert de taal automatisch op basis van de show notes in de feedreader-cache. Voor Nederlandstalige podcasts wordt `--language nl` automatisch doorgegeven; voor Engelstalige podcasts (Engelse show notes) wordt niets meegegeven (whisper auto-detect). Gebruik `--language` om dit handmatig te overschrijven.
+
+**Tip:** als yt-dlp faalt met "Unsupported URL", voeg de feed toe aan `feedreader-list.txt`; na de volgende feedreader-score.py-run is de directe audio-URL gecachet en werkt de download zonder yt-dlp.
+
+**Na transcriptie:** literatuurnotitie aanmaken via `process_item.py` (zelfde als papers). Notitiestructuur: geen `## Relevant quotes` (tijdcodes onbetrouwbaar); overige secties zoals papers.
 
 ## Feedreader — RSS-filtering (feedreader-score.py)
 
@@ -184,7 +193,7 @@ De feedreader scoort RSS/YouTube/podcast-feeds automatisch op relevantie en prod
 
 **Bestanden:**
 - `.claude/feedreader-list.txt` — lijst van feed-URLs (één per regel, `#` = commentaar); bevat webartikel-, YouTube- en podcast-feeds ingedeeld per categorie met `# ── Naam ────` headers
-- `.claude/feedreader-score.py` — haalt feeds op, scoort items, detecteert brontype; voor YouTube-items haalt het eerst een transcript op via `youtube_transcript_api` (gecachet in `transcript_cache/`) en gebruikt de transcripttekst voor de scoreberekening; voor podcast-items met show notes ≥ 200 tekens (constante `SHOWNOTES_MIN_LENGTH`) worden de show notes gecachet in `transcript_cache/podcast_{episode_id}.json` (`episode_id` = `podcast_` + MD5-hash van de URL); schrijft `filtered.xml` en `filtered.html`
+- `.claude/feedreader-score.py` — haalt feeds op, scoort items, detecteert brontype; voor YouTube-items haalt het eerst een transcript op via `youtube_transcript_api` (gecachet in `transcript_cache/`) en gebruikt de transcripttekst voor de scoreberekening; voor podcast-items met show notes ≥ 200 tekens (constante `SHOWNOTES_MIN_LENGTH`) worden de show notes gecachet in `transcript_cache/podcast_{episode_id}.json` (`episode_id` = `podcast_` + MD5-hash van de URL); slaat tevens de directe audio-URL op uit de RSS `<enclosure>`-tag als `audio_url`-veld (gebruikt door `attach-transcript.py` voor directe MP3-download); schrijft `filtered.xml` en `filtered.html`
 - `.claude/feedreader_core.py` — gedeelde functies: `cosine_similarity`, `compute_weighted_profile`, `score_label`, `detect_source_type`, `bayesian_score`; constanten: `THRESHOLD_GREEN`, `THRESHOLD_YELLOW`, `THRESHOLD_STAR`, `PRIOR_RELEVANCE`, `WEIGHT_DEFAULT`, `WEIGHT_ANNOTATIONS`
 - `.claude/freshrss_utils.py` — GReader API helpers: authenticatie, stream-fetch, auto-sterren; leest credentials uit `~/bin/.researchvault-env`
 - `.claude/feedreader-server.py` — lokale HTTP-server (poort 8765); handelt `GET /action?type=skip` af (skip-queue) en serveert Atom-feeds en statische bestanden; genereert leesartikelen via Ollama voor YouTube/podcast

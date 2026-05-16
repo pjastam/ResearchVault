@@ -10,6 +10,7 @@ Verrijkt items zonder tag '_enriched' met:
 Output (stdout): JSON-summary {"status","enriched","skipped","errors"}
 Privacypatroon: geen webinhoud in stdout — alles gaat naar lokale bestanden.
 """
+import hashlib
 import json
 import os
 import re
@@ -143,6 +144,20 @@ def get_cached_transcript(video_id: str) -> Optional[str]:
         return data.get("text") or None
     except Exception:
         return None
+
+
+def get_cached_shownotes(url: str) -> Optional[str]:
+    episode_id = "podcast_" + hashlib.md5(url.encode()).hexdigest()
+    cache_file = TRANSCRIPT_CACHE_DIR / f"{episode_id}.json"
+    if not cache_file.exists():
+        return None
+    try:
+        data = json.loads(cache_file.read_text(encoding="utf-8"))
+        if data.get("source") == "shownotes" and data.get("text"):
+            return data["text"]
+    except Exception:
+        pass
+    return None
 
 # ── Fase 1: Metadata ─────────────────────────────────────────────────────────────
 
@@ -285,6 +300,7 @@ def enrich_item(item: dict) -> dict:
     # ── Fase 2: Bijlage (lokale opslag, vóór Zotero-PATCH) ───────────────────
     pdf_path = snapshot_path = transcript_path = None
     ezproxy_needed = False
+    shownotes_text: Optional[str] = None
 
     if doi:
         if pdf_url := unpaywall_lookup(doi):
@@ -316,10 +332,14 @@ def enrich_item(item: dict) -> dict:
                 except Exception as e:
                     print(f"  Transcript opslaan {key}: {e}", file=sys.stderr)
         else:
-            dest = SNAPSHOTS_DIR / f"{key}.html"
-            if fetch_html_snapshot(url, dest):
-                snapshot_path = dest
-                actions.append("html-snapshot")
+            shownotes_text = get_cached_shownotes(url)
+            if shownotes_text:
+                actions.append("shownotes")
+            else:
+                dest = SNAPSHOTS_DIR / f"{key}.html"
+                if fetch_html_snapshot(url, dest):
+                    snapshot_path = dest
+                    actions.append("html-snapshot")
 
     # ── Zotero bijwerken: één GET → één PATCH → optioneel POST bijlage ────────
     try:
@@ -352,6 +372,10 @@ def enrich_item(item: dict) -> dict:
                     extra + f"\nVU EZProxy: {VU_EZPROXY_PREFIX}https://doi.org/{doi}"
                 ).strip()
 
+        if shownotes_text and not update.get("abstractNote") \
+                and not current_data.get("abstractNote", "").strip():
+            update["abstractNote"] = shownotes_text
+
         # Tags: bewaar bestaande + voeg nieuwe toe
         new_tags = list(current_data.get("tags", []))
         tag_names = {t["tag"] for t in new_tags}
@@ -366,6 +390,8 @@ def enrich_item(item: dict) -> dict:
             new_tags.append({"tag": "_enriched-snapshot"})
         if transcript_path and "_enriched-transcript" not in tag_names:
             new_tags.append({"tag": "_enriched-transcript"})
+        if shownotes_text and "_enriched-shownotes" not in tag_names:
+            new_tags.append({"tag": "_enriched-shownotes"})
         update["tags"] = new_tags
 
         _zotero(

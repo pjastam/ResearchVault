@@ -435,11 +435,13 @@ def fetch_and_cache_transcript(
 
 
 def cache_podcast_shownotes(
-    episode_id: str, title: str, channel: str, url: str, published: str, text: str
+    episode_id: str, title: str, channel: str, url: str, published: str, text: str,
+    audio_url: str = "",
 ) -> None:
     """
     Slaat podcast show notes op in de transcript_cache map (prefix: podcast_).
     Schrijft alleen als er nog geen cache-bestand bestaat.
+    audio_url: directe MP3/M4A-URL uit de RSS <enclosure> tag.
     """
     TRANSCRIPT_CACHE_DIR.mkdir(exist_ok=True)
     cache_file = TRANSCRIPT_CACHE_DIR / f"{episode_id}.json"
@@ -449,6 +451,7 @@ def cache_podcast_shownotes(
             "title":      title,
             "channel":    channel,
             "url":        url,
+            "audio_url":  audio_url,
             "published":  published,
             "text":       text,
             "source":     "shownotes",
@@ -666,7 +669,11 @@ def main():
             has_shownotes = False
             if source_type == "podcast" and len(description) >= SHOWNOTES_MIN_LENGTH:
                 episode_id = "podcast_" + hashlib.md5(url.encode()).hexdigest()
-                cache_podcast_shownotes(episode_id, title, feed_name, url, published, description)
+                # Directe audio-URL uit RSS <enclosure> tag (gebruikt door attach-transcript.py)
+                encs = getattr(entry, "enclosures", []) or []
+                audio_url = encs[0].get("href", encs[0].get("url", "")) if encs else ""
+                cache_podcast_shownotes(episode_id, title, feed_name, url, published,
+                                        description, audio_url)
                 has_shownotes = True
 
             # PURE-verrijking: abstract + bibliografische velden ophalen van de publicatiepagina.
