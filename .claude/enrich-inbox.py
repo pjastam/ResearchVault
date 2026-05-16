@@ -26,6 +26,16 @@ from typing import Optional
 ZOTERO_LOCAL_API = "http://localhost:23119/api/users/0"
 INBOX_COLLECTION_KEY = "N4MP46Y5"
 
+# Zotero-veldnaam voor "publicatienaam" verschilt per itemtype
+PUBLICATION_FIELD: dict = {
+    "journalArticle": "publicationTitle",
+    "magazineArticle": "publicationTitle",
+    "newspaperArticle": "publicationTitle",
+    "webpage": "websiteTitle",
+    "blogPost": "blogTitle",
+    # videoRecording, podcast, report etc. hebben geen publicatienaam-veld
+}
+
 CROSSREF_API = "https://api.crossref.org/works/{}?mailto=piet@pietstam.nl"
 UNPAYWALL_API = "https://api.unpaywall.org/v2/{}?email=piet@pietstam.nl"
 VU_EZPROXY_PREFIX = "https://vu-nl.idm.oclc.org/login?url="
@@ -40,6 +50,12 @@ ZOTERO_USER_ID = os.environ.get("ZOTERO_LIBRARY_ID", "")
 ZOTERO_API_BASE = f"https://api.zotero.org/users/{ZOTERO_USER_ID}"
 
 # ── HTTP-helpers ────────────────────────────────────────────────────────────────
+
+def _get_local(url: str, timeout: int = 30) -> bytes:
+    """Zotero lokale API (localhost) — geen User-Agent, anders weigert Zotero de verbinding."""
+    with urllib.request.urlopen(url, timeout=timeout) as r:
+        return r.read()
+
 
 def _get(url: str, headers: dict = None, timeout: int = 30) -> bytes:
     h = {"User-Agent": UA}
@@ -57,8 +73,19 @@ def _zotero(path: str, method: str = "GET", data: bytes = None,
     req = urllib.request.Request(
         f"{ZOTERO_API_BASE}{path}", data=data, headers=h, method=method
     )
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return r.read()
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                return r.read()
+        except urllib.error.HTTPError as e:
+            if e.code == 429 and attempt < 2:
+                wait = int(e.headers.get("Retry-After", "30"))
+                print(f"  429 rate limit, wacht {wait}s...", file=sys.stderr)
+                time.sleep(wait)
+                continue
+            body = e.read().decode("utf-8", errors="replace")
+            raise Exception(f"HTTP {e.code} {e.reason}: {body[:300]}")
+    raise Exception("Max retries bereikt")
 
 # ── _inbox items ophalen ────────────────────────────────────────────────────────
 
@@ -67,8 +94,8 @@ def get_inbox_items() -> list:
     try:
         for start in range(0, 5000, PAGE):
             batch = json.loads(
-                _get(f"{ZOTERO_LOCAL_API}/collections/{INBOX_COLLECTION_KEY}"
-                     f"/items?limit={PAGE}&start={start}&format=json")
+                _get_local(f"{ZOTERO_LOCAL_API}/collections/{INBOX_COLLECTION_KEY}"
+                           f"/items?limit={PAGE}&start={start}&format=json")
             )
             if not batch:
                 break
@@ -87,7 +114,13 @@ def detect_doi(data: dict) -> Optional[str]:
     m = re.search(r'(?:^|\n)DOI:\s*(10\.\S+)', data.get("extra", ""), re.IGNORECASE)
     if m:
         return m.group(1).rstrip(".,)")
-    m = re.search(r'(?:doi\.org|dx\.doi\.org)/?([^?\s#]+)', data.get("url", ""))
+    url = data.get("url", "")
+    # doi.org of dx.doi.org links
+    m = re.search(r'(?:doi\.org|dx\.doi\.org)/?([^?\s#]+)', url)
+    if m:
+        return m.group(1).rstrip(".,)")
+    # Springer/publisher PDF-URLs: link.springer.com/content/pdf/10.xxx/yyy.pdf
+    m = re.search(r'/(10\.\d{4,}/[^?\s#]+?)(?:\.pdf)?$', url)
     if m:
         return m.group(1).rstrip(".,)")
     return None
@@ -116,9 +149,9 @@ def crossref_lookup(doi: str) -> dict:
     parts = published.get("date-parts", [[]])[0]
     if parts:
         fields["date"] = f"{parts[0]}-{parts[1]:02d}" if len(parts) > 1 else str(parts[0])
-    for f in ("volume", "issue", "page"):
-        if raw.get(f):
-            fields[f] = str(raw[f])
+    for crossref_f, zotero_f in (("volume", "volume"), ("issue", "issue"), ("page", "pages")):
+        if raw.get(crossref_f):
+            fields[zotero_f] = str(raw[crossref_f])
     if raw.get("DOI"):
         fields["DOI"] = raw["DOI"]
     return fields
@@ -256,9 +289,24 @@ def enrich_item(item: dict) -> dict:
         current = json.loads(_zotero(f"/items/{key}"))
         current_data = current["data"]
         version = current_data["version"]
+        item_type = current_data.get("itemType", "")
 
-        # Bouw gecombineerde update-payload
-        update: dict = {k: v for k, v in metadata.items() if k != "tags"}
+        # Bouw gecombineerde update-payload (veldnamen aanpassen per itemtype)
+        update: dict = {}
+        for k, v in metadata.items():
+            if k == "tags":
+                continue
+            if k == "publicationTitle":
+                mapped = PUBLICATION_FIELD.get(item_type)
+                if mapped:
+                    update[mapped] = v
+                # Geen geldig veld voor dit type → weglaten
+            elif k in ("volume", "issue", "pages") and item_type not in (
+                "journalArticle", "magazineArticle", "newspaperArticle"
+            ):
+                pass  # Paginering irrelevant voor niet-artikel types
+            else:
+                update[k] = v
 
         if attachment_type == "ezproxy" and doi:
             extra = current_data.get("extra", "")
@@ -324,7 +372,7 @@ def main():
             skipped += 1
         else:
             errors.append({"key": result["key"], "error": result.get("error", "?")})
-        time.sleep(0.5)  # Beleefd jegens externe APIs en Zotero
+        time.sleep(1.5)  # Beleefd jegens externe APIs en Zotero Web API rate limit
 
     print(json.dumps({
         "status": "ok",
