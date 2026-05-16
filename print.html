@@ -421,13 +421,14 @@ zotero-mcp db-status   # check current database status
 <h2 id="youtube-videos"><a class="header" href="#youtube-videos">YouTube videos</a></h2>
 <p>YouTube items follow an <strong>eager transcript pipeline</strong>: when you mark a video ✅ in the feedreader, <code>attach-transcript.py</code> runs automatically and stores a cleaned transcript as an attachment in the Zotero item — mirroring how a PDF accompanies a paper. This makes Go/No-go decisions content-based.</p>
 <p><strong>If the transcript attachment is missing</strong> (e.g. for manually added items), run it explicitly:</p>
-<pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/attach-transcript.py ITEMKEY
+<pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/attach-transcript.py \
+  --item-key ITEMKEY --url "https://www.youtube.com/watch?v=..."
 </code></pre>
 <p>This script:</p>
 <ol>
 <li>Fetches the transcript via <code>YouTubeTranscriptApi</code> (or from <code>.claude/transcript_cache/</code>)</li>
-<li>Qwen3.5:9b generates a cleaned transcript and a 3–5 sentence abstract</li>
-<li>Uploads the cleaned transcript as a <code>.txt</code> attachment to Zotero; sets <code>abstractNote</code></li>
+<li>Qwen3.5:9b generates an abstract</li>
+<li>Uploads the transcript as a <code>.txt</code> attachment to Zotero; sets <code>abstractNote</code></li>
 </ol>
 <p>After a <strong>Go</strong> decision, generate the literature note the same way as papers:</p>
 <pre><code>verwerk recente papers
@@ -446,26 +447,21 @@ zotero-mcp db-status   # check current database status
 <p>Notes are saved to <code>literature/[author-year-keyword1-keyword2].md</code> — Qwen selects 2–4 nouns from the title and TLDR.</p>
 <hr />
 <h2 id="podcasts"><a class="header" href="#podcasts">Podcasts</a></h2>
-<p>Podcast episodes added from Overcast (via iOS share sheet) arrive in Zotero <code>_inbox</code> as overcast.fm URLs. After a Go decision:</p>
-<pre><code>podcast [URL]
+<p>Podcast transcripts are created manually via <code>attach-transcript.py</code> — whisper.cpp requires audio download and transcription (minutes of processing), so it cannot run in the batch pipeline.</p>
+<pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/attach-transcript.py \
+  --item-key ITEMKEY --url "https://podcast-episode-page-url"
 </code></pre>
-<p>Claude Code:</p>
+<p>This script:</p>
 <ol>
-<li>Checks for a cached show notes file in <code>.claude/transcript_cache/podcast_{episode_id}.json</code></li>
-<li>If no cache: downloads audio via yt-dlp, transcribes locally via whisper.cpp (automatic language detection)</li>
-<li>For long episodes (&gt; 45 min): generates a layered summary first (main line → per segment), then the final note</li>
-<li>Generates a structured note locally via Qwen3.5:9b:
-<ul>
-<li>Title, speaker(s), programme/channel, date, URL</li>
-<li>Summary (3–5 sentences)</li>
-<li>Key points with timestamps</li>
-<li>Relevant quotes with timestamps (original language)</li>
-</ul>
-</li>
-<li>Adds frontmatter, <code>[[internal links]]</code>, and <code>#podcast</code> tag</li>
-<li>Removes raw <code>.mp3</code> and <code>.txt</code> files from <code>inbox/</code> and the item from Zotero <code>_inbox</code></li>
+<li>Downloads audio using the direct MP3 URL cached from the RSS <code>&lt;enclosure&gt;</code> tag (via <code>feedreader-score.py</code>) or falls back to yt-dlp</li>
+<li>Detects language automatically from cached show notes (Dutch show notes → <code>--language nl</code>); override with <code>--language</code> if needed</li>
+<li>Transcribes locally via <code>whisper-cli</code> (model: <code>large-v3-turbo</code>, Metal GPU, ~2–3 min per 30 min audio on M4)</li>
+<li>If <code>abstractNote</code> is already filled (show notes set by <code>enrich-inbox.py</code>): moves it to a child note titled "Shownotes"</li>
+<li>Generates an abstract via Qwen3.5:9b; sets <code>abstractNote</code>; stores transcript as <code>.txt</code> linked-file attachment; adds tag <code>_enriched-transcript</code></li>
 </ol>
-<p>Notes are saved to <code>literature/[speaker-year-keyword].md</code>.</p>
+<p>After a <strong>Go</strong> decision, generate the literature note via <code>process_item.py</code> — same as papers.</p>
+<p><strong>If yt-dlp fails</strong> with "Unsupported URL": add the feed to <code>feedreader-list.txt</code>. After the next <code>feedreader-score.py</code> run, the direct audio URL is cached and used automatically.</p>
+<p>Notes follow the same structure as YouTube: no "Relevant quotes" section (timestamps unreliable); all other sections as papers.</p>
 <hr />
 <h2 id="rss-web-articles"><a class="header" href="#rss-web-articles">RSS web articles</a></h2>
 <p>Non-academic articles from RSS feeds that you forward to <code>_inbox</code> can be processed in two ways:</p>
