@@ -26,6 +26,8 @@ PORT       = 8765
 
 class FeedreaderHandler(http.server.SimpleHTTPRequestHandler):
 
+    _FEED_FILES = ("filtered-webpage.xml", "filtered-youtube.xml", "filtered-podcast.xml")
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(SERVE_DIR), **kwargs)
 
@@ -101,6 +103,7 @@ class FeedreaderHandler(http.server.SimpleHTTPRequestHandler):
         if args and (
             str(args[0]).startswith("POST")
             or (len(args) > 1 and str(args[1]) >= "400")
+            or (len(args) > 1 and str(args[1]) == "200" and any(f in str(args[0]) for f in self._FEED_FILES))
         ):
             super().log_message(format, *args)
 
