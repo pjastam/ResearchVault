@@ -265,23 +265,27 @@ def enrich_item(item: dict) -> dict:
 
     # ── Fase 2: Bijlage (lokale opslag, vóór Zotero-PATCH) ───────────────────
     pdf_path = snapshot_path = None
-    attachment_type = None
+    ezproxy_needed = False
 
     if doi:
         if pdf_url := unpaywall_lookup(doi):
             dest = PAPERS_DIR / f"{key}.pdf"
             if download_pdf(pdf_url, dest):
                 pdf_path = dest
-                attachment_type = "pdf"
                 actions.append("unpaywall-pdf")
         if not pdf_path:
-            attachment_type = "ezproxy"
+            ezproxy_needed = True
             actions.append("vu-ezproxy")
+            # Probeer ook HTML-snapshot als fallback bijlage (URL is doorgaans wel beschikbaar)
+            if url:
+                dest = SNAPSHOTS_DIR / f"{key}.html"
+                if fetch_html_snapshot(url, dest):
+                    snapshot_path = dest
+                    actions.append("html-snapshot")
     elif url:
         dest = SNAPSHOTS_DIR / f"{key}.html"
         if fetch_html_snapshot(url, dest):
             snapshot_path = dest
-            attachment_type = "snapshot"
             actions.append("html-snapshot")
 
     # ── Zotero bijwerken: één GET → één PATCH → optioneel POST bijlage ────────
@@ -308,7 +312,7 @@ def enrich_item(item: dict) -> dict:
             else:
                 update[k] = v
 
-        if attachment_type == "ezproxy" and doi:
+        if ezproxy_needed and doi:
             extra = current_data.get("extra", "")
             if "VU EZProxy:" not in extra:
                 update["extra"] = (
@@ -321,13 +325,12 @@ def enrich_item(item: dict) -> dict:
         new_tags.append({"tag": "_enriched"})
         if metadata and "_enriched-metadata" not in tag_names:
             new_tags.append({"tag": "_enriched-metadata"})
-        type_tag = {
-            "pdf": "_enriched-pdf",
-            "ezproxy": "_enriched-oa-missing",
-            "snapshot": "_enriched-snapshot",
-        }.get(attachment_type)
-        if type_tag and type_tag not in tag_names:
-            new_tags.append({"tag": type_tag})
+        if pdf_path and "_enriched-pdf" not in tag_names:
+            new_tags.append({"tag": "_enriched-pdf"})
+        if ezproxy_needed and "_enriched-oa-missing" not in tag_names:
+            new_tags.append({"tag": "_enriched-oa-missing"})
+        if snapshot_path and "_enriched-snapshot" not in tag_names:
+            new_tags.append({"tag": "_enriched-snapshot"})
         update["tags"] = new_tags
 
         _zotero(
@@ -340,7 +343,7 @@ def enrich_item(item: dict) -> dict:
         # Bijlage aanmaken na de PATCH (verwijzing naar al opgeslagen bestand)
         if pdf_path:
             create_attachment(key, pdf_path, "application/pdf", f"PDF – {doi}")
-        elif snapshot_path:
+        if snapshot_path:
             create_attachment(key, snapshot_path, "text/html", "Snapshot")
 
         return {"key": key, "status": "ok", "actions": actions}
