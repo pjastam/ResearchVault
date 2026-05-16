@@ -1,5 +1,35 @@
 # Changelog
 
+## v1.18 — 16 mei 2026
+
+### 🎙️ Podcast whisper.cpp pipeline
+
+- `attach-transcript.py` ondersteunt nu naast YouTube ook podcasts via `--url`
+- Audio downloaden via directe MP3-URL uit RSS `<enclosure>`-tag (gecachet door `feedreader-score.py`) of yt-dlp als fallback
+- Transcriptie lokaal via `whisper-cli` (model: `large-v3-turbo`, Metal GPU, ~2–3 min per 30 min audio op M4)
+- Automatische taaldetectie op basis van show notes in feedreader-cache (Nederlandse stopwoordencheck); `--language` overschrijft dit
+- Als `abstractNote` al gevuld is (show notes van `enrich-inbox.py`): verplaatsen naar child note "Shownotes" vóór overschrijven met Qwen-abstract
+- Nieuwe vlaggen: `--language`, `--whisper-model` (default: `large-v3-turbo`), `--force` (hertranscriberen zonder duplicaat-bijlage)
+- Bij `--force`: bestaand transcript-bestand op schijf overschreven; geen nieuw Zotero-record aangemaakt
+
+### 🔗 audio_url caching in feedreader
+
+- `feedreader-score.py`: directe audio-URL uit RSS `<enclosure>`-tag opgeslagen als `audio_url` in `transcript_cache/podcast_*.json`
+- Gebruikt door `attach-transcript.py` voor directe MP3-download (geen ffmpeg vereist voor directe audio-URLs)
+- Eenmalig backfill-script (`patch-audio-urls.py`) bijgewerkt 693 bestaande cache-entries; script verwijderd na gebruik
+
+### 📥 enrich-inbox: show notes als abstractNote
+
+- `enrich-inbox.py`: podcast-items met show notes in feedreader-cache krijgen show notes als `abstractNote` + tag `_enriched-shownotes`
+- Valt terug op HTML-snapshot als show notes niet in cache (timing: item arriveerde vóór feedreader-run)
+
+### 📖 Documentatie
+
+- `CLAUDE.md`: § YouTube-transcripten samengevoegd met podcast in § Transcripten; § Podcast-transcripten herschreven; `enrich-inbox.py` gedocumenteerd; `audio_url`-caching vermeld bij feedreader-score.py
+- `docs/src/usage/phase3-process.md`: Podcasts-sectie volledig herschreven naar nieuwe pipeline
+
+---
+
 ## v1.17 — 2 mei 2026
 
 ### 🧹 Vault-structuurvereenvoudiging
