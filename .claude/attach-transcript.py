@@ -6,7 +6,7 @@ Stappen:
 1. Transcript ophalen uit .claude/transcript_cache/ of via YouTubeTranscriptApi
 2. Qwen: transcript opschonen (transformatie, geen samenvatting)
 3. Qwen: abstract 3-5 zinnen
-4. Zotero: abstractNote bijwerken via Web API
+4. Zotero: abstractNote bijwerken (modus via ZOTERO_ACCESS)
 5. Zotero: cleaned transcript toevoegen als note (tag: _transcript)
 
 Gebruik:
@@ -31,9 +31,10 @@ import os
 import re
 import subprocess
 import sys
-import urllib.error
 import urllib.request
 from pathlib import Path
+
+from zotero_api import zotero_request
 
 # ── Padconfiguratie ───────────────────────────────────────────────────────────
 
@@ -49,25 +50,6 @@ PYTHON               = Path(os.environ.get(
 GENERATE_SCRIPT      = CLAUDE_DIR / "ollama-generate.py"
 WHISPER_MODEL        = "large-v3-turbo"
 WHISPER_MODELS_DIR   = Path("/opt/homebrew/share/whisper.cpp/models")
-
-# ── Zotero Web API ────────────────────────────────────────────────────────────
-
-def _load_api_key() -> str:
-    key = os.environ.get("ZOTERO_API_KEY", "")
-    if key:
-        return key
-    zprofile = Path.home() / ".zprofile"
-    if zprofile.exists():
-        for line in zprofile.read_text().splitlines():
-            line = line.strip()
-            if line.startswith("export ZOTERO_API_KEY="):
-                return line.split("=", 1)[1].strip().strip('"').strip("'")
-    return ""
-
-
-ZOTERO_API_KEY  = _load_api_key()
-ZOTERO_USER_ID  = "24775"
-ZOTERO_API_BASE = f"https://api.zotero.org/users/{ZOTERO_USER_ID}"
 
 # ── Prompts ───────────────────────────────────────────────────────────────────
 
@@ -139,49 +121,23 @@ def run_qwen(input_path: Path, output_path: Path, prompt: str, model: str) -> bo
     return True
 
 
-def _get_item_version(item_key: str) -> int | None:
-    """Haalt het huidige versienummer van een Zotero item op (vereist voor PATCH)."""
-    req = urllib.request.Request(
-        f"{ZOTERO_API_BASE}/items/{item_key}",
-        headers={"Zotero-API-Key": ZOTERO_API_KEY, "Zotero-API-Version": "3"},
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=10) as r:
-            data = json.loads(r.read())
-            return data.get("data", {}).get("version")
-    except Exception as e:
-        print(f"  Versie ophalen mislukt: {e}", file=sys.stderr)
-        return None
-
-
 def zotero_patch(item_key: str, fields: dict) -> bool:
     """Patchet een Zotero item met de opgegeven velden."""
-    if not ZOTERO_API_KEY:
-        print("  ZOTERO_API_KEY niet beschikbaar — abstractNote niet bijgewerkt", file=sys.stderr)
-        return False
-    version = _get_item_version(item_key)
-    if version is None:
-        print("  Versienummer onbekend — PATCH overgeslagen", file=sys.stderr)
+    try:
+        version = json.loads(zotero_request(f"/items/{item_key}"))["data"]["version"]
+    except Exception as e:
+        print(f"  Versie ophalen mislukt: {e}", file=sys.stderr)
         return False
     payload = json.dumps(fields).encode("utf-8")
-    req = urllib.request.Request(
-        f"{ZOTERO_API_BASE}/items/{item_key}",
-        data=payload,
-        headers={
-            "Zotero-API-Key":              ZOTERO_API_KEY,
-            "Zotero-API-Version":          "3",
-            "Content-Type":                "application/json",
-            "If-Unmodified-Since-Version": str(version),
-        },
-        method="PATCH",
-    )
     try:
-        with urllib.request.urlopen(req, timeout=10) as r:
-            r.read()
-            return True
-    except urllib.error.HTTPError as e:
-        print(f"  PATCH mislukt: {e.code} {e.reason}", file=sys.stderr)
-        return False
+        zotero_request(
+            f"/items/{item_key}", method="PATCH", data=payload,
+            extra_headers={
+                "Content-Type":                "application/json",
+                "If-Unmodified-Since-Version": str(version),
+            },
+        )
+        return True
     except Exception as e:
         print(f"  PATCH mislukt: {e}", file=sys.stderr)
         return False
@@ -189,8 +145,6 @@ def zotero_patch(item_key: str, fields: dict) -> bool:
 
 def zotero_add_transcript_attachment(item_key: str, transcript_text: str) -> bool:
     """Slaat ruwe transcript op als .txt bestand en koppelt als linked_file aan Zotero item."""
-    if not ZOTERO_API_KEY:
-        return False
     dest = TRANSCRIPTS_DIR / f"{item_key}.txt"
     try:
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -206,62 +160,34 @@ def zotero_add_transcript_attachment(item_key: str, transcript_text: str) -> boo
         "contentType": "text/plain",
         "path":        str(dest),
     }]).encode("utf-8")
-    req = urllib.request.Request(
-        f"{ZOTERO_API_BASE}/items",
-        data=payload,
-        headers={
-            "Zotero-API-Key":     ZOTERO_API_KEY,
-            "Zotero-API-Version": "3",
-            "Content-Type":       "application/json",
-        },
-        method="POST",
-    )
     try:
-        with urllib.request.urlopen(req, timeout=10) as r:
-            body = json.loads(r.read())
-            att_key = next(iter(body.get("successful", {}).values()), {}).get("key", "")
-            print(f"  Transcript-bijlage aangemaakt: {att_key} ({dest})", file=sys.stderr)
-            return bool(att_key)
+        body = json.loads(zotero_request(
+            "/items", method="POST", data=payload,
+            extra_headers={"Content-Type": "application/json"},
+        ))
+        att_key = next(iter(body.get("successful", {}).values()), {}).get("key", "")
+        print(f"  Transcript-bijlage aangemaakt: {att_key} ({dest})", file=sys.stderr)
+        return bool(att_key)
     except Exception as e:
         print(f"  Bijlage aanmaken mislukt: {e}", file=sys.stderr)
         return False
 
 
-def transcript_exists(item_key: str, retries: int = 3, delay: float = 5.0) -> bool:
-    """Controleert of er al een transcript bestaat (linked_file bijlage of oudere note-vorm).
-
-    Probeert meerdere keren met een wachttijd om read-after-write consistency
-    van de Zotero cloud API op te vangen.
-    """
-    import time as _time
-    if not ZOTERO_API_KEY:
-        return False
-    for attempt in range(retries):
-        req = urllib.request.Request(
-            f"{ZOTERO_API_BASE}/items/{item_key}/children",
-            headers={"Zotero-API-Key": ZOTERO_API_KEY, "Zotero-API-Version": "3"},
+def transcript_exists(item_key: str) -> bool:
+    """Controleert of er al een transcript bestaat (linked_file bijlage of oudere note-vorm)."""
+    try:
+        children = json.loads(zotero_request(f"/items/{item_key}/children"))
+        return any(
+            (c["data"].get("itemType") == "attachment"
+             and c["data"].get("contentType") == "text/plain"
+             and c["data"].get("linkMode") == "linked_file")
+            or
+            (c["data"].get("itemType") == "note"
+             and any(t["tag"] == "_transcript" for t in c["data"].get("tags", [])))
+            for c in children
         )
-        try:
-            with urllib.request.urlopen(req, timeout=10) as r:
-                children = json.loads(r.read())
-            found = any(
-                # nieuwe vorm: linked_file text/plain
-                (c["data"].get("itemType") == "attachment"
-                 and c["data"].get("contentType") == "text/plain"
-                 and c["data"].get("linkMode") == "linked_file")
-                or
-                # oude vorm: note met _transcript tag
-                (c["data"].get("itemType") == "note"
-                 and any(t["tag"] == "_transcript" for t in c["data"].get("tags", [])))
-                for c in children
-            )
-            if found:
-                return True
-        except Exception:
-            pass
-        if attempt < retries - 1:
-            _time.sleep(delay)
-    return False
+    except Exception:
+        return False
 
 
 # ── Podcast-helpers ───────────────────────────────────────────────────────────
@@ -359,21 +285,15 @@ def transcribe_audio(audio_path: Path, model: str, language: str = "") -> Path |
 
 
 def zotero_get_abstract(item_key: str) -> str:
-    """Haalt de huidige abstractNote op via de lokale Zotero API (geen sync-vertraging)."""
+    """Haalt de huidige abstractNote op."""
     try:
-        req = urllib.request.Request(
-            f"http://localhost:23119/api/users/0/items/{item_key}",
-        )
-        with urllib.request.urlopen(req, timeout=5) as r:
-            return json.loads(r.read()).get("data", {}).get("abstractNote", "")
+        return json.loads(zotero_request(f"/items/{item_key}")).get("data", {}).get("abstractNote", "")
     except Exception:
         return ""
 
 
 def zotero_create_note(item_key: str, title: str, content: str) -> bool:
     """Maakt een child note aan onder het gegeven Zotero item."""
-    if not ZOTERO_API_KEY:
-        return False
     html = f"<h1>{title}</h1>\n<p>{content.replace(chr(10), '</p><p>')}</p>"
     payload = json.dumps([{
         "itemType":   "note",
@@ -381,37 +301,24 @@ def zotero_create_note(item_key: str, title: str, content: str) -> bool:
         "note":       html,
         "tags":       [],
     }]).encode("utf-8")
-    req = urllib.request.Request(
-        f"{ZOTERO_API_BASE}/items",
-        data=payload,
-        headers={
-            "Zotero-API-Key":     ZOTERO_API_KEY,
-            "Zotero-API-Version": "3",
-            "Content-Type":       "application/json",
-        },
-        method="POST",
-    )
     try:
-        with urllib.request.urlopen(req, timeout=10) as r:
-            body = json.loads(r.read())
-            note_key = next(iter(body.get("successful", {}).values()), {}).get("key", "")
-            if note_key:
-                print(f"  Child note aangemaakt: {note_key} ({title!r})", file=sys.stderr)
-                return True
+        body = json.loads(zotero_request(
+            "/items", method="POST", data=payload,
+            extra_headers={"Content-Type": "application/json"},
+        ))
+        note_key = next(iter(body.get("successful", {}).values()), {}).get("key", "")
+        if note_key:
+            print(f"  Child note aangemaakt: {note_key} ({title!r})", file=sys.stderr)
+            return True
     except Exception as e:
         print(f"  Child note aanmaken mislukt: {e}", file=sys.stderr)
     return False
 
 
 def shownotes_note_exists(item_key: str) -> bool:
-    """Controleert of er al een 'Shownotes' child note bestaat via de lokale Zotero API.
-    Gebruikt localhost zodat net-aangemaakte notes direct zichtbaar zijn (geen sync-vertraging)."""
+    """Controleert of er al een 'Shownotes' child note bestaat."""
     try:
-        req = urllib.request.Request(
-            f"http://localhost:23119/api/users/0/items/{item_key}/children",
-        )
-        with urllib.request.urlopen(req, timeout=5) as r:
-            children = json.loads(r.read())
+        children = json.loads(zotero_request(f"/items/{item_key}/children"))
         return any(
             c["data"].get("itemType") == "note"
             and "<h1>Shownotes</h1>" in c["data"].get("note", "")
@@ -423,38 +330,25 @@ def shownotes_note_exists(item_key: str) -> bool:
 
 def _add_tag(item_key: str, tag: str) -> bool:
     """Voeg een tag toe aan een Zotero item zonder bestaande tags te overschrijven."""
-    if not ZOTERO_API_KEY:
-        return False
-    req = urllib.request.Request(
-        f"{ZOTERO_API_BASE}/items/{item_key}",
-        headers={"Zotero-API-Key": ZOTERO_API_KEY, "Zotero-API-Version": "3"},
-    )
     try:
-        with urllib.request.urlopen(req, timeout=10) as r:
-            raw = json.loads(r.read())
-            version = raw["data"]["version"]
-            existing = raw["data"].get("tags", [])
+        raw = json.loads(zotero_request(f"/items/{item_key}"))
+        version  = raw["data"]["version"]
+        existing = raw["data"].get("tags", [])
     except Exception as e:
         print(f"  Tags ophalen mislukt: {e}", file=sys.stderr)
         return False
     if any(t["tag"] == tag for t in existing):
         return True
     payload = json.dumps({"tags": existing + [{"tag": tag}]}).encode("utf-8")
-    req = urllib.request.Request(
-        f"{ZOTERO_API_BASE}/items/{item_key}",
-        data=payload,
-        headers={
-            "Zotero-API-Key":              ZOTERO_API_KEY,
-            "Zotero-API-Version":          "3",
-            "Content-Type":                "application/json",
-            "If-Unmodified-Since-Version": str(version),
-        },
-        method="PATCH",
-    )
     try:
-        with urllib.request.urlopen(req, timeout=10) as r:
-            r.read()
-            return True
+        zotero_request(
+            f"/items/{item_key}", method="PATCH", data=payload,
+            extra_headers={
+                "Content-Type":                "application/json",
+                "If-Unmodified-Since-Version": str(version),
+            },
+        )
+        return True
     except Exception as e:
         print(f"  Tag toevoegen mislukt: {e}", file=sys.stderr)
         return False

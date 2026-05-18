@@ -100,7 +100,7 @@ Calls Ollama's REST API directly (no CLI, no ANSI codes). Prepends `/no_think` t
 
 ### `zotero-remove-from-inbox.py` — remove processed item from `_inbox`
 
-Removes the item from the `_inbox` collection in Zotero via the web API. Requires `ZOTERO_API_KEY` in the environment or `.env` file (see step 4d).
+Removes the item from the `_inbox` collection in Zotero. Uses the local Zotero API by default (requires Zotero desktop running); mode is controlled by `ZOTERO_ACCESS` (see `zotero_api.py`).
 
 ```bash
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/zotero-remove-from-inbox.py ITEMKEY
