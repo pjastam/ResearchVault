@@ -131,7 +131,7 @@ Controleer welke syntheses relevant zijn en voeg een bullet of sectie toe.
 
 ## Zotero-hulpscripts
 - `.claude/zotero-inbox.py` — leest alle items uit de Zotero `_inbox` collectie via de lokale REST API (localhost:23119); gebruik voor overzicht of scripting: `python3 zotero-inbox.py --json`; vereist dat Zotero draait
-- `.claude/zotero-remove-from-inbox.py` — verwijdert een item uit de `_inbox` na verwerking:
+- `.claude/zotero-remove-from-inbox.py` — verwijdert een item uit de `_inbox` na verwerking via `zotero_api.py` (default: local API, vereist Zotero desktop):
   ```bash
   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/zotero-remove-from-inbox.py ITEMKEY
   ```
@@ -141,7 +141,7 @@ Controleer welke syntheses relevant zijn en voeg een bullet of sectie toe.
 
 ## Transcripten (attach-transcript.py)
 
-`attach-transcript.py` verwerkt zowel YouTube- als podcast-items: haalt audio/transcript op, genereert een abstract via Qwen en slaat het transcript als `.txt`-bijlage op in Zotero.
+`attach-transcript.py` verwerkt zowel YouTube- als podcast-items: haalt audio/transcript op, genereert een abstract via Qwen en slaat het transcript als `.txt`-bijlage op in Zotero. Alle Zotero-aanroepen lopen via `zotero_api.py` (default: local API, vereist Zotero desktop).
 
 **YouTube** — eager pipeline: bij ✅ in de feedreader wordt het transcript meteen opgehaald. Handmatig aanroepen:
 ```bash
