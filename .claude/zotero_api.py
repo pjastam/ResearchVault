@@ -41,8 +41,7 @@ _LOCAL_READY = False
 def _check_local() -> bool:
     try:
         with urllib.request.urlopen(
-            urllib.request.Request(f"{_LOCAL_BASE}/collections?limit=1",
-                                   headers={"User-Agent": _UA}),
+            f"{_LOCAL_BASE}/collections?limit=1",
             timeout=3,
         ) as r:
             r.read()
@@ -57,13 +56,13 @@ def _ensure_zotero_running() -> None:
         return
     print("INFO: Zotero niet actief — wordt gestart...", file=sys.stderr)
     subprocess.Popen(["/usr/bin/open", "-a", "Zotero"])
-    deadline = time.monotonic() + 30
+    deadline = time.monotonic() + 60
     while time.monotonic() < deadline:
         time.sleep(2)
         if _check_local():
             print("INFO: Zotero is gereed.", file=sys.stderr)
             return
-    print("FOUT: Zotero niet bereikbaar na 30s — script afgebroken.", file=sys.stderr)
+    print("FOUT: Zotero niet bereikbaar na 60s — script afgebroken.", file=sys.stderr)
     sys.exit(1)
 
 
@@ -94,7 +93,7 @@ def zotero_request(
                 sys.exit(1)
             _LOCAL_READY = True
         base_url = _LOCAL_BASE
-        headers  = {"User-Agent": _UA}
+        headers  = {}
 
     else:  # web
         if not _API_KEY:
