@@ -563,7 +563,7 @@ claude
 # Output: Input: inbox/bron.txt (12,345 chars) | Written: literature/notitie.md (3,200 chars)
 </code></pre>
 <h3 id="zotero-remove-from-inboxpy--remove-processed-item-from-_inbox"><a class="header" href="#zotero-remove-from-inboxpy--remove-processed-item-from-_inbox"><code>zotero-remove-from-inbox.py</code> — remove processed item from <code>_inbox</code></a></h3>
-<p>Removes the item from the <code>_inbox</code> collection in Zotero via the web API. Requires <code>ZOTERO_API_KEY</code> in the environment or <code>.env</code> file (see step 4d).</p>
+<p>Removes the item from the <code>_inbox</code> collection in Zotero. Uses the local Zotero API by default (requires Zotero desktop running); mode is controlled by <code>ZOTERO_ACCESS</code> (see <code>zotero_api.py</code>).</p>
 <pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/zotero-remove-from-inbox.py ITEMKEY
 # Output: Item ITEMKEY removed from _inbox.
 </code></pre>
