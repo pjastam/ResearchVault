@@ -22,12 +22,7 @@ import urllib.request
 from pathlib import Path
 from typing import Optional
 
-# Laad vault .env als ZOTERO_API_KEY nog niet in de omgeving staat
-if not os.environ.get("ZOTERO_API_KEY"):
-    _env_file = Path(__file__).parent.parent / ".env"
-    if _env_file.exists():
-        from dotenv import load_dotenv
-        load_dotenv(_env_file)
+from zotero_api import zotero_request
 
 # ── Constanten ─────────────────────────────────────────────────────────────────
 
@@ -54,10 +49,6 @@ TRANSCRIPT_CACHE_DIR = Path(__file__).resolve().parent / "transcript_cache"
 
 UA = "Mozilla/5.0 (Macintosh) enrich-inbox/1.0 (mailto:piet@pietstam.nl)"
 
-ZOTERO_API_KEY = os.environ.get("ZOTERO_API_KEY", "")
-ZOTERO_USER_ID = os.environ.get("ZOTERO_LIBRARY_ID", "")
-ZOTERO_API_BASE = f"https://api.zotero.org/users/{ZOTERO_USER_ID}"
-
 # ── HTTP-helpers ────────────────────────────────────────────────────────────────
 
 def _get(url: str, headers: dict = None, timeout: int = 30) -> bytes:
@@ -68,28 +59,6 @@ def _get(url: str, headers: dict = None, timeout: int = 30) -> bytes:
         return r.read()
 
 
-def _zotero(path: str, method: str = "GET", data: bytes = None,
-            extra: dict = None) -> bytes:
-    h = {"Zotero-API-Key": ZOTERO_API_KEY, "Zotero-API-Version": "3", "User-Agent": UA}
-    if extra:
-        h.update(extra)
-    req = urllib.request.Request(
-        f"{ZOTERO_API_BASE}{path}", data=data, headers=h, method=method
-    )
-    for attempt in range(3):
-        try:
-            with urllib.request.urlopen(req, timeout=30) as r:
-                return r.read()
-        except urllib.error.HTTPError as e:
-            if e.code == 429 and attempt < 2:
-                wait = int(e.headers.get("Retry-After", "30"))
-                print(f"  429 rate limit, wacht {wait}s...", file=sys.stderr)
-                time.sleep(wait)
-                continue
-            body = e.read().decode("utf-8", errors="replace")
-            raise Exception(f"HTTP {e.code} {e.reason}: {body[:300]}")
-    raise Exception("Max retries bereikt")
-
 # ── _inbox items ophalen ────────────────────────────────────────────────────────
 
 def get_inbox_items() -> list:
@@ -97,7 +66,7 @@ def get_inbox_items() -> list:
     try:
         for start in range(0, 5000, PAGE):
             batch = json.loads(
-                _zotero(f"/collections/{INBOX_COLLECTION_KEY}"
+                zotero_request(f"/collections/{INBOX_COLLECTION_KEY}"
                         f"/items?limit={PAGE}&start={start}&format=json")
             )
             if not batch:
@@ -264,8 +233,8 @@ def create_attachment(item_key: str, path: Path, content_type: str, title: str):
         "title": title, "parentItem": item_key,
         "contentType": content_type, "path": str(path),
     }]).encode()
-    _zotero("/items", method="POST", data=payload,
-            extra={"Content-Type": "application/json"})
+    zotero_request("/items", method="POST", data=payload,
+            extra_headers={"Content-Type": "application/json"})
 
 # ── Hoofd-enrichment ─────────────────────────────────────────────────────────────
 
@@ -343,7 +312,7 @@ def enrich_item(item: dict) -> dict:
 
     # ── Zotero bijwerken: één GET → één PATCH → optioneel POST bijlage ────────
     try:
-        current = json.loads(_zotero(f"/items/{key}"))
+        current = json.loads(zotero_request(f"/items/{key}"))
         current_data = current["data"]
         version = current_data["version"]
         item_type = current_data.get("itemType", "")
@@ -394,10 +363,10 @@ def enrich_item(item: dict) -> dict:
             new_tags.append({"tag": "_enriched-shownotes"})
         update["tags"] = new_tags
 
-        _zotero(
+        zotero_request(
             f"/items/{key}", method="PATCH",
             data=json.dumps(update).encode(),
-            extra={"Content-Type": "application/json",
+            extra_headers={"Content-Type": "application/json",
                    "If-Unmodified-Since-Version": str(version)},
         )
 
@@ -417,13 +386,6 @@ def enrich_item(item: dict) -> dict:
 # ── Main ──────────────────────────────────────────────────────────────────────────
 
 def main():
-    if not ZOTERO_API_KEY or not ZOTERO_USER_ID:
-        print(json.dumps({
-            "status": "error",
-            "message": "ZOTERO_API_KEY of ZOTERO_LIBRARY_ID niet gezet in omgeving",
-        }))
-        sys.exit(1)
-
     items = get_inbox_items()
     enriched = skipped = 0
     errors = []

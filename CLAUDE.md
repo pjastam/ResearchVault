@@ -136,6 +136,7 @@ Controleer welke syntheses relevant zijn en voeg een bullet of sectie toe.
   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/zotero-remove-from-inbox.py ITEMKEY
   ```
 - `.claude/zotero_utils.py` — gedeelde SQLite-hulpfuncties voor feedreader-score.py, feedreader-learn.py en index-score.py; leest items en gewichten direct uit de Zotero-database (geen API-aanroepen)
+- `.claude/zotero_api.py` — unified Zotero API-client; kiest automatisch local of web op basis van `ZOTERO_ACCESS`; publieke API: `zotero_request(path, method, data, extra_headers)`; laadt vault `.env` voor web-modus credentials
 - `.claude/enrich-inbox.py` — batch-verrijking van `_inbox`-items zonder `_enriched`-tag; draait headless in nachtelijke en dagelijkse pipeline (geen Zotero desktop vereist); gebruikt Zotero Web API voor lezen én schrijven (credentials uit `vault/.env`); per item: (1) metadata via CrossRef (DOI) of Open Graph (webartikel); (2) bijlage: OA-PDF via Unpaywall, HTML-snapshot, of voor podcast-items met show notes in feedreader-cache: show notes als `abstractNote` + tag `_enriched-shownotes`; VU EZProxy-URL in `extra` als fallback voor paywalled papers
 
 ## Transcripten (attach-transcript.py)
@@ -254,7 +255,7 @@ Na ≥30 positieven verschijnt een drempeladvies; pas dan `THRESHOLD_GREEN` en `
 - **Privacy-grens**: source content (volledige tekst van papers, podcasts, video's) gaat NOOIT naar de Anthropic API. Alleen JSON status-objecten en metadata mogen Claude Code bereiken vanuit de subagents.
 - **Subagent-patroon**: `process_item.py` en `summarize_item.py` worden aangeroepen als lokale Python-subprocessen. Claude Code stuurt ze aan maar voert zelf geen inhoudsverwerking uit.
 - **`--hd` flag**: activeert Claude Sonnet 4.6 in plaats van Qwen3.5:9b. Vereist altijd expliciete bevestiging van de gebruiker vóór verzending naar de API.
-- **Zotero**: interactieve sessies gebruiken de lokale REST API (localhost:23119) — vereist dat de Zotero app draait. Uitzondering: headless pipeline-scripts (`enrich-inbox.py`, `zotero-remove-from-inbox.py`, `attach-transcript.py`) gebruiken de Zotero Web API met credentials uit `vault/.env` (`ZOTERO_API_KEY`, `ZOTERO_LIBRARY_ID`) zodat de Zotero desktop niet hoeft te draaien. Geen andere cloud-diensten.
+- **Zotero**: toegangsmodus via `ZOTERO_ACCESS` omgevingsvariabele (default `local`): `local` — localhost:23119, vereist Zotero desktop, geen authenticatie; `auto` — start Zotero als het niet draait (max 30s, anders exit 1), dan local API; `web` — api.zotero.org, headless-safe, vereist `ZOTERO_API_KEY` uit `vault/.env`. Alle Zotero-aanroepen lopen via `.claude/zotero_api.py`. Plists: nachtelijke-taken `ZOTERO_ACCESS=web`; overdagtaken `ZOTERO_ACCESS=auto`; interactieve sessies default `local`. Geen andere cloud-diensten.
 - **Ontwikkelsessies**: ook tijdens het schrijven of testen van nieuwe scripts gelden dezelfde privacyregels. Test nooit met echte paper-inhoud als die inhoud als tool-output in Claude's context kan komen. Gebruik synthetische testdata of alleen metadata bij ontwikkeling en debugging.
 
 ## Privacyregel: broninhoud blijft lokaal
