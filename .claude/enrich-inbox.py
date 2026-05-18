@@ -22,9 +22,15 @@ import urllib.request
 from pathlib import Path
 from typing import Optional
 
+# Laad vault .env als ZOTERO_API_KEY nog niet in de omgeving staat
+if not os.environ.get("ZOTERO_API_KEY"):
+    _env_file = Path(__file__).parent.parent / ".env"
+    if _env_file.exists():
+        from dotenv import load_dotenv
+        load_dotenv(_env_file)
+
 # ── Constanten ─────────────────────────────────────────────────────────────────
 
-ZOTERO_LOCAL_API = "http://localhost:23119/api/users/0"
 INBOX_COLLECTION_KEY = "N4MP46Y5"
 
 # Zotero-veldnaam voor "publicatienaam" verschilt per itemtype
@@ -53,12 +59,6 @@ ZOTERO_USER_ID = os.environ.get("ZOTERO_LIBRARY_ID", "")
 ZOTERO_API_BASE = f"https://api.zotero.org/users/{ZOTERO_USER_ID}"
 
 # ── HTTP-helpers ────────────────────────────────────────────────────────────────
-
-def _get_local(url: str, timeout: int = 30) -> bytes:
-    """Zotero lokale API (localhost) — geen User-Agent, anders weigert Zotero de verbinding."""
-    with urllib.request.urlopen(url, timeout=timeout) as r:
-        return r.read()
-
 
 def _get(url: str, headers: dict = None, timeout: int = 30) -> bytes:
     h = {"User-Agent": UA}
@@ -97,8 +97,8 @@ def get_inbox_items() -> list:
     try:
         for start in range(0, 5000, PAGE):
             batch = json.loads(
-                _get_local(f"{ZOTERO_LOCAL_API}/collections/{INBOX_COLLECTION_KEY}"
-                           f"/items?limit={PAGE}&start={start}&format=json")
+                _zotero(f"/collections/{INBOX_COLLECTION_KEY}"
+                        f"/items?limit={PAGE}&start={start}&format=json")
             )
             if not batch:
                 break
