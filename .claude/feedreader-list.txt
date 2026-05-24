@@ -130,14 +130,6 @@ https://www.omnycontent.com/d/playlist/61ee9ca4-a1b2-4660-9651-b2b70035edf5/e3cb
 # ── History ───────────────────────────────────────────────────────────────────
 https://podcast.npo.nl/feed/ovt.xml  # OVT (NPO Radio 1)
 
-# ── Society, Philosophy & Politics ────────────────────────────────────────────
-https://podcast.npo.nl/feed/spijkers-met-koppen.xml  # Spijkers met Koppen
-https://app.springcast.fm/podcast-xml/19301  # Droom en Daad
-https://feeds.acast.com/public/shows/61f01a5fdeb8ad00140b46c3  # Weer een dag
-
-# ── YouTube ───────────────────────────────────────────────────────────────────
-# Geïmporteerd uit abonnementen.csv (Google Takeout)
-
 # ── YouTube ───────────────────────────────────────────────────────────────────
 # Geïmporteerd uit abonnementen.csv (Google Takeout)
 
