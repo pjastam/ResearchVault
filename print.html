@@ -1379,48 +1379,49 @@ sudo launchctl load /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
 </blockquote>
 <hr />
 <h3 id="option-c-freshrss-on-home-assistant-green-current-setup"><a class="header" href="#option-c-freshrss-on-home-assistant-green-current-setup">Option C: FreshRSS on Home Assistant Green (current setup)</a></h3>
-<p>FreshRSS runs in a Docker container on a Home Assistant Green device, which runs 24/7 independently of the Mac mini. The Mac mini generates the filtered feeds as before; after generating them it triggers FreshRSS on the HA Green via an HTTP actualize request (over Tailscale) to fetch them. From that point the Mac can shut down — FreshRSS keeps the feeds available all day from the HA Green.</p>
-<p><strong>Advantages over Option B:</strong> FreshRSS is available 24/7 even when the Mac mini is off. NetNewsWire can sync at any time, not only during Mac awake windows. Docker Desktop is not needed on the Mac mini. Remote access requires only Tailscale (no public Funnel URL).</p>
+<p>FreshRSS runs as a <strong>Home Assistant Community Add-on</strong> (einschmidt/freshrss) on a Home Assistant Green device, which runs 24/7 independently of the Mac mini. The Mac mini generates the filtered feeds as before; after generating them it triggers FreshRSS on the HA Green via an HTTP actualize request (over Tailscale) to fetch them. From that point the Mac can shut down — FreshRSS keeps the feeds available all day from the HA Green.</p>
+<p><strong>Advantages over Option B:</strong> FreshRSS is available 24/7 even when the Mac mini is off. NetNewsWire can sync at any time, not only during Mac awake windows. Docker Desktop is not needed on the Mac mini. Remote access requires only Tailscale (no public Funnel URL). The add-on is managed through the HA UI, eliminating the "unsupported system" warning that a manually-run Docker container would trigger.</p>
 <p><strong>Prerequisites:</strong></p>
 <ul>
-<li>Home Assistant Green (or any always-on Linux host with Docker)</li>
+<li>Home Assistant Green (or any HAOS/Supervised host)</li>
+<li>The <a href="https://github.com/einschmidt/ha-addons">einschmidt FreshRSS add-on</a> installed via HA → Settings → Add-ons → Add-on Store</li>
 <li>SSH add-on installed on HA Green, with an SSH key from the Mac mini authorised</li>
-<li>Tailscale running on both the Mac mini and the HA Green (so the Mac mini can reach HA Green by its Tailscale IP, and iPhone/iPad can reach it too)</li>
+<li>Tailscale running on both the Mac mini and the HA Green</li>
 </ul>
-<p><strong>Start FreshRSS on HA Green</strong> — SSH into HA Green and run:</p>
-<pre><code class="language-bash">docker run -d \
-  --name freshrss \
-  --network host \
-  --restart unless-stopped \
-  freshrss/freshrss
+<p><strong>Install and configure FreshRSS</strong> — via HA UI → Settings → Add-ons → FreshRSS → Install → Start.</p>
+<p>The add-on exposes FreshRSS on port <strong>7077</strong> at <code>http://[ha-green-tailscale-ip]:7077/</code>. Open that address in your browser and complete the installation wizard.</p>
+<p><strong>Enable the GReader API</strong> — this is required for NetNewsWire sync and the pipeline scripts. After installation, FreshRSS sets <code>api_enabled = false</code> by default. Enable it either via the FreshRSS web UI (Settings → Authentication → Allow API access) or by editing the config directly:</p>
+<pre><code class="language-bash"># Via SSH (Protection Mode must be OFF):
+ssh -i ~/.ssh/id_ed25519 hassio@[ha-green-tailscale-ip]
+sudo docker exec addon_c80c7555_freshrss sed -i "s/'api_enabled' =&gt; false/'api_enabled' =&gt; true/" /data/freshrss/config.php
+sudo docker restart addon_c80c7555_freshrss
 </code></pre>
-<p><code>--network host</code> maps port 80 directly to the host, making FreshRSS reachable at <code>http://[ha-green-ip]:80</code>. Open that address in your browser and complete the installation wizard.</p>
-<p><strong>Set API password</strong> — same as Option A: FreshRSS → Profile → API Management.</p>
-<p><strong>Add the three feeds in FreshRSS on HA Green</strong> — use the Mac mini's <strong>Tailscale IP</strong> so HA Green can reach the feedreader server even outside the home LAN:</p>
+<p><strong>Set API password</strong> — FreshRSS → Profile → API Management → set a separate API password (different from the login password). This is what NetNewsWire and the pipeline scripts use.</p>
+<p><strong>Add the three feeds in FreshRSS</strong> — feed URLs use the Mac mini's <strong>Tailscale Funnel URL</strong> so HA Green can reach the feedreader server:</p>
 <ul>
-<li><code>http://[mac-mini-tailscale-ip]:8765/filtered-webpage.xml</code></li>
-<li><code>http://[mac-mini-tailscale-ip]:8765/filtered-youtube.xml</code></li>
-<li><code>http://[mac-mini-tailscale-ip]:8765/filtered-podcast.xml</code></li>
+<li><code>https://mac-mini-van-piet.tail388762.ts.net:8443/filtered-webpage.xml</code></li>
+<li><code>https://mac-mini-van-piet.tail388762.ts.net:8443/filtered-youtube.xml</code></li>
+<li><code>https://mac-mini-van-piet.tail388762.ts.net:8443/filtered-podcast.xml</code></li>
 </ul>
 <p><strong>FreshRSS actualize step in <code>nachtelijke-taken.sh</code></strong> — the script triggers FreshRSS on HA Green via HTTP immediately after <code>feedreader-score.py</code> finishes, while the Mac mini is still awake and the feedreader server is still running:</p>
-<pre><code class="language-bash"># Store credentials in ~/bin/.freshrss-env (chmod 600):
-# FRESHRSS_USER=your_username
-# FRESHRSS_TOKEN=your_master_auth_token   # FreshRSS → Settings → Profile → Authentication token
-source ~/bin/.freshrss-env
-curl -s --max-time 60 \
-  "http://[ha-green-tailscale-ip]:8080/i/?c=feed&amp;a=actualize&amp;ajax=1&amp;maxFeeds=50&amp;user=${FRESHRSS_USER}&amp;token=${FRESHRSS_TOKEN}"
+<pre><code class="language-bash">source ~/bin/.researchvault-env   # contains FRESHRSS_USER, FRESHRSS_TOKEN, FRESHRSS_HA_URL
+# Per-feed actualize (bypasses TTL check):
+for _id in 7 8 12; do
+  curl -s --max-time 30 \
+    "http://100.113.121.73:7077/i/?c=feed&amp;a=actualize&amp;id=${_id}&amp;user=${FRESHRSS_USER}&amp;token=${FRESHRSS_TOKEN}"
+done
 </code></pre>
 <p>The flow has two directions. First, the Mac mini initiates: it sends a curl request to FreshRSS on HA Green ("please actualize"). Then the direction reverses: FreshRSS on HA Green pulls the XML feeds from the Mac mini's feedreader server (port 8765, reachable via Tailscale Funnel). The Mac mini must therefore still be running when the actualize step fires — and it is, because shutdown only happens after all pipeline steps complete.</p>
 <p>The full sequence: feedreader-score generates the XML files → Mac mini's HTTP server serves them on port 8765 → curl tells FreshRSS on HA Green to actualize → FreshRSS pulls the feeds from the Mac mini → FreshRSS stores the items internally → Mac mini shuts down. After shutdown, FreshRSS on HA Green continues to serve the stored items to NetNewsWire.</p>
 <p><strong>Connect NetNewsWire</strong> on each device — use the HA Green's Tailscale IP:</p>
 <p>NetNewsWire → Settings → Accounts → <strong>+</strong> → FreshRSS</p>
 <ul>
-<li>API URL: <code>http://[ha-green-tailscale-ip]:80/api/greader.php</code></li>
+<li>API URL: <code>http://100.113.121.73:7077/api/greader.php</code></li>
 <li>Username + API password from above</li>
 </ul>
 <p>Tailscale must be installed and active on iPhone and iPad for the Tailscale IP to be reachable outside the home network.</p>
 <blockquote>
-<p><strong>SSH add-on Protection Mode:</strong> Protection Mode on the HA SSH add-on is <strong>enabled</strong>. The actualize step uses a direct HTTP call to FreshRSS instead of <code>sudo docker exec</code>, so no Docker socket access is required. When SSH-ing into HA Green for manual Docker management, use <code>docker</code> without <code>sudo</code> — the hassio user has direct Docker group access.</p>
+<p><strong>SSH add-on Protection Mode:</strong> Protection Mode on the HA SSH add-on is <strong>enabled</strong>. The actualize step uses a direct HTTP call to FreshRSS instead of <code>sudo docker exec</code>, so no Docker socket access is required. For manual Docker management (e.g. migrating data), temporarily disable Protection Mode via HA → Settings → Add-ons → SSH → Configuration → Protection Mode → off → save → restart. Re-enable immediately after.</p>
 </blockquote>
 <h2 id="12d-feedback-signals-training-the-scoring"><a class="header" href="#12d-feedback-signals-training-the-scoring">12d. Feedback signals: training the scoring</a></h2>
 <p><code>feedreader-learn.py</code> runs daily and labels each item in <code>score_log.jsonl</code> based on signals from FreshRSS, Zotero, and the skip queue. The labels are used to calibrate the scoring threshold.</p>
