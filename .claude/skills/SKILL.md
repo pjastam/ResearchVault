@@ -9,7 +9,7 @@
 
 Deze skill maakt Claude Code tot een actieve, vragenderwijs werkende research-assistent. De workflow volgt een **3-fasen model**:
 
-- **Fase 1 — Breed vangen:** items stromen via drie bronnen in Zotero `_inbox`: (1) de **feedreader** (`feedreader-score.py`) scoort dagelijks alle RSS/YouTube/podcast-feeds automatisch en schrijft drie gefilterde Atom-feeds naar `~/.local/share/feedreader-serve/`; **FreshRSS** (Docker, poort 8080) abonneert op die feeds en synchroniseert leesstatus; **NetNewsWire** op Mac Mini, iPad en iPhone verbindt met FreshRSS voor cross-device sync; de gebruiker besluit welke items worden doorgestuurd via de NNW share sheet; (2) de **iOS share sheet** — items die de gebruiker al heeft gelezen/bekeken/beluisterd en bewust deelt vanuit YouTube, Overcast of Safari; (3) **desktop/e-mail/notities** — handmatige toevoeging. De feedreader-scorelogica is gedeeld via `feedreader_core.py` en draait automatisch via launchd om 06:00.
+- **Fase 1 — Breed vangen:** items stromen via drie bronnen in Zotero `_inbox`: (1) de **feedreader** (`feedreader-score.py`) scoort dagelijks alle RSS/YouTube/podcast-feeds automatisch en schrijft drie gefilterde Atom-feeds naar `~/.local/share/feedreader-serve/`; **FreshRSS** (HA Community Add-on, poort 7077) abonneert op die feeds en synchroniseert leesstatus; **NetNewsWire** op Mac Mini, iPad en iPhone verbindt met FreshRSS voor cross-device sync; de gebruiker besluit welke items worden doorgestuurd via de NNW share sheet; (2) de **iOS share sheet** — items die de gebruiker al heeft gelezen/bekeken/beluisterd en bewust deelt vanuit YouTube, Overcast of Safari; (3) **desktop/e-mail/notities** — handmatige toevoeging. De feedreader-scorelogica is gedeeld via `feedreader_core.py` en draait automatisch via launchd om 06:00.
 - **Fase 2 — Filteren:** Claude Code genereert een samenvatting of beoordeling; de gebruiker geeft Go of No-go. Alleen goedgekeurde items gaan verder.
 - **Fase 3 — Verwerken & opslaan:** volledige verwerking naar de Obsidian vault.
 
@@ -172,7 +172,7 @@ De feedreader draait automatisch via launchd (06:00 dagelijks). Beheer is alleen
 - Na ≥30 positieven verschijnt een initieel drempeladvies; pas `THRESHOLD_GREEN` en `THRESHOLD_YELLOW` aan in `feedreader-score.py`
 - Het leren gaat daarna continu door: ook na de initiële instelling draagt elk 👎-signaal en elke Zotero-toevoeging bij aan de kalibratie
 
-**NNW + FreshRSS:** NetNewsWire op alle apparaten verbindt met FreshRSS (`http://192.168.178.179:8080/api/greader.php`). Leesstatus synchroniseert automatisch tussen Mac Mini, iPad en iPhone. FreshRSS bewaart ongelezen items ook nadat de feedreader een nieuwe ronde heeft gedraaid — artikelen verdwijnen pas uit de ongelezen-teller als je ze markeert. De drie feeds in FreshRSS: `filtered-webpage.xml`, `filtered-youtube.xml`, `filtered-podcast.xml` (poort 8765).
+**NNW + FreshRSS:** NetNewsWire op alle apparaten verbindt met FreshRSS (`http://100.113.121.73:7077/api/greader.php`). Leesstatus synchroniseert automatisch tussen Mac Mini, iPad en iPhone. FreshRSS bewaart ongelezen items ook nadat de feedreader een nieuwe ronde heeft gedraaid — artikelen verdwijnen pas uit de ongelezen-teller als je ze markeert. De drie feeds in FreshRSS: `filtered-webpage.xml`, `filtered-youtube.xml`, `filtered-podcast.xml` (poort 8765).
 
 ---
 
