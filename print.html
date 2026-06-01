@@ -386,7 +386,7 @@ zotero-mcp db-status   # check current database status
 </code></pre>
 <p>This ensures that new additions are included in future relevance scores.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="phase-3-processing-to-the-vault"><a class="header" href="#phase-3-processing-to-the-vault">Phase 3: processing to the vault</a></h1>
-<p>Phase 3 converts approved items into structured Obsidian notes. All generation runs locally via Qwen3.5:9b. Add <code>--hd</code> to any command to use Claude Sonnet 4.6 instead (after explicit confirmation).</p>
+<p>Phase 3 converts approved items into structured Obsidian notes. All generation runs locally via Qwen3.5:9b (Ollama or MLX backend — set <code>LLM_BACKEND=mlx</code> in <code>ResearchVault/.env</code> to use MLX). Add <code>--hd</code> to any command to use Claude Sonnet 4.6 instead (after explicit confirmation).</p>
 <hr />
 <h2 id="papers"><a class="header" href="#papers">Papers</a></h2>
 <p>Papers reach <code>_inbox</code> via the Zotero browser extension, the iOS app, or automatically via the feedreader (after calibration). After a Go decision in Phase 2:</p>
@@ -397,7 +397,7 @@ zotero-mcp db-status   # check current database status
 <li>Retrieves metadata from Zotero MCP (title, authors, year, journal, citation key, tags) — no full text</li>
 <li>Calls the local subagent <code>process_item.py</code> with only the item key and metadata:
 <ul>
-<li><code>process_item.py</code> fetches the full text locally, generates a structured note via Qwen3.5:9b, builds the YAML frontmatter, and writes the <code>.md</code> file to <code>literature/</code></li>
+<li><code>process_item.py</code> fetches the full text locally, generates a structured note via local LLM (Qwen3.5:9b), builds the YAML frontmatter, and writes the <code>.md</code> file to <code>literature/</code></li>
 <li>Claude Code receives only <code>{"status": "ok", "path": "literature/..."}</code> — no source content</li>
 </ul>
 </li>
@@ -413,7 +413,7 @@ zotero-mcp db-status   # check current database status
 <li>Relevant quotes (original language)</li>
 <li>Links to related notes</li>
 </ul>
-<p>Notes are saved to <code>literature/[author-year-keyword1-keyword2].md</code> — Qwen selects 2–4 nouns from the title and TLDR.</p>
+<p>Notes are saved to <code>literature/[author-year-keyword1-keyword2].md</code> — the local LLM selects 2–4 nouns from the title and TLDR.</p>
 <blockquote>
 <p><strong>Privacy:</strong> no paper content ever appears in Claude Code's context. <code>process_item.py</code> is a self-contained local subagent — it fetches, generates, and writes without returning any source text to the orchestration layer.</p>
 </blockquote>
@@ -427,7 +427,7 @@ zotero-mcp db-status   # check current database status
 <p>This script:</p>
 <ol>
 <li>Fetches the transcript via <code>YouTubeTranscriptApi</code> (or from <code>.claude/transcript_cache/</code>)</li>
-<li>Qwen3.5:9b generates an abstract</li>
+<li>Local LLM (Qwen3.5:9b) generates an abstract</li>
 <li>Uploads the transcript as a <code>.txt</code> attachment to Zotero; sets <code>abstractNote</code></li>
 </ol>
 <p>After a <strong>Go</strong> decision, generate the literature note the same way as papers:</p>
@@ -444,7 +444,7 @@ zotero-mcp db-status   # check current database status
 <li>Links to related notes</li>
 <li>Flashcards (max 3)</li>
 </ul>
-<p>Notes are saved to <code>literature/[author-year-keyword1-keyword2].md</code> — Qwen selects 2–4 nouns from the title and TLDR.</p>
+<p>Notes are saved to <code>literature/[author-year-keyword1-keyword2].md</code> — the local LLM selects 2–4 nouns from the title and TLDR.</p>
 <hr />
 <h2 id="podcasts"><a class="header" href="#podcasts">Podcasts</a></h2>
 <p>Podcast transcripts are created manually via <code>attach-transcript.py</code> — whisper.cpp requires audio download and transcription (minutes of processing), so it cannot run in the batch pipeline.</p>
@@ -457,7 +457,7 @@ zotero-mcp db-status   # check current database status
 <li>Detects language automatically from cached show notes (Dutch show notes → <code>--language nl</code>); override with <code>--language</code> if needed</li>
 <li>Transcribes locally via <code>whisper-cli</code> (model: <code>large-v3-turbo</code>, Metal GPU, ~2–3 min per 30 min audio on M4)</li>
 <li>If <code>abstractNote</code> is already filled (show notes set by <code>enrich-inbox.py</code>): moves it to a child note titled "Shownotes"</li>
-<li>Generates an abstract via Qwen3.5:9b; sets <code>abstractNote</code>; stores transcript as <code>.txt</code> linked-file attachment; adds tag <code>_enriched-transcript</code></li>
+<li>Generates an abstract via local LLM (Qwen3.5:9b); sets <code>abstractNote</code>; stores transcript as <code>.txt</code> linked-file attachment; adds tag <code>_enriched-transcript</code></li>
 </ol>
 <p>After a <strong>Go</strong> decision, generate the literature note via <code>process_item.py</code> — same as papers.</p>
 <p><strong>If yt-dlp fails</strong> with "Unsupported URL": add the feed to <code>feedreader-list.txt</code>. After the next <code>feedreader-score.py</code> run, the direct audio URL is cached and used automatically.</p>
@@ -554,13 +554,19 @@ claude
 <pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/fetch-fulltext.py ITEMKEY inbox/bron.txt
 # Output: Saved: inbox/bron.txt (12,345 chars, type: application/pdf)
 </code></pre>
-<h3 id="ollama-generatepy--generate-text-via-ollama-rest-api"><a class="header" href="#ollama-generatepy--generate-text-via-ollama-rest-api"><code>ollama-generate.py</code> — generate text via Ollama REST API</a></h3>
-<p>Calls Ollama's REST API directly (no CLI, no ANSI codes). Prepends <code>/no_think</code> to suppress Qwen3.5:9b's reasoning step. Prints only status lines.</p>
+<h3 id="ollama-generatepy--generate-text-via-local-llm-ollama-or-mlx"><a class="header" href="#ollama-generatepy--generate-text-via-local-llm-ollama-or-mlx"><code>ollama-generate.py</code> — generate text via local LLM (Ollama or MLX)</a></h3>
+<p>Calls a local LLM REST API directly (no CLI, no ANSI codes). Supports two backends:</p>
+<ul>
+<li><strong>ollama</strong> (default): Ollama REST API on localhost:11434</li>
+<li><strong>mlx</strong>: mlx_lm OpenAI-compatible server on localhost:8080</li>
+</ul>
+<p>Backend is selected via <code>--backend ollama|mlx</code> or the <code>LLM_BACKEND</code> env var in <code>ResearchVault/.env</code>. Prepends <code>/no_think</code> to suppress Qwen3.5:9b's reasoning step. Prints only status lines.</p>
 <pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
   --input  inbox/bron.txt \
   --output literature/notitie.md \
-  --prompt "Write a literature note in Dutch..."
-# Output: Input: inbox/bron.txt (12,345 chars) | Written: literature/notitie.md (3,200 chars)
+  --prompt "Write a literature note in Dutch..." \
+  [--backend ollama|mlx]
+# Output: Input: inbox/bron.txt (12,345 chars) | Model: qwen3.5:9b | backend: ollama | Written: literature/notitie.md (3,200 chars)
 </code></pre>
 <h3 id="zotero-remove-from-inboxpy--remove-processed-item-from-_inbox"><a class="header" href="#zotero-remove-from-inboxpy--remove-processed-item-from-_inbox"><code>zotero-remove-from-inbox.py</code> — remove processed item from <code>_inbox</code></a></h3>
 <p>Removes the item from the <code>_inbox</code> collection in Zotero. Uses the local Zotero API by default (requires Zotero desktop running); mode is controlled by <code>ZOTERO_ACCESS</code> (see <code>zotero_api.py</code>).</p>

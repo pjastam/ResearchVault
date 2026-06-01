@@ -250,13 +250,19 @@ claude
 <pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/fetch-fulltext.py ITEMKEY inbox/bron.txt
 # Output: Saved: inbox/bron.txt (12,345 chars, type: application/pdf)
 </code></pre>
-<h3 id="ollama-generatepy--generate-text-via-ollama-rest-api"><a class="header" href="#ollama-generatepy--generate-text-via-ollama-rest-api"><code>ollama-generate.py</code> — generate text via Ollama REST API</a></h3>
-<p>Calls Ollama's REST API directly (no CLI, no ANSI codes). Prepends <code>/no_think</code> to suppress Qwen3.5:9b's reasoning step. Prints only status lines.</p>
+<h3 id="ollama-generatepy--generate-text-via-local-llm-ollama-or-mlx"><a class="header" href="#ollama-generatepy--generate-text-via-local-llm-ollama-or-mlx"><code>ollama-generate.py</code> — generate text via local LLM (Ollama or MLX)</a></h3>
+<p>Calls a local LLM REST API directly (no CLI, no ANSI codes). Supports two backends:</p>
+<ul>
+<li><strong>ollama</strong> (default): Ollama REST API on localhost:11434</li>
+<li><strong>mlx</strong>: mlx_lm OpenAI-compatible server on localhost:8080</li>
+</ul>
+<p>Backend is selected via <code>--backend ollama|mlx</code> or the <code>LLM_BACKEND</code> env var in <code>ResearchVault/.env</code>. Prepends <code>/no_think</code> to suppress Qwen3.5:9b's reasoning step. Prints only status lines.</p>
 <pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
   --input  inbox/bron.txt \
   --output literature/notitie.md \
-  --prompt "Write a literature note in Dutch..."
-# Output: Input: inbox/bron.txt (12,345 chars) | Written: literature/notitie.md (3,200 chars)
+  --prompt "Write a literature note in Dutch..." \
+  [--backend ollama|mlx]
+# Output: Input: inbox/bron.txt (12,345 chars) | Model: qwen3.5:9b | backend: ollama | Written: literature/notitie.md (3,200 chars)
 </code></pre>
 <h3 id="zotero-remove-from-inboxpy--remove-processed-item-from-_inbox"><a class="header" href="#zotero-remove-from-inboxpy--remove-processed-item-from-_inbox"><code>zotero-remove-from-inbox.py</code> — remove processed item from <code>_inbox</code></a></h3>
 <p>Removes the item from the <code>_inbox</code> collection in Zotero. Uses the local Zotero API by default (requires Zotero desktop running); mode is controlled by <code>ZOTERO_ACCESS</code> (see <code>zotero_api.py</code>).</p>
