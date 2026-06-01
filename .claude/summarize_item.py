@@ -66,6 +66,14 @@ FETCH_SCRIPT      = CLAUDE_DIR / "fetch-fulltext.py"
 GENERATE_SCRIPT   = CLAUDE_DIR / "ollama-generate.py"
 DEFAULT_MODEL     = "qwen3.5:9b"
 
+_env = VAULT_ROOT / ".env"
+if _env.exists():
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(_env, override=False)
+    except ImportError:
+        pass
+
 # ── Prompts ───────────────────────────────────────────────────────────────────
 
 SUMMARY_PROMPT_PAPER = """\
@@ -163,6 +171,8 @@ def main() -> None:
     parser.add_argument("--abstract",  default="", help="Abstract-tekst (paper); geen modelaanroep nodig")
     parser.add_argument("--cache-id",  default="", help="Video ID (youtube) of episode ID (podcast)")
     parser.add_argument("--model",     default=DEFAULT_MODEL)
+    parser.add_argument("--backend",   default=os.environ.get("LLM_BACKEND", "ollama"), choices=["ollama", "mlx"],
+                        help="LLM-backend: ollama of mlx. Standaard via LLM_BACKEND env var of 'ollama'.")
     args = parser.parse_args()
 
     item_key   = args.item_key
@@ -173,6 +183,7 @@ def main() -> None:
     abstract   = args.abstract.strip()
     cache_id   = args.cache_id.strip()
     model      = args.model
+    backend    = args.backend
 
     header = build_header(title, authors, year, item_type)
 
@@ -195,13 +206,14 @@ def main() -> None:
         if not tmp_input.exists() or tmp_input.stat().st_size == 0:
             error(f"Tijdelijk invoerbestand leeg of ontbreekt: {tmp_input}")
 
-        print(f"[2/3] Samenvatting genereren via {model}…", file=sys.stderr)
+        print(f"[2/3] Samenvatting genereren via {model} ({backend})…", file=sys.stderr)
         run([
             PYTHON, GENERATE_SCRIPT,
-            "--input",  str(tmp_input),
-            "--output", str(tmp_output),
-            "--prompt", SUMMARY_PROMPT_PAPER,
-            "--model",  model,
+            "--input",   str(tmp_input),
+            "--output",  str(tmp_output),
+            "--prompt",  SUMMARY_PROMPT_PAPER,
+            "--model",   model,
+            "--backend", backend,
         ], "ollama-generate")
 
         print("[3/3] Samenvatting wegschrijven…", file=sys.stderr)
@@ -232,13 +244,14 @@ def main() -> None:
 
         tmp_input.write_text(transcript, encoding="utf-8")
 
-        print(f"[1/2] Samenvatting genereren via {model}…", file=sys.stderr)
+        print(f"[1/2] Samenvatting genereren via {model} ({backend})…", file=sys.stderr)
         run([
             PYTHON, GENERATE_SCRIPT,
-            "--input",  str(tmp_input),
-            "--output", str(tmp_output),
-            "--prompt", SUMMARY_PROMPT_MEDIA,
-            "--model",  model,
+            "--input",   str(tmp_input),
+            "--output",  str(tmp_output),
+            "--prompt",  SUMMARY_PROMPT_MEDIA,
+            "--model",   model,
+            "--backend", backend,
         ], "ollama-generate")
 
         print("[2/2] Samenvatting wegschrijven…", file=sys.stderr)
@@ -269,13 +282,14 @@ def main() -> None:
 
         tmp_input.write_text(text, encoding="utf-8")
 
-        print(f"[1/2] Samenvatting genereren via {model}…", file=sys.stderr)
+        print(f"[1/2] Samenvatting genereren via {model} ({backend})…", file=sys.stderr)
         run([
             PYTHON, GENERATE_SCRIPT,
-            "--input",  str(tmp_input),
-            "--output", str(tmp_output),
-            "--prompt", SUMMARY_PROMPT_MEDIA,
-            "--model",  model,
+            "--input",   str(tmp_input),
+            "--output",  str(tmp_output),
+            "--prompt",  SUMMARY_PROMPT_MEDIA,
+            "--model",   model,
+            "--backend", backend,
         ], "ollama-generate")
 
         print("[2/2] Samenvatting wegschrijven…", file=sys.stderr)

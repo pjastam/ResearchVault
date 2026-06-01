@@ -43,6 +43,14 @@ CLAUDE_DIR           = VAULT_ROOT / ".claude"
 TRANSCRIPT_CACHE_DIR = CLAUDE_DIR / "transcript_cache"
 TRANSCRIPTS_DIR      = Path.home() / "Zotero" / "Transcripts"
 INBOX_DIR            = VAULT_ROOT / "inbox"
+
+_env = VAULT_ROOT / ".env"
+if _env.exists():
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(_env, override=False)
+    except ImportError:
+        pass
 PYTHON               = Path(os.environ.get(
     "ZOTERO_PYTHON",
     "/Users/pietstam/.local/share/uv/tools/zotero-mcp-server/bin/python3",
@@ -105,14 +113,15 @@ def get_transcript_text(video_id: str | None) -> str | None:
         return None
 
 
-def run_qwen(input_path: Path, output_path: Path, prompt: str, model: str) -> bool:
+def run_llm(input_path: Path, output_path: Path, prompt: str, model: str, backend: str = "ollama") -> bool:
     """Roept ollama-generate.py aan; retourneert True bij succes."""
     result = subprocess.run(
         [str(PYTHON), str(GENERATE_SCRIPT),
-         "--input",  str(input_path),
-         "--output", str(output_path),
-         "--prompt", prompt,
-         "--model",  model],
+         "--input",   str(input_path),
+         "--output",  str(output_path),
+         "--prompt",  prompt,
+         "--model",   model,
+         "--backend", backend],
         capture_output=True, text=True,
     )
     if result.returncode != 0:
@@ -363,7 +372,9 @@ def main() -> None:
     parser.add_argument("--item-key",      required=True, help="Zotero item key")
     parser.add_argument("--url",           default="",    help="YouTube- of podcast-URL")
     parser.add_argument("--model",         default="qwen3.5:9b",
-                        help="Ollama-model voor abstract (YouTube zonder cache)")
+                        help="LLM-model voor abstract")
+    parser.add_argument("--backend",       default=os.environ.get("LLM_BACKEND", "ollama"), choices=["ollama", "mlx"],
+                        help="LLM-backend: ollama of mlx. Standaard via LLM_BACKEND env var of 'ollama'.")
     parser.add_argument("--whisper-model",    default=WHISPER_MODEL,
                         help=f"whisper.cpp-model voor podcast-transcriptie (default: {WHISPER_MODEL})")
     parser.add_argument("--language",         default="",
@@ -395,7 +406,7 @@ def main() -> None:
 
         try:
             print(f"[2/3] Abstract genereren via {args.model}…", file=sys.stderr)
-            if not run_qwen(raw_path, abstract_path, ABSTRACT_PROMPT, args.model):
+            if not run_llm(raw_path, abstract_path, ABSTRACT_PROMPT, args.model, args.backend):
                 error("Qwen: abstract genereren mislukt")
             abstract_text = abstract_path.read_text(encoding="utf-8").strip()
         finally:
@@ -444,7 +455,7 @@ def main() -> None:
             abstract_path = INBOX_DIR / f"_abstract_{item_key}.txt"
             raw_path.write_text(raw_text, encoding="utf-8")
             try:
-                if not run_qwen(raw_path, abstract_path, ABSTRACT_PROMPT, args.model):
+                if not run_llm(raw_path, abstract_path, ABSTRACT_PROMPT, args.model, args.backend):
                     error("Qwen: abstract genereren mislukt")
                 abstract_text = abstract_path.read_text(encoding="utf-8").strip()
             finally:

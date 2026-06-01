@@ -86,16 +86,21 @@ Fetches the full text of a Zotero attachment and saves it to a local file. Only 
 # Output: Saved: inbox/bron.txt (12,345 chars, type: application/pdf)
 ```
 
-### `ollama-generate.py` — generate text via Ollama REST API
+### `ollama-generate.py` — generate text via local LLM (Ollama or MLX)
 
-Calls Ollama's REST API directly (no CLI, no ANSI codes). Prepends `/no_think` to suppress Qwen3.5:9b's reasoning step. Prints only status lines.
+Calls a local LLM REST API directly (no CLI, no ANSI codes). Supports two backends:
+- **ollama** (default): Ollama REST API on localhost:11434
+- **mlx**: mlx_lm OpenAI-compatible server on localhost:8080
+
+Backend is selected via `--backend ollama|mlx` or the `LLM_BACKEND` env var in `ResearchVault/.env`. Prepends `/no_think` to suppress Qwen3.5:9b's reasoning step. Prints only status lines.
 
 ```bash
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
   --input  inbox/bron.txt \
   --output literature/notitie.md \
-  --prompt "Write a literature note in Dutch..."
-# Output: Input: inbox/bron.txt (12,345 chars) | Written: literature/notitie.md (3,200 chars)
+  --prompt "Write a literature note in Dutch..." \
+  [--backend ollama|mlx]
+# Output: Input: inbox/bron.txt (12,345 chars) | Model: qwen3.5:9b | backend: ollama | Written: literature/notitie.md (3,200 chars)
 ```
 
 ### `zotero-remove-from-inbox.py` — remove processed item from `_inbox`

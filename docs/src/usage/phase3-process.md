@@ -1,6 +1,6 @@
 # Phase 3: processing to the vault
 
-Phase 3 converts approved items into structured Obsidian notes. All generation runs locally via Qwen3.5:9b. Add `--hd` to any command to use Claude Sonnet 4.6 instead (after explicit confirmation).
+Phase 3 converts approved items into structured Obsidian notes. All generation runs locally via Qwen3.5:9b (Ollama or MLX backend — set `LLM_BACKEND=mlx` in `ResearchVault/.env` to use MLX). Add `--hd` to any command to use Claude Sonnet 4.6 instead (after explicit confirmation).
 
 ---
 
@@ -15,7 +15,7 @@ verwerk recente papers
 Claude Code:
 1. Retrieves metadata from Zotero MCP (title, authors, year, journal, citation key, tags) — no full text
 2. Calls the local subagent `process_item.py` with only the item key and metadata:
-   - `process_item.py` fetches the full text locally, generates a structured note via Qwen3.5:9b, builds the YAML frontmatter, and writes the `.md` file to `literature/`
+   - `process_item.py` fetches the full text locally, generates a structured note via local LLM (Qwen3.5:9b), builds the YAML frontmatter, and writes the `.md` file to `literature/`
    - Claude Code receives only `{"status": "ok", "path": "literature/..."}` — no source content
 3. Adds `[[internal links]]` to related notes in the vault
 4. Removes the item from Zotero `_inbox`
@@ -28,7 +28,7 @@ The generated note contains:
 - Relevant quotes (original language)
 - Links to related notes
 
-Notes are saved to `literature/[author-year-keyword1-keyword2].md` — Qwen selects 2–4 nouns from the title and TLDR.
+Notes are saved to `literature/[author-year-keyword1-keyword2].md` — the local LLM selects 2–4 nouns from the title and TLDR.
 
 > **Privacy:** no paper content ever appears in Claude Code's context. `process_item.py` is a self-contained local subagent — it fetches, generates, and writes without returning any source text to the orchestration layer.
 
@@ -47,7 +47,7 @@ YouTube items follow an **eager transcript pipeline**: when you mark a video ✅
 
 This script:
 1. Fetches the transcript via `YouTubeTranscriptApi` (or from `.claude/transcript_cache/`)
-2. Qwen3.5:9b generates an abstract
+2. Local LLM (Qwen3.5:9b) generates an abstract
 3. Uploads the transcript as a `.txt` attachment to Zotero; sets `abstractNote`
 
 After a **Go** decision, generate the literature note the same way as papers:
@@ -67,7 +67,7 @@ The generated note contains:
 - Links to related notes
 - Flashcards (max 3)
 
-Notes are saved to `literature/[author-year-keyword1-keyword2].md` — Qwen selects 2–4 nouns from the title and TLDR.
+Notes are saved to `literature/[author-year-keyword1-keyword2].md` — the local LLM selects 2–4 nouns from the title and TLDR.
 
 ---
 
@@ -85,7 +85,7 @@ This script:
 2. Detects language automatically from cached show notes (Dutch show notes → `--language nl`); override with `--language` if needed
 3. Transcribes locally via `whisper-cli` (model: `large-v3-turbo`, Metal GPU, ~2–3 min per 30 min audio on M4)
 4. If `abstractNote` is already filled (show notes set by `enrich-inbox.py`): moves it to a child note titled "Shownotes"
-5. Generates an abstract via Qwen3.5:9b; sets `abstractNote`; stores transcript as `.txt` linked-file attachment; adds tag `_enriched-transcript`
+5. Generates an abstract via local LLM (Qwen3.5:9b); sets `abstractNote`; stores transcript as `.txt` linked-file attachment; adds tag `_enriched-transcript`
 
 After a **Go** decision, generate the literature note via `process_item.py` — same as papers.
 

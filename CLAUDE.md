@@ -141,14 +141,14 @@ Controleer welke syntheses relevant zijn en voeg een bullet of sectie toe.
 
 ## Transcripten (attach-transcript.py)
 
-`attach-transcript.py` verwerkt zowel YouTube- als podcast-items: haalt audio/transcript op, genereert een abstract via Qwen en slaat het transcript als `.txt`-bijlage op in Zotero. Alle Zotero-aanroepen lopen via `zotero_api.py` (default: local API, vereist Zotero desktop).
+`attach-transcript.py` verwerkt zowel YouTube- als podcast-items: haalt audio/transcript op, genereert een abstract via de geconfigureerde LLM-backend (Ollama of MLX) en slaat het transcript als `.txt`-bijlage op in Zotero. Alle Zotero-aanroepen lopen via `zotero_api.py` (default: local API, vereist Zotero desktop).
 
 **YouTube** — eager pipeline: bij ✅ in de feedreader wordt het transcript meteen opgehaald. Handmatig aanroepen:
 ```bash
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/attach-transcript.py \
   --item-key ITEMKEY --url "https://www.youtube.com/watch?v=..."
 ```
-Gebruikt `YouTubeTranscriptApi` (of `transcript_cache/`); Qwen genereert abstract.
+Gebruikt `YouTubeTranscriptApi` (of `transcript_cache/`); geconfigureerde LLM-backend genereert abstract.
 
 **Podcast** — altijd handmatig (whisper.cpp vereist audio-download, duurt minuten):
 ```bash
@@ -255,6 +255,7 @@ Na ≥30 positieven verschijnt een drempeladvies; pas dan `THRESHOLD_GREEN` en `
 - **Privacy-grens**: source content (volledige tekst van papers, podcasts, video's) gaat NOOIT naar de Anthropic API. Alleen JSON status-objecten en metadata mogen Claude Code bereiken vanuit de subagents.
 - **Subagent-patroon**: `process_item.py` en `summarize_item.py` worden aangeroepen als lokale Python-subprocessen. Claude Code stuurt ze aan maar voert zelf geen inhoudsverwerking uit.
 - **`--hd` flag**: activeert Claude Sonnet 4.6 in plaats van Qwen3.5:9b. Vereist altijd expliciete bevestiging van de gebruiker vóór verzending naar de API.
+- **LLM-backend**: alle AI-scripts (`process_item.py`, `summarize_item.py`, `attach-transcript.py`, `ollama-generate.py`) ondersteunen twee backends via `--backend ollama|mlx`. Default is `ollama` (localhost:11434). Stel `LLM_BACKEND=mlx` in `ResearchVault/.env` in om alle scripts op de MLX-server (localhost:8080, `mlx-community/Qwen3-8B-4bit`) te laten draaien. Een expliciete `--backend`-vlag wint altijd van de env var. Start MLX-server met: `python3 -m mlx_lm server --model mlx-community/Qwen3-8B-4bit`.
 - **Zotero**: de Zotero Web API (`api.zotero.org`) is **niet het standaardgedrag** — alle scripts gebruiken by default de lokale REST API op `localhost:23119`. Web API-aanroepen vinden alleen plaats als `ZOTERO_ACCESS=web` expliciet is ingesteld. Modus via omgevingsvariabele `ZOTERO_ACCESS`: `local` (default) — localhost:23119, vereist Zotero desktop, geen authenticatie; `auto` — start Zotero als het niet draait (max 60s, anders exit 1), dan local API; `web` — api.zotero.org, headless-safe, vereist `ZOTERO_API_KEY` uit `vault/.env`. Rationale per context: nachtelijke-taken gebruikt `web` omdat de Mac headless opstart (geen GUI-sessie, Zotero kan niet worden gestart); overdagtaken gebruikt `auto` omdat de gebruiker ingelogd is; interactieve sessies gebruiken de default `local`. Alle Zotero-aanroepen lopen via `.claude/zotero_api.py`. Geen andere cloud-diensten.
 - **Ontwikkelsessies**: ook tijdens het schrijven of testen van nieuwe scripts gelden dezelfde privacyregels. Test nooit met echte paper-inhoud als die inhoud als tool-output in Claude's context kan komen. Gebruik synthetische testdata of alleen metadata bij ontwikkeling en debugging.
 
@@ -294,10 +295,10 @@ Voor losse stappen of speciale gevallen (transcripten, snapshots): gebruik `.cla
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/fetch-fulltext.py ITEMKEY inbox/bestand.txt
 ```
 
-Daarna verwerken via Ollama:
+Daarna verwerken via lokale LLM:
 ```bash
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
-  --input inbox/bestand.txt --output literature/bestand.md --prompt "..."
+  --input inbox/bestand.txt --output literature/bestand.md --prompt "..." [--backend ollama|mlx]
 ```
 
 Dit geldt ook voor snapshot-HTML, VTT-transcripten en podcast-transcripten: nooit `cat` of `print` op de volledige inhoud uitvoeren als Bash-tool.

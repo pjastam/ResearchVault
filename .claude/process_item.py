@@ -57,6 +57,16 @@ FETCH_SCRIPT    = CLAUDE_DIR / "fetch-fulltext.py"
 GENERATE_SCRIPT = CLAUDE_DIR / "ollama-generate.py"
 LITERATURE_DIR  = VAULT_ROOT / "literature"
 INBOX_DIR       = VAULT_ROOT / "inbox"
+MLX_API         = "http://localhost:8080/v1/completions"
+MLX_MODEL_NAME  = "mlx-community/Qwen3-8B-4bit"
+
+_env = VAULT_ROOT / ".env"
+if _env.exists():
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(_env, override=False)
+    except ImportError:
+        pass
 
 # ── Ollama-prompt ─────────────────────────────────────────────────────────────
 
@@ -166,7 +176,53 @@ def build_filename(citation_key: str, authors: list[str], year: str, title: str)
     return "-".join(parts) + ".md"
 
 
-def generate_filename_keywords(title: str, tldr: str, model: str) -> str:
+def _direct_generate(
+    model: str, backend: str, prompt: str, timeout: int = 60,
+    options: dict | None = None,
+) -> str:
+    """Voer een directe LLM-aanroep uit voor korte taken (geen subprocess)."""
+    if backend == "mlx":
+        mlx_prompt = f"/no_think\n{prompt}" if not prompt.startswith("/no_think") else prompt
+        effective_model = MLX_MODEL_NAME if model == "qwen3.5:9b" else model
+        payload = json.dumps({
+            "model": effective_model,
+            "prompt": mlx_prompt,
+            "max_tokens": (options or {}).get("num_predict", 300),
+            "stream": False,
+            "temperature": (options or {}).get("temperature", 0.7),
+        }).encode("utf-8")
+        try:
+            req = urllib.request.Request(
+                MLX_API, data=payload,
+                headers={"Content-Type": "application/json"},
+            )
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return json.loads(resp.read())["choices"][0]["text"].strip()
+        except Exception as e:
+            print(f"  MLX-aanroep mislukt: {e}", file=sys.stderr)
+            return ""
+    else:
+        payload = json.dumps({
+            "model": model,
+            "prompt": prompt,
+            "think": False,
+            "stream": False,
+            **({"options": options} if options else {}),
+        }).encode("utf-8")
+        try:
+            req = urllib.request.Request(
+                "http://localhost:11434/api/generate",
+                data=payload,
+                headers={"Content-Type": "application/json"},
+            )
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return json.loads(resp.read()).get("response", "").strip()
+        except Exception as e:
+            print(f"  LLM-aanroep mislukt: {e}", file=sys.stderr)
+            return ""
+
+
+def generate_filename_keywords(title: str, tldr: str, model: str, backend: str = "ollama") -> str:
     """Vraag Qwen om 2-4 zelfstandige naamwoorden voor de bestandsnaam.
 
     Primair op basis van de titel; TLDR als aanvullende context.
@@ -187,28 +243,12 @@ def generate_filename_keywords(title: str, tldr: str, model: str) -> str:
         + source
     )
 
-    payload = json.dumps({
-        "model": model,
-        "prompt": prompt,
-        "stream": False,
-        "think": False,
-    }).encode("utf-8")
-
-    req = urllib.request.Request(
-        "http://localhost:11434/api/generate",
-        data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            raw = json.loads(resp.read()).get("response", "").strip().lower()
-            words = [slugify(w) for w in re.split(r"[\s,;]+", raw) if w]
-            words = [w for w in words if len(w) > 1][:4]
-            return "-".join(words)
-    except Exception as _e:
-        print(f"  Bestandsnaam-keywords ophalen mislukt: {_e}", file=sys.stderr)
+    raw = _direct_generate(model, backend, prompt, timeout=60)
+    if not raw:
         return ""
+    words = [slugify(w) for w in re.split(r"[\s,;]+", raw.lower()) if w]
+    words = [w for w in words if len(w) > 1][:4]
+    return "-".join(words)
 
 
 def build_frontmatter(
@@ -279,6 +319,7 @@ def suggest_craft_update(
     vault_root: Path,
     item_key: str,
     model: str,
+    backend: str = "ollama",
 ) -> str | None:
     """
     Zoek craft-notes met overlappende tags en vraag Qwen om een updatevoorstel.
@@ -340,24 +381,10 @@ def suggest_craft_update(
             "Wees specifiek: welke sectie, wat precies toevoegen. "
             'Als er niets nuttigs toe te voegen is, schrijf dan alleen: "Geen aanvulling nodig."'
         )
-        payload = json.dumps({
-            "model": model,
-            "prompt": prompt,
-            "think": False,
-            "stream": False,
-            "options": {"temperature": 0.2, "num_predict": 300},
-        }).encode("utf-8")
-        req = urllib.request.Request(
-            "http://localhost:11434/api/generate",
-            data=payload,
-            headers={"Content-Type": "application/json"},
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=60) as resp:
-                suggestion_text = json.loads(resp.read()).get("response", "").strip()
-        except Exception as e:
-            print(f"  [craft] Qwen-aanroep mislukt voor {craft_path.name}: {e}", file=sys.stderr)
-            suggestion_text = "(fout bij genereren suggestie)"
+        suggestion_text = _direct_generate(
+            model, backend, prompt, timeout=60,
+            options={"temperature": 0.2, "num_predict": 300},
+        ) or "(fout bij genereren suggestie)"
 
         suggestions.append(
             f"### [[craft/{craft_path.parent.name}/{craft_path.stem}]]\n"
@@ -407,6 +434,8 @@ def main() -> None:
     parser.add_argument("--tags",         action="append", default=[])
     parser.add_argument("--status",       default="unread", choices=["read", "unread"])
     parser.add_argument("--model",        default="qwen3.5:9b")
+    parser.add_argument("--backend",      default=os.environ.get("LLM_BACKEND", "ollama"), choices=["ollama", "mlx"],
+                        help="LLM-backend: ollama of mlx. Standaard via LLM_BACKEND env var of 'ollama'.")
     parser.add_argument("--output-dir",   default=None,
                         help="Uitvoermap voor de notitie (standaard: literature/). "
                              "Gebruik 'meta/candidates/' voor de candidate buffer.")
@@ -449,6 +478,7 @@ def main() -> None:
     tags         = meta.get("tags",         args.tags or [])
     status       = meta.get("status",       args.status)
     model        = args.model
+    backend      = args.backend
 
     if not title:
         error("--title is verplicht (of geef het mee via --meta-json)")
@@ -491,10 +521,11 @@ def main() -> None:
     run(
         [
             PYTHON, GENERATE_SCRIPT,
-            "--input",  str(temp_input),
-            "--output", str(temp_output),
-            "--prompt", prompt,
-            "--model",  model,
+            "--input",   str(temp_input),
+            "--output",  str(temp_output),
+            "--prompt",  prompt,
+            "--model",   model,
+            "--backend", backend,
         ],
         "ollama-generate",
     )
@@ -504,7 +535,7 @@ def main() -> None:
     tldr_match = re.search(r"##\s+TLDR\s*\n(.*?)(?=\n##|\Z)", body, re.DOTALL | re.IGNORECASE)
     tldr = tldr_match.group(1).strip() if tldr_match else ""
     print("[2b] Bestandsnaam bepalen via Qwen…", file=sys.stderr)
-    keywords = generate_filename_keywords(title, tldr, model)
+    keywords = generate_filename_keywords(title, tldr, model, backend)
     if keywords:
         last_name = ""
         if authors:
@@ -545,6 +576,7 @@ def main() -> None:
         vault_root=VAULT_ROOT,
         item_key=item_key,
         model=model,
+        backend=backend,
     )
 
     # ── Statusoutput (JSON) ───────────────────────────────────────────────────
