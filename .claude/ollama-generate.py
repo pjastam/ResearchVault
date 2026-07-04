@@ -49,6 +49,7 @@ def generate_ollama(model: str, prompt: str, content: str, no_think: bool) -> st
         "model": model,
         "prompt": full_prompt,
         "stream": True,
+        "options": {"num_ctx": 32768},
     }
     if no_think:
         payload_dict["think"] = False

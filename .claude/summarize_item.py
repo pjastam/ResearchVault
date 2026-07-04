@@ -77,42 +77,46 @@ if _env.exists():
 # ── Prompts ───────────────────────────────────────────────────────────────────
 
 SUMMARY_PROMPT_PAPER = """\
-You are a research assistant. Write a compact structured summary of the source text below.
+Je bent een research-assistent. Schrijf een compacte gestructureerde samenvatting van de onderstaande brontekst.
 
-Rules:
-- Write in the SAME LANGUAGE as the source text.
-- Use exactly these three sections:
+TAALREGEL (verplicht): Schrijf de volledige samenvatting — inclusief alle sectiekoppen — in dezelfde taal als de brontekst. \
+Is de brontekst in het Engels, schrijf dan in het Engels met Engelse sectiekoppen \
+(Introduction / Key findings / Relevance). Meng nooit twee talen.
 
-## Introduction
-2-3 sentences: what is this paper about and what is the central claim?
+Gebruik exact deze drie secties:
 
-## Key findings
-4-6 bullet points with the most important results or arguments.
+## Inleiding
+2-3 zinnen: waar gaat deze tekst over en wat is de centrale bewering?
 
-## Relevance
-2 sentences: why might this be relevant for health economics research?
+## Kernbevindingen
+4-6 bullets met de belangrijkste resultaten of argumenten.
 
-Return only the structured text, no preamble or closing remarks.\
+## Relevantie
+2 zinnen: waarom kan dit relevant zijn voor gezondheidseconomisch onderzoek?
+
+Geef alleen de gestructureerde tekst terug, zonder inleiding of slotopmerking.\
 """
 
 SUMMARY_PROMPT_MEDIA = """\
-You receive the transcript or show notes of a video or podcast episode.
-Write a compact structured summary.
+Je ontvangt het transcript of de show notes van een video of podcast-aflevering.
+Schrijf een compacte gestructureerde samenvatting.
 
-Rules:
-- Write in the SAME LANGUAGE as the source text.
-- Use exactly these three sections:
+TAALREGEL (verplicht): Schrijf de volledige samenvatting — inclusief alle sectiekoppen — in dezelfde taal als de brontekst. \
+Is de brontekst in het Engels, schrijf dan in het Engels met Engelse sectiekoppen \
+(Introduction / Key topics / Relevance). Meng nooit twee talen.
 
-## Introduction
-2-3 sentences: what is this episode about and what is the main angle?
+Gebruik exact deze drie secties:
 
-## Key topics
-5-7 bullet points with the key topics, arguments, or findings discussed.
+## Inleiding
+2-3 zinnen: waar gaat deze aflevering over en wat is de centrale invalshoek?
 
-## Relevance
-2 sentences: why might this be relevant for health economics research?
+## Kernpunten
+5-7 bullets met de belangrijkste onderwerpen, argumenten of bevindingen.
 
-Return only the structured text, no preamble or closing remarks.\
+## Relevantie
+2 zinnen: waarom kan dit relevant zijn voor gezondheidseconomisch onderzoek?
+
+Geef alleen de gestructureerde tekst terug, zonder inleiding of slotopmerking.\
 """
 
 # ── Hulpfuncties ──────────────────────────────────────────────────────────────
@@ -205,6 +209,12 @@ def main() -> None:
 
         if not tmp_input.exists() or tmp_input.stat().st_size == 0:
             error(f"Tijdelijk invoerbestand leeg of ontbreekt: {tmp_input}")
+
+        # Beperk invoer tot 30.000 tekens — voor Go/No-go is de intro+resultaten genoeg.
+        _txt = tmp_input.read_text(encoding="utf-8")
+        if len(_txt) > 30_000:
+            print(f"  Invoer afgekapt: {len(_txt):,} → 30.000 tekens", file=sys.stderr)
+            tmp_input.write_text(_txt[:30_000], encoding="utf-8")
 
         print(f"[2/3] Samenvatting genereren via {model} ({backend})…", file=sys.stderr)
         run([

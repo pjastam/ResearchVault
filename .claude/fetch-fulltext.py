@@ -98,13 +98,62 @@ def main():
 
     attachment_key = attachments[0]["key"]
     attachment_type = attachments[0]["data"].get("contentType", "?")
+    attachment_link_mode = attachments[0]["data"].get("linkMode", "")
+    attachment_path = attachments[0]["data"].get("path", "")
 
     # Haal volledige tekst op
-    result = client.fulltext_item(attachment_key)
-    content = result.get("content", "")
+    content = ""
+    try:
+        result = client.fulltext_item(attachment_key)
+        content = result.get("content", "")
+    except Exception as _ft_err:
+        pass  # zie fallback hieronder
+
+    # Fallback voor linked_file HTML-snapshots: het bestand staat op het opgegeven pad
+    # (bijv. ~/Zotero/Snapshots/), niet in ~/Zotero/storage/{attachment_key}/.
+    if not content and attachment_type == "text/html" and attachment_link_mode == "linked_file" and attachment_path:
+        linked = Path(attachment_path)
+        if linked.exists():
+            raw_html = linked.read_text(encoding="utf-8", errors="replace")
+            text = re.sub(r"<[^>]+>", " ", raw_html)
+            content = re.sub(r"\s+", " ", html_module.unescape(text)).strip()
+            print(f"  Linked snapshot gelezen: {linked.name} ({len(content):,} tekens)", file=sys.stderr)
+
+    # Fallback voor linked_file text/plain (transcripten): lees direct van het opgegeven pad.
+    if not content and attachment_type == "text/plain" and attachment_link_mode == "linked_file" and attachment_path:
+        linked = Path(attachment_path)
+        if linked.exists():
+            content = linked.read_text(encoding="utf-8", errors="replace")
+            print(f"  Linked transcript gelezen: {linked.name} ({len(content):,} tekens)", file=sys.stderr)
+
+    # Fallback voor imported_file HTML-snapshots: lees het bestand uit ~/Zotero/storage/{attachment_key}/.
+    if not content and attachment_type == "text/html":
+        storage_dir = Path.home() / "Zotero" / "storage" / attachment_key
+        html_files = sorted(storage_dir.glob("*.html")) if storage_dir.exists() else []
+        if html_files:
+            raw_html = html_files[0].read_text(encoding="utf-8", errors="replace")
+            text = re.sub(r"<[^>]+>", " ", raw_html)
+            content = re.sub(r"\s+", " ", html_module.unescape(text)).strip()
+            print(f"  Snapshot gelezen uit storage: {html_files[0].name} ({len(content):,} tekens)",
+                  file=sys.stderr)
+
+    # Fallback voor PDF: pyzotero gebruikt het web-gebruiker-ID ook in lokale modus,
+    # waardoor /users/24775/... 404 geeft. Direct via de lokale REST API met /users/0/.
+    if not content and attachment_type == "application/pdf":
+        try:
+            import urllib.request as _ureq
+            _ft_url = f"http://localhost:23119/api/users/0/items/{attachment_key}/fulltext"
+            with _ureq.urlopen(_ft_url, timeout=10) as _r:
+                _ft_data = json.loads(_r.read())
+                content = _ft_data.get("content", "")
+                if content:
+                    print(f"  PDF-fulltext via lokale API ({len(content):,} tekens)", file=sys.stderr)
+        except Exception as _e:
+            print(f"  Lokale fulltext-API niet bereikbaar voor PDF: {_e}", file=sys.stderr)
 
     if not content:
-        print(f"Geen tekstinhoud gevonden in bijlage {attachment_key}", file=sys.stderr)
+        print(f"Geen tekstinhoud gevonden in bijlage {attachment_key} (type: {attachment_type})",
+              file=sys.stderr)
         sys.exit(1)
 
     # Schrijf naar doelbestand
