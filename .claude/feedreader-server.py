@@ -123,6 +123,19 @@ class FeedreaderHandler(http.server.SimpleHTTPRequestHandler):
             super().do_GET()
 
     def do_POST(self):
+        # CSRF-bescherming: vereis application/json en blokkeer cross-origin verzoeken.
+        # Origin mag ontbreken (programmatische aanroepen), maar als die er is moet hij
+        # overeenkomen met de Host-header (same-server; werkt ook voor iPad via Tailscale IP).
+        ctype = self.headers.get("Content-Type", "").split(";")[0].strip().lower()
+        if ctype != "application/json":
+            self._respond_json(403, {"error": "forbidden"})
+            return
+        origin = self.headers.get("Origin", "")
+        host   = self.headers.get("Host", "")
+        if origin and origin != f"http://{host}":
+            self._respond_json(403, {"error": "forbidden"})
+            return
+
         parsed = urllib.parse.urlparse(self.path)
         path   = parsed.path
         length = int(self.headers.get("Content-Length", 0))
