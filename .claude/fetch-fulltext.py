@@ -93,6 +93,26 @@ def main():
                     f.write(content)
                 print(f"Opgeslagen: {output_path} ({len(content):,} tekens, type: transcript note)")
                 return
+        # Fallback: gebruik abstractNote als het item de _enriched-shownotes tag heeft.
+        # Dit dekt podcast-items die via enrich-inbox.py show notes hebben gekregen
+        # maar nog geen transcript-bijlage hebben.
+        try:
+            import urllib.request as _ureq
+            _item_url = f"http://localhost:23119/api/users/0/items/{item_key}"
+            with _ureq.urlopen(_item_url, timeout=5) as _r:
+                _item_data = json.loads(_r.read())
+            _tags = [t["tag"] for t in _item_data["data"].get("tags", [])]
+            if "_enriched-shownotes" in _tags:
+                _abstract = _item_data["data"].get("abstractNote", "").strip()
+                if _abstract:
+                    os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True)
+                    with open(output_path, "w", encoding="utf-8") as f:
+                        f.write(_abstract)
+                    print(f"Opgeslagen: {output_path} ({len(_abstract):,} tekens, type: shownotes)")
+                    return
+        except Exception as _e:
+            print(f"  Show notes fallback mislukt: {_e}", file=sys.stderr)
+
         print(f"Geen bijlage of transcript-note gevonden voor item {item_key}", file=sys.stderr)
         sys.exit(1)
 

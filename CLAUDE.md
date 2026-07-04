@@ -197,7 +197,7 @@ De feedreader scoort RSS/YouTube/podcast-feeds automatisch op relevantie en prod
 - `.claude/feedreader-score.py` — haalt feeds op, scoort items, detecteert brontype; voor YouTube-items haalt het eerst een transcript op via `youtube_transcript_api` (gecachet in `transcript_cache/`) en gebruikt de transcripttekst voor de scoreberekening; voor podcast-items met show notes ≥ 200 tekens (constante `SHOWNOTES_MIN_LENGTH`) worden de show notes gecachet in `transcript_cache/podcast_{episode_id}.json` (`episode_id` = `podcast_` + MD5-hash van de URL); slaat tevens de directe audio-URL op uit de RSS `<enclosure>`-tag als `audio_url`-veld (gebruikt door `attach-transcript.py` voor directe MP3-download); schrijft `filtered.xml` en `filtered.html`
 - `.claude/feedreader_core.py` — gedeelde functies: `cosine_similarity`, `compute_weighted_profile`, `score_label`, `detect_source_type`, `bayesian_score`; constanten: `THRESHOLD_GREEN`, `THRESHOLD_YELLOW`, `THRESHOLD_STAR`, `PRIOR_RELEVANCE`, `WEIGHT_DEFAULT`, `WEIGHT_ANNOTATIONS`
 - `.claude/freshrss_utils.py` — GReader API helpers: authenticatie, stream-fetch, auto-sterren; leest credentials uit `~/bin/.researchvault-env`
-- `.claude/feedreader-server.py` — lokale HTTP-server (poort 8765); handelt `GET /action?type=skip` af (skip-queue) en serveert Atom-feeds en statische bestanden; genereert leesartikelen via Ollama voor YouTube/podcast
+- `.claude/feedreader-server.py` — lokale HTTP-server (poort 8765); handelt `GET /action?type=skip` af (skip-queue) en serveert Atom-feeds en statische bestanden; genereert leesartikelen via Ollama voor YouTube/podcast; biedt ook de inbox-review REST API (zie URLs hieronder)
 - `.claude/feedreader-learn.py` — leerloop: verwerkt skip-queue, haalt FreshRSS-signalen op (gestefd/gelezen), matcht Zotero-toevoegingen, geeft drempeladvies (continu proces)
 - `.claude/score_log.jsonl` — groeiend logboek (URL, score, score_raw, bron, source_type, timestamp, added_to_zotero, skipped)
 - `.claude/skip_queue.jsonl` — wachtrij van expliciet afgewezen items (👎); dagelijks verwerkt door feedreader-learn.py
@@ -212,6 +212,15 @@ De feedreader scoort RSS/YouTube/podcast-feeds automatisch op relevantie en prod
 - `http://localhost:8765/filtered-podcast.xml` — Atom-feed podcasts voor NetNewsWire
 - `http://localhost:8765/article/{video_id}` — gegenereerd leesartikel voor een YouTube-video (structuur: Inleiding · Kernpunten · Conclusie; taal = originele videotaal)
 - `http://localhost:8765/article/podcast/{episode_id}` — gegenereerd leesartikel voor een podcast-aflevering op basis van show notes (zelfde structuur; alleen voor afleveringen met show notes ≥ 200 tekens)
+- `http://localhost:8765/inbox` — inbox-review pagina (iPad-vriendelijk): toont Zotero `_inbox`-items gesorteerd op score met Go/No-go knoppen; Go → `process_item.py` → `literature/` + verwijder uit `_inbox`; No-go → verwijder direct uit `_inbox`
+
+**Inbox-review REST API (POST vereist `Content-Type: application/json`):**
+- `GET  /api/inbox/items` — gecombineerde score + Zotero metadata per `_inbox`-item (JSON)
+- `GET  /api/inbox/jobs` — status van alle achtergrond-jobs (`pending`/`running`/`done`/`error`)
+- `GET  /api/inbox/summary/{key}` — leest `inbox/_summary_{key}.md` als die bestaat
+- `POST /api/inbox/go` — start `process_item.py` voor `key` (asynchroon); vereist `title` in body
+- `POST /api/inbox/nogo` — verwijdert `key` direct uit Zotero `_inbox` (synchroon)
+- `POST /api/inbox/summarize` — start `summarize_item.py` voor `key` (asynchroon)
 
 **Scores en labels:** 🟢 ≥50 · 🟡 40–49 · 🔴 <40 (Bayesiaanse scores met prior π=0.70; drempels worden bijgesteld via feedreader-learn.py). Items met score ≥70 worden auto-gestefd in FreshRSS/NNW.
 
