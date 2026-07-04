@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Inbox beoordeling</title>
+<style>
+  :root {
+    --green:  #22c55e;
+    --yellow: #eab308;
+    --red:    #ef4444;
+    --blue:   #3b82f6;
+    --gray:   #6b7280;
+    --bg:     #f9fafb;
+    --card:   #ffffff;
+    --border: #e5e7eb;
+    --text:   #111827;
+    --sub:    #6b7280;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; padding: 0 0 80px;
+  }
+
+  /* Header */
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: #1e293b; color: #f8fafc;
+    padding: 10px 16px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .header-row { display: flex; align-items: center; justify-content: space-between; }
+  header h1 { font-size: 17px; font-weight: 600; }
+  #counter { font-size: 13px; color: #94a3b8; white-space: nowrap; }
+
+  /* Zoekbalk */
+  #search-wrap { position: relative; }
+  #search {
+    width: 100%; padding: 7px 12px 7px 32px;
+    border-radius: 8px; border: none; background: #334155; color: #f8fafc;
+    font-size: 14px; outline: none;
+  }
+  #search::placeholder { color: #94a3b8; }
+  #search-icon {
+    position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+    color: #94a3b8; font-size: 14px; pointer-events: none;
+  }
+  #search-results {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+    background: #1e293b; border: 1px solid #334155; border-radius: 8px;
+    max-height: 260px; overflow-y: auto; z-index: 20;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .sr-item {
+    padding: 10px 14px; cursor: pointer; border-bottom: 1px solid #334155;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .sr-item:last-child { border-bottom: none; }
+  .sr-item:hover, .sr-item:active { background: #334155; }
+  .sr-title { font-size: 14px; color: #f8fafc; }
+  .sr-meta  { font-size: 12px; color: #94a3b8; display: flex; gap: 8px; align-items: center; }
+
+  /* Status bar */
+  #statusbar {
+    background: #0f172a; color: #94a3b8;
+    font-size: 12px; padding: 4px 16px;
+    display: flex; gap: 12px; flex-wrap: wrap;
+  }
+  #statusbar span { white-space: nowrap; }
+  .job-running { color: var(--yellow); }
+  .job-done    { color: var(--green); }
+  .job-error   { color: var(--red); }
+
+  /* Progress */
+  #progress-bar {
+    height: 3px; background: #334155;
+  }
+  #progress-fill {
+    height: 100%; background: var(--blue);
+    transition: width 0.3s ease;
+  }
+
+  /* Main */
+  main { max-width: 720px; margin: 0 auto; padding: 16px; }
+
+  /* Card */
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px; margin-bottom: 16px;
+  }
+
+  /* Score badge */
+  .score-row {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+  }
+  .badge {
+    font-size: 13px; font-weight: 700; padding: 3px 10px;
+    border-radius: 20px; white-space: nowrap;
+  }
+  .badge-green  { background: #dcfce7; color: #166534; }
+  .badge-yellow { background: #fef9c3; color: #854d0e; }
+  .badge-red    { background: #fee2e2; color: #991b1b; }
+  .badge-none   { background: #f3f4f6; color: #374151; }
+
+  .item-type {
+    font-size: 12px; color: var(--sub); background: #f3f4f6;
+    padding: 2px 8px; border-radius: 10px;
+  }
+
+  /* Title */
+  .item-title {
+    font-size: 18px; font-weight: 600; line-height: 1.35;
+    margin-bottom: 6px;
+  }
+  .item-meta { font-size: 13px; color: var(--sub); margin-bottom: 10px; }
+  .item-url {
+    font-size: 12px; color: var(--blue);
+    word-break: break-all; margin-bottom: 10px;
+  }
+  .item-url a { color: inherit; }
+
+  /* Tags */
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .tag {
+    font-size: 12px; padding: 2px 8px;
+    border-radius: 10px; background: #eff6ff; color: #1d4ed8;
+  }
+  .tag.special { background: #f0fdf4; color: #15803d; font-weight: 600; }
+
+  /* Abstract */
+  .abstract {
+    font-size: 14px; color: #374151; line-height: 1.6;
+    padding: 12px; background: #f9fafb; border-radius: 8px;
+    margin-bottom: 12px; border-left: 3px solid var(--border);
+  }
+  .abstract-label {
+    font-size: 11px; font-weight: 600; color: var(--sub);
+    text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;
+  }
+
+  /* Summary */
+  .summary-section { margin-bottom: 12px; }
+  .summary-label {
+    font-size: 11px; font-weight: 600; color: var(--sub);
+    text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .summary-content {
+    font-size: 14px; color: #374151; line-height: 1.6;
+    padding: 12px; background: #f0f9ff; border-radius: 8px;
+    border-left: 3px solid var(--blue);
+  }
+  .summary-content h2,
+  .summary-content h3 { font-size: 14px; margin: 8px 0 4px; }
+  .summary-content ul { padding-left: 16px; }
+  .summary-content li { margin-bottom: 2px; }
+  .summary-content p  { margin-bottom: 6px; }
+  .summary-loading {
+    font-size: 13px; color: var(--sub);
+    padding: 10px; font-style: italic;
+  }
+  .summary-error { color: var(--red); font-size: 13px; padding: 10px; }
+
+  /* Suggestion banner */
+  .suggestion {
+    padding: 10px 14px; border-radius: 8px; margin-bottom: 12px;
+    font-size: 14px; font-weight: 500;
+  }
+  .suggestion-nogo { background: #fee2e2; color: #991b1b; }
+  .suggestion-go   { background: #dcfce7; color: #166534; }
+
+  /* Action buttons */
+  .actions {
+    display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap;
+  }
+  .btn {
+    flex: 1; min-width: 100px; padding: 14px 12px;
+    border: none; border-radius: 10px; font-size: 16px; font-weight: 600;
+    cursor: pointer; transition: opacity 0.15s, transform 0.1s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn:active { transform: scale(0.97); opacity: 0.85; }
+  .btn:disabled { opacity: 0.4; cursor: default; }
+  .btn-go    { background: var(--green);  color: #fff; }
+  .btn-nogo  { background: var(--red);    color: #fff; }
+  .btn-skip  { background: #e5e7eb;       color: #374151; }
+  .btn-sum   { background: var(--blue);   color: #fff; flex: 0 0 auto; font-size: 14px; }
+
+  /* Divider between items (navigation) */
+  .nav-row {
+    display: flex; gap: 8px; margin-bottom: 12px; align-items: center;
+  }
+  .nav-btn {
+    padding: 6px 14px; border: 1px solid var(--border);
+    border-radius: 8px; background: var(--card);
+    font-size: 14px; cursor: pointer; color: var(--text);
+  }
+  .nav-btn:disabled { opacity: 0.3; }
+  .nav-label { font-size: 13px; color: var(--sub); flex: 1; text-align: center; }
+
+  /* Loading / error / empty states */
+  .state-msg {
+    text-align: center; padding: 60px 20px;
+    color: var(--sub); font-size: 16px;
+  }
+  .state-msg .emoji { font-size: 48px; display: block; margin-bottom: 12px; }
+  .spinner {
+    display: inline-block; width: 24px; height: 24px;
+    border: 3px solid var(--border); border-top-color: var(--blue);
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+    margin-bottom: 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-row">
+    <h1>📥 Inbox beoordeling</h1>
+    <span id="counter">—</span>
+  </div>
+  <div id="search-wrap">
+    <span id="search-icon">🔍</span>
+    <input id="search" type="search" placeholder="Zoek op titel…" autocomplete="off"
+           oninput="onSearch(this.value)" onfocus="onSearch(this.value)" inputmode="search">
+    <div id="search-results" style="display:none"></div>
+  </div>
+</header>
+
+<div id="statusbar"></div>
+<div id="progress-bar"><div id="progress-fill" style="width:0%"></div></div>
+
+<main id="main">
+  <div class="state-msg">
+    <div class="spinner"></div>
+    <div>Items ophalen…</div>
+  </div>
+</main>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+
+let items   = [];   // gecombineerde lijst van /api/inbox/items
+let current = 0;    // index in items
+let skipped = new Set();
+let decided = new Set();  // keys waarvoor Go of No-go is gegeven
+
+const BASE = `http://${location.hostname}:8765`;
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+
+async function boot() {
+  try {
+    const res  = await fetch(`${BASE}/api/inbox/items`);
+    const data = await res.json();
+    if (!res.ok) {
+      showError(data.error || "Server fout");
+      return;
+    }
+    items = data;
+    if (!items.length) {
+      showEmpty();
+      return;
+    }
+    renderCurrent();
+    pollJobs();
+  } catch (e) {
+    showError("Kan server niet bereiken: " + e.message);
+  }
+}
+
+// ── Rendering ─────────────────────────────────────────────────────────────────
+
+function renderCurrent() {
+  if (!items.length) { showEmpty(); return; }
+
+  // Sla beslist + overgeslagen items over (behalve als alles beslist is)
+  const undecided = items.filter((_, i) => !decided.has(items[i].key) && !skipped.has(items[i].key));
+  if (!undecided.length) {
+    if (decided.size === items.length) { showDone(); return; }
+    // alleen skipped items over — reset skips
+    skipped.clear();
+  }
+
+  const item = items[current];
+  updateCounter();
+  renderItem(item);
+}
+
+function renderItem(item) {
+  const score    = item.score;
+  const label    = item.label;
+  const tags     = item.tags || [];
+  const hasCheck = tags.includes("✅");
+  const hasBook  = tags.includes("📖");
+  const abstract = (item.abstract || "").trim();
+
+  // Badge
+  let badgeClass = "badge-none", badgeText = "geen score";
+  if (label === "🟢") { badgeClass = "badge-green";  badgeText = `🟢 ${score}`; }
+  if (label === "🟡") { badgeClass = "badge-yellow"; badgeText = `🟡 ${score}`; }
+  if (label === "🔴") { badgeClass = "badge-red";    badgeText = `🔴 ${score}`; }
+
+  // Suggestion banner
+  let suggestion = "";
+  if (hasCheck) {
+    suggestion = `<div class="suggestion suggestion-go">✅ Tag aanwezig — aanbeveling: Go</div>`;
+  } else if (label === "🔴") {
+    suggestion = `<div class="suggestion suggestion-nogo">🔴 Lage score — aanbeveling: No-go</div>`;
+  }
+
+  // Tags HTML
+  const specialTags = ["✅", "📖"];
+  const tagsHtml = tags.map(t =>
+    `<span class="tag${specialTags.includes(t) ? " special" : ""}">${esc(t)}</span>`
+  ).join("");
+
+  // URL
+  const urlHtml = item.url
+    ? `<div class="item-url"><a href="${esc(item.url)}" target="_blank">${esc(item.url.length > 80 ? item.url.slice(0,77)+"…" : item.url)}</a></div>`
+    : "";
+
+  // Abstract
+  const abstractHtml = abstract
+    ? `<div class="abstract"><div class="abstract-label">Abstract</div>${esc(abstract)}</div>`
+    : "";
+
+  // Summary section (placeholder — filled by autoSummary)
+  let summaryHtml = `<div class="summary-section" id="summary-section" style="display:none">
+    <div class="summary-label">Samenvatting <span id="sum-status"></span></div>
+    <div id="summary-content" class="summary-content"></div>
+  </div>`;
+
+  // Meta
+  const meta = [item.author, item.year].filter(Boolean).join(" · ");
+
+  // Navigation row
+  const idx = current + 1;
+  const total = items.filter(it => !decided.has(it.key)).length;
+
+  document.getElementById("main").innerHTML = `
+    <div class="nav-row">
+      <button class="nav-btn" onclick="navigate(-1)" ${current === 0 ? "disabled" : ""}>← Vorige</button>
+      <span class="nav-label">Item ${idx} van ${total} te beoordelen</span>
+      <button class="nav-btn" onclick="navigate(1)" ${current >= items.length-1 ? "disabled" : ""}>Volgende →</button>
+    </div>
+
+    <div class="card">
+      <div class="score-row">
+        <span class="badge ${badgeClass}">${badgeText}</span>
+        <span class="item-type">${esc(item.type)}</span>
+      </div>
+
+      ${suggestion}
+
+      <div class="item-title">${esc(item.title)}</div>
+      ${meta ? `<div class="item-meta">${esc(meta)}</div>` : ""}
+      ${urlHtml}
+      ${tagsHtml ? `<div class="tags">${tagsHtml}</div>` : ""}
+      ${abstractHtml}
+      ${summaryHtml}
+
+      <div class="actions">
+        <button class="btn btn-go"   onclick="doGo()"   id="btn-go">✅ Go</button>
+        <button class="btn btn-nogo" onclick="doNogo()"  id="btn-nogo">❌ No-go</button>
+        <button class="btn btn-skip" onclick="doSkip()">→ Sla over</button>
+        <button class="btn btn-sum"  onclick="requestSummary()" id="btn-sum">📄 Samenvatting</button>
+      </div>
+    </div>
+  `;
+
+  // Bij elke render: check of samenvatting al klaar is of job actief is
+  (async () => {
+    const text = await fetchSummary(item.key);
+    if (text) { showSummaryText(text); return; }
+    try {
+      const res  = await fetch(`${BASE}/api/inbox/jobs`);
+      const data = await res.json();
+      const job  = (data.jobs || {})["sum_" + item.key];
+      if (job && (job.status === "running" || job.status === "pending")) {
+        showSummaryLoading();
+        pollSummary(item.key);
+        return;
+      }
+    } catch (_) {}
+    // Geen bestaande samenvatting en geen actieve job → auto-trigger indien van toepassing
+    // Alleen als abstract beschikbaar (fast path; zonder abstract faalt fetch-fulltext voor webpages)
+    if ((hasBook || label === "🟡") && abstract) {
+      autoSummary(item);
+    }
+  })();
+}
+
+// ── Navigatie ─────────────────────────────────────────────────────────────────
+
+function navigate(delta) {
+  current = Math.max(0, Math.min(items.length - 1, current + delta));
+  renderCurrent();
+}
+
+function advance() {
+  // Ga naar het eerste niet-beslist, niet-overgeslagen item ná current
+  let next = current + 1;
+  while (next < items.length && (decided.has(items[next].key) || skipped.has(items[next].key))) {
+    next++;
+  }
+  if (next < items.length) {
+    current = next;
+    renderCurrent();
+  } else {
+    // Loop terug naar begin voor overgeslagen items
+    const firstUndecided = items.findIndex(it => !decided.has(it.key) && !skipped.has(it.key));
+    if (firstUndecided >= 0) {
+      current = firstUndecided;
+      renderCurrent();
+    } else {
+      showDone();
+    }
+  }
+}
+
+// ── Acties ────────────────────────────────────────────────────────────────────
+
+async function doGo() {
+  const item = items[current];
+  setBtnsDisabled(true);
+
+  const payload = {
+    key:       item.key,
+    title:     item.title,
+    authors:   item.author,
+    year:      item.year ? String(item.year) : "",
+    tags:      item.tags,
+  };
+
+  try {
+    const res = await fetch(`${BASE}/api/inbox/go`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    decided.add(item.key);
+    showToast("✅ Go — wordt verwerkt op de achtergrond");
+    advance();
+  } catch (e) {
+    showToast("Fout: " + e.message, true);
+    setBtnsDisabled(false);
+  }
+}
+
+async function doNogo() {
+  const item = items[current];
+  if (!confirm(`❌ No-go: "${item.title.slice(0,60)}" verwijderen uit inbox?`)) return;
+  setBtnsDisabled(true);
+
+  try {
+    const res = await fetch(`${BASE}/api/inbox/nogo`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({key: item.key}),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      decided.add(item.key);
+      showToast("❌ No-go — verwijderd uit inbox");
+      advance();
+    } else {
+      showToast("Fout: " + (data.error || "onbekend"), true);
+      setBtnsDisabled(false);
+    }
+  } catch (e) {
+    showToast("Fout: " + e.message, true);
+    setBtnsDisabled(false);
+  }
+}
+
+function doSkip() {
+  const item = items[current];
+  skipped.add(item.key);
+  advance();
+}
+
+async function requestSummary() {
+  const item = items[current];
+  showSummaryLoading();
+
+  // Controleer eerst of samenvatting al klaar is
+  const cached = await fetchSummary(item.key);
+  if (cached) { showSummaryText(cached); return; }
+
+  // Nog niet klaar — stuur verzoek
+  try {
+    await fetch(`${BASE}/api/inbox/summarize`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        key:      item.key,
+        type:     mapType(item.type),
+        title:    item.title,
+        authors:  item.author,
+        year:     item.year ? String(item.year) : "",
+        abstract: item.abstract || "",
+      }),
+    });
+    pollSummary(item.key);
+  } catch (e) {
+    showSummaryError("Kan samenvatting niet aanvragen: " + e.message);
+  }
+}
+
+async function autoSummary(item) {
+  // Stil laden — geen loading spinner tonen totdat we weten of er iets komt
+  const cached = await fetchSummary(item.key);
+  if (cached) { showSummaryText(cached); return; }
+
+  // Vraag aan en poll
+  try {
+    await fetch(`${BASE}/api/inbox/summarize`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        key:      item.key,
+        type:     mapType(item.type),
+        title:    item.title,
+        authors:  item.author,
+        year:     item.year ? String(item.year) : "",
+        abstract: item.abstract || "",
+      }),
+    });
+    showSummaryLoading();
+    pollSummary(item.key);
+  } catch (_) {}
+}
+
+// ── Summary helpers ───────────────────────────────────────────────────────────
+
+async function fetchSummary(key) {
+  try {
+    const res = await fetch(`${BASE}/api/inbox/summary/${key}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.status === "ready") return data.text;
+  } catch (_) {}
+  return null;
+}
+
+function pollSummary(key, attempts = 0) {
+  if (attempts > 60) { showSummaryError("Samenvatting duurt te lang (timeout)."); return; }
+  setTimeout(async () => {
+    // Stop als gebruiker naar ander item is gegaan
+    if (!items[current] || items[current].key !== key) return;
+
+    // Check job status
+    try {
+      const res  = await fetch(`${BASE}/api/inbox/jobs`);
+      const data = await res.json();
+      const job  = (data.jobs || {})["sum_" + key];
+      if (job) {
+        if (job.status === "done") {
+          const text = await fetchSummary(key);
+          if (text) { showSummaryText(text); return; }
+        }
+        if (job.status === "error") {
+          showSummaryError("Fout bij samenvatting: " + (job.error || "onbekend"));
+          return;
+        }
+      }
+    } catch (_) {}
+
+    pollSummary(key, attempts + 1);
+  }, 3000);
+}
+
+function showSummaryLoading() {
+  const sec = document.getElementById("summary-section");
+  const con = document.getElementById("summary-content");
+  const sta = document.getElementById("sum-status");
+  if (!sec) return;
+  sec.style.display = "";
+  if (sta) sta.textContent = "⏳";
+  if (con) con.innerHTML = `<div class="summary-loading">Samenvatting laden…</div>`;
+}
+
+function showSummaryText(markdown) {
+  const sec = document.getElementById("summary-section");
+  const con = document.getElementById("summary-content");
+  const sta = document.getElementById("sum-status");
+  if (!sec) return;
+  sec.style.display = "";
+  if (sta) sta.textContent = "✅";
+  if (con) con.innerHTML = renderMarkdown(markdown);
+}
+
+function showSummaryError(msg) {
+  const sec = document.getElementById("summary-section");
+  const con = document.getElementById("summary-content");
+  const sta = document.getElementById("sum-status");
+  if (!sec) return;
+  sec.style.display = "";
+  if (sta) sta.textContent = "❌";
+  if (con) con.innerHTML = `<div class="summary-error">${esc(msg)}</div>`;
+}
+
+// ── Job status polling ────────────────────────────────────────────────────────
+
+function pollJobs() {
+  setInterval(async () => {
+    try {
+      const res  = await fetch(`${BASE}/api/inbox/jobs`);
+      const data = await res.json();
+      renderStatusBar(data.counts || {});
+    } catch (_) {}
+  }, 5000);
+}
+
+function renderStatusBar(counts) {
+  const bar = document.getElementById("statusbar");
+  const parts = [];
+  if (counts.pending  > 0) parts.push(`<span>${counts.pending} wachtend</span>`);
+  if (counts.running  > 0) parts.push(`<span class="job-running">⏳ ${counts.running} bezig</span>`);
+  if (counts.done     > 0) parts.push(`<span class="job-done">✅ ${counts.done} klaar</span>`);
+  if (counts.error    > 0) parts.push(`<span class="job-error">❌ ${counts.error} fout</span>`);
+  bar.innerHTML = parts.join("") || "";
+}
+
+// ── Counter & progress ────────────────────────────────────────────────────────
+
+function updateCounter() {
+  const total   = items.length;
+  const done    = decided.size;
+  const pct     = total ? Math.round(done / total * 100) : 0;
+  document.getElementById("counter").textContent = `${done}/${total}`;
+  document.getElementById("progress-fill").style.width = pct + "%";
+}
+
+// ── State screens ─────────────────────────────────────────────────────────────
+
+function showEmpty() {
+  document.getElementById("counter").textContent = "0 items";
+  document.getElementById("main").innerHTML = `
+    <div class="state-msg">
+      <span class="emoji">📭</span>
+      De _inbox is leeg. Niets te beoordelen.
+    </div>`;
+}
+
+function showDone() {
+  document.getElementById("main").innerHTML = `
+    <div class="state-msg">
+      <span class="emoji">🎉</span>
+      Alle items beoordeeld!
+    </div>`;
+}
+
+function showError(msg) {
+  document.getElementById("main").innerHTML = `
+    <div class="state-msg">
+      <span class="emoji">⚠️</span>
+      ${esc(msg)}
+    </div>`;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function setBtnsDisabled(disabled) {
+  ["btn-go", "btn-nogo", "btn-sum"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = disabled;
+  });
+}
+
+function mapType(zoteroType) {
+  if (!zoteroType) return "paper";
+  const t = zoteroType.toLowerCase();
+  if (t.includes("video") || t.includes("youtube")) return "youtube";
+  if (t.includes("podcast") || t.includes("audio")) return "podcast";
+  return "paper";
+}
+
+function esc(s) {
+  if (!s) return "";
+  return String(s)
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;");
+}
+
+// Minimale Markdown renderer: headings, bold, italic, lists, paragraphs
+function renderMarkdown(md) {
+  if (!md) return "";
+  let html = esc(md);
+  // Unescape voor verwerking (we doen escaping voor raw text, maar markdown structuur moet door)
+  // Reset: werk op raw md, escape aan het einde per token
+  const lines = md.split("\n");
+  const out = [];
+  let inList = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+
+    // Heading
+    if (/^### (.+)/.test(line)) {
+      if (inList) { out.push("</ul>"); inList = false; }
+      out.push(`<h3>${inlineMarkdown(line.replace(/^### /, ""))}</h3>`);
+      continue;
+    }
+    if (/^## (.+)/.test(line)) {
+      if (inList) { out.push("</ul>"); inList = false; }
+      out.push(`<h2>${inlineMarkdown(line.replace(/^## /, ""))}</h2>`);
+      continue;
+    }
+    if (/^# (.+)/.test(line)) {
+      if (inList) { out.push("</ul>"); inList = false; }
+      out.push(`<h2>${inlineMarkdown(line.replace(/^# /, ""))}</h2>`);
+      continue;
+    }
+
+    // List item
+    if (/^[-*] (.+)/.test(line)) {
+      if (!inList) { out.push("<ul>"); inList = true; }
+      out.push(`<li>${inlineMarkdown(line.replace(/^[-*] /, ""))}</li>`);
+      continue;
+    }
+
+    // Horizontal rule
+    if (/^---+$/.test(line.trim())) {
+      if (inList) { out.push("</ul>"); inList = false; }
+      out.push("<hr>");
+      continue;
+    }
+
+    // Empty line
+    if (line.trim() === "") {
+      if (inList) { out.push("</ul>"); inList = false; }
+      continue;
+    }
+
+    // Paragraph
+    if (inList) { out.push("</ul>"); inList = false; }
+    out.push(`<p>${inlineMarkdown(line)}</p>`);
+  }
+  if (inList) out.push("</ul>");
+  return out.join("\n");
+}
+
+function inlineMarkdown(text) {
+  // Escape HTML first
+  text = text
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  // Bold+italic: ***text***
+  text = text.replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>");
+  // Bold: **text**
+  text = text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  // Italic: *text*
+  text = text.replace(/\*(.+?)\*/g, "<em>$1</em>");
+  // Inline code: `code`
+  text = text.replace(/`(.+?)`/g, "<code>$1</code>");
+  return text;
+}
+
+// Toast melding
+let toastTimer = null;
+function showToast(msg, isError = false) {
+  let el = document.getElementById("toast");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "toast";
+    el.style.cssText = `
+      position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+      padding:10px 20px; border-radius:20px; font-size:14px; font-weight:500;
+      z-index:100; box-shadow:0 4px 12px rgba(0,0,0,0.2);
+      transition:opacity 0.3s;
+    `;
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.style.background = isError ? "#ef4444" : "#1e293b";
+  el.style.color = "#fff";
+  el.style.opacity = "1";
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.style.opacity = "0"; }, 3000);
+}
+
+// ── Zoeken ────────────────────────────────────────────────────────────────────
+
+function onSearch(q) {
+  const box = document.getElementById("search-results");
+  q = q.trim().toLowerCase();
+  if (!q || !items.length) { box.style.display = "none"; return; }
+
+  const matches = items
+    .map((it, i) => ({ it, i }))
+    .filter(({ it }) => it.title.toLowerCase().includes(q))
+    .slice(0, 10);
+
+  if (!matches.length) {
+    box.innerHTML = `<div class="sr-item"><span class="sr-title" style="color:#94a3b8">Geen resultaten</span></div>`;
+    box.style.display = "";
+    return;
+  }
+
+  box.innerHTML = matches.map(({ it, i }) => {
+    const badge = it.label ? it.label + " " + (it.score ?? "–") : "–";
+    const decided_mark = decided.has(it.key) ? " ✓" : skipped.has(it.key) ? " ↷" : "";
+    return `<div class="sr-item" onclick="jumpTo(${i})">
+      <span class="sr-title">${esc(it.title)}</span>
+      <span class="sr-meta"><span>${badge}</span><span>${esc(it.type)}</span>${decided_mark ? `<span>${decided_mark}</span>` : ""}</span>
+    </div>`;
+  }).join("");
+  box.style.display = "";
+}
+
+function jumpTo(index) {
+  current = index;
+  document.getElementById("search").value = "";
+  document.getElementById("search-results").style.display = "none";
+  renderCurrent();
+}
+
+// Sluit zoekresultaten bij klik buiten de zoekbalk
+document.addEventListener("click", e => {
+  if (!e.target.closest("#search-wrap")) {
+    document.getElementById("search-results").style.display = "none";
+  }
+});
+
+// ── Start ─────────────────────────────────────────────────────────────────────
+boot();
+</script>
+</body>
+</html>

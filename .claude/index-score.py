@@ -20,6 +20,8 @@ Configuratie (pas aan indien nodig):
     INBOX_ID        — collectionID van _inbox in Zotero (standaard 333)
 """
 
+import argparse
+import json
 import os
 import sqlite3
 from pathlib import Path
@@ -136,34 +138,50 @@ def get_item_years(conn: sqlite3.Connection, keys: list[str]) -> dict[str, str]:
 # ── Hoofdprogramma ────────────────────────────────────────────────────────────
 
 def main():
-    print("\n📚 inbox-score — Zotero _inbox relevantiescore")
-    print("=" * 52)
+    parser = argparse.ArgumentParser(description="Zotero _inbox relevantiescore")
+    parser.add_argument("--json", action="store_true", help="Output als JSON (onderdrukt progress)")
+    args = parser.parse_args()
+
+    if not args.json:
+        print("\n📚 inbox-score — Zotero _inbox relevantiescore")
+        print("=" * 52)
 
     # 1. Veilige SQLite-kopie maken
-    print("\n[1/5] SQLite database kopiëren...")
+    if not args.json:
+        print("\n[1/5] SQLite database kopiëren...")
     if not ZOTERO_SQLITE.exists():
-        print(f"❌  Zotero database niet gevonden: {ZOTERO_SQLITE}")
-        print("    Pas ZOTERO_SQLITE aan bovenin het script.")
+        if args.json:
+            print(json.dumps({"error": f"Zotero database niet gevonden: {ZOTERO_SQLITE}"}))
+        else:
+            print(f"❌  Zotero database niet gevonden: {ZOTERO_SQLITE}")
         return
     tmp_db = make_sqlite_copy(ZOTERO_SQLITE)
     conn = sqlite3.connect(tmp_db)
 
     try:
         # 2. _inbox keys ophalen
-        print("[2/5] _inbox items ophalen...")
+        if not args.json:
+            print("[2/5] _inbox items ophalen...")
         inbox_keys = get_inbox_keys(conn, INBOX_ID)
         if not inbox_keys:
-            print(f"✅  _inbox (ID {INBOX_ID}) is leeg — niets te scoren.")
+            if args.json:
+                print(json.dumps([]))
+            else:
+                print(f"✅  _inbox (ID {INBOX_ID}) is leeg — niets te scoren.")
             return
-        print(f"     {len(inbox_keys)} items gevonden in _inbox.")
+        if not args.json:
+            print(f"     {len(inbox_keys)} items gevonden in _inbox.")
 
         # 3. Bibliotheek-keys + gewichten ophalen
-        print("[3/5] Voorkeursprofiel berekenen (bibliotheek buiten _inbox)...")
+        if not args.json:
+            print("[3/5] Voorkeursprofiel berekenen (bibliotheek buiten _inbox)...")
         lib_weights = get_library_keys_with_weights(conn, INBOX_ID)
-        print(f"     {len(lib_weights)} bibliotheekitems als voorkeursprofiel.")
+        if not args.json:
+            print(f"     {len(lib_weights)} bibliotheekitems als voorkeursprofiel.")
 
         # 4. Embeddings ophalen uit ChromaDB
-        print("[4/5] Embeddings ophalen uit ChromaDB...")
+        if not args.json:
+            print("[4/5] Embeddings ophalen uit ChromaDB...")
         chroma_client = chromadb.PersistentClient(path=str(CHROMA_PATH))
         chroma_col = chroma_client.get_collection("zotero_library")
 
@@ -171,16 +189,21 @@ def main():
         lib_embeddings   = get_embeddings_for_keys(chroma_col, list(lib_weights.keys()))
 
         if not lib_embeddings:
-            print("❌  Geen bibliotheek-embeddings gevonden in ChromaDB.")
-            print("    Voer eerst 'zotero-mcp update-db --fulltext' uit.")
+            if args.json:
+                print(json.dumps({"error": "Geen bibliotheek-embeddings in ChromaDB"}))
+            else:
+                print("❌  Geen bibliotheek-embeddings gevonden in ChromaDB.")
+                print("    Voer eerst 'zotero-mcp update-db --fulltext' uit.")
             return
 
-        missing = len(inbox_keys) - len(inbox_embeddings)
-        if missing > 0:
-            print(f"     ⚠️  {missing} inbox-items hebben geen embedding (nog niet geïndexeerd).")
+        if not args.json:
+            missing = len(inbox_keys) - len(inbox_embeddings)
+            if missing > 0:
+                print(f"     ⚠️  {missing} inbox-items hebben geen embedding (nog niet geïndexeerd).")
 
         # 5. Profiel berekenen + scoren
-        print("[5/5] Scores berekenen...")
+        if not args.json:
+            print("[5/5] Scores berekenen...")
         profile = compute_weighted_profile(lib_embeddings, lib_weights)
 
         # Metadata ophalen voor weergave
@@ -194,14 +217,38 @@ def main():
             if key not in inbox_embeddings:
                 continue
             sim = cosine_similarity(inbox_embeddings[key], profile)
-            # Schaal cosine-similariteit (typisch 0.0–1.0) naar 0–100
             score = int(round(sim * 100))
             score = max(0, min(100, score))
             scored.append((score, key))
 
         scored.sort(reverse=True)
 
-        # ── Output ────────────────────────────────────────────────────────────
+        # ── JSON output ───────────────────────────────────────────────────────
+        if args.json:
+            result = [
+                {
+                    "key":    key,
+                    "score":  score,
+                    "label":  score_label(score),
+                    "title":  titles.get(key, ""),
+                    "author": creators.get(key, ""),
+                    "year":   years.get(key, ""),
+                }
+                for score, key in scored
+            ]
+            # Items zonder embedding krijgen score=None
+            scored_keys = {key for _, key in scored}
+            for key in inbox_keys:
+                if key not in scored_keys:
+                    result.append({
+                        "key": key, "score": None, "label": None,
+                        "title": titles.get(key, ""), "author": creators.get(key, ""),
+                        "year": years.get(key, ""),
+                    })
+            print(json.dumps(result, ensure_ascii=False))
+            return
+
+        # ── Leesbare output ───────────────────────────────────────────────────
         print(f"\n{'=' * 52}")
         print(f"_inbox — {len(scored)} items · gesorteerd op relevantiescore")
         print(f"{'=' * 52}\n")
@@ -212,7 +259,6 @@ def main():
             creator = creators.get(key, "")
             year    = years.get(key, "")
 
-            # Titel inkorten voor leesbaarheid
             max_title = 55
             if len(title) > max_title:
                 title = title[:max_title - 1] + "…"
@@ -225,7 +271,6 @@ def main():
             else:
                 print(f"{label}  {score:3d}  {title}\n")
 
-        # Samenvatting
         green  = sum(1 for s, _ in scored if s >= THRESHOLD_GREEN)
         yellow = sum(1 for s, _ in scored if THRESHOLD_YELLOW <= s < THRESHOLD_GREEN)
         red    = sum(1 for s, _ in scored if s < THRESHOLD_YELLOW)
