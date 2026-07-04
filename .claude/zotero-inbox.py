@@ -78,13 +78,14 @@ def extract_meta(item: dict) -> dict:
         c = creators[0]
         first_author = c.get("lastName") or c.get("name") or ""
     return {
-        "key":    item["key"],
-        "title":  d.get("title", "(geen titel)"),
-        "type":   d.get("itemType", ""),
-        "author": first_author,
-        "year":   (d.get("date") or d.get("year") or "")[:4],
-        "tags":   [t["tag"] for t in d.get("tags", [])],
-        "url":    d.get("url", ""),
+        "key":      item["key"],
+        "title":    d.get("title", "(geen titel)"),
+        "type":     d.get("itemType", ""),
+        "author":   first_author,
+        "year":     (d.get("date") or d.get("year") or "")[:4],
+        "tags":     [t["tag"] for t in d.get("tags", [])],
+        "url":      d.get("url", ""),
+        "abstract": d.get("abstractNote", ""),
     }
 
 
