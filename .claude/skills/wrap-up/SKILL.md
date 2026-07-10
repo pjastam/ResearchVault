@@ -112,4 +112,4 @@ git push
 
 - **Geen wijzigingen:** als `git status` een schone working tree toont én er niets te pushen is, meld dan: "Working tree schoon, niets te committen."
 - **Alleen doc-wijzigingen:** als alleen docs zijn bijgewerkt (geen bronbestanden), sla dan stap 2 over en ga direct naar stap 3.
-- **`~/bin/`-bestanden:** die liggen buiten de ResearchVault git repo. Meld dat RUNBOOK.md is bijgewerkt maar dat `~/bin/`-scripts apart worden beheerd (geen `git add` voor die bestanden).
+- **`~/bin/`-bestanden:** die liggen in een **aparte git-repo** (`github.com/pjastam/bin`), niet in de ResearchVault-repo. "Apart beheerd" betekent níet "buiten git" — commit + push ze dáár met `git -C ~/bin status/commit/push`, en gebruik géén `git add` voor die bestanden in ResearchVault. Meld dat `RUNBOOK.md` + `~/bin/`-scripts in hun eigen repo zijn bijgewerkt.
