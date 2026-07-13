@@ -1,0 +1,24 @@
+# olw / kytmanov config voor de persoonlijke ResearchVault-wiki.
+# Punt-2-besluit (ontwerpsessie 2026-07-10): één sterk lokaal model, geen frontier.
+
+[models]
+fast = "mistral-small:22b"
+heavy = "mistral-small:22b"
+# fast = heavy: één geladen model → geen swap-thrash (compile wisselt fast/heavy af).
+
+[ollama]
+url = "http://localhost:11434"
+timeout = 600
+fast_ctx = 16384                  # context window fast-model (tokens)
+heavy_ctx = 16384                 # gelijk aan fast_ctx → geen Ollama-herlaad bij één model (punt 2)
+
+[pipeline]
+auto_approve = false              # olw review = menselijke kwaliteitspoort
+auto_commit = false               # raw/ + wiki/ zijn gitignored → olw mag niet zelf committen
+auto_maintain = false
+watch_debounce = 3.0
+max_concepts_per_source = 8
+ingest_parallel = false           # true = parallelle chunks
+article_max_tokens = 16384        # zachte cap; auto-verlaagd om in context te passen
+graph_quality_checks = true
+# language = "en"  # unset = auto per artikel (NL-beleid NL, EN-papers EN); brugconcepten handmatig aliassen

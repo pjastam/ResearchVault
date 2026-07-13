@@ -1,5 +1,30 @@
-raw/
-wiki/
+# vault/-interne ignore. Inhoud niet in git (broninhoud + gegenereerde wiki),
+# structuur wél via .gitkeep. Granulair sinds integratie-branch (was blanket
+# raw//wiki//.cache/): zo blijven de submappen zichtbaar in git.
+
+# raw/ = canonical Zotero-bundels + eigen-denkwerk-snapshots (raw/notes/) — broninhoud
+raw/*
+!raw/.gitkeep
+!raw/notes/
+raw/notes/*
+!raw/notes/.gitkeep
+!raw/annotations/
+raw/annotations/*
+!raw/annotations/.gitkeep
+
+# wiki/ = olw-gegenereerd — inhoud niet delen, submap-structuur wél bewaren
+wiki/*
+!wiki/sources/
+wiki/sources/*
+!wiki/sources/.gitkeep
+!wiki/syntheses/
+wiki/syntheses/*
+!wiki/syntheses/.gitkeep
+!wiki/.drafts/
+wiki/.drafts/*
+!wiki/.drafts/.gitkeep
+
+# volledig buiten git
 .cache/
 .olw/
 authoring
