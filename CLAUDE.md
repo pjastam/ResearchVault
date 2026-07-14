@@ -17,7 +17,7 @@ Verifieer bij elke sessie vóór de eerste actie of de services beschikbaar zijn
 # Zotero bereikbaar?
 curl -s http://localhost:23119/better-bibtex/cayw | head -c 80
 
-# Ollama bereikbaar + qwen3.5:9b aanwezig?
+# Ollama bereikbaar + mistral-small:22b aanwezig (olw-model; qwen3.5:9b voor fallback-scripts)?
 curl -s http://localhost:11434/api/tags | python3 -c "import sys,json; m=[x['name'] for x in json.load(sys.stdin)['models']]; print('Ollama OK:', m)"
 ```
 
@@ -28,52 +28,44 @@ Als Ollama niet bereikbaar is: meld dit en vraag of de gebruiker wil overschakel
 - Alle bestanden zijn Markdown (.md)
 - Gebruik [[dubbele haken]] voor interne links tussen notes
 - Gebruik #tags voor thematische categorisatie
-- Bestandsnamen: gebruik koppeltekens, geen spaties (bijv. `auteur-2024-kernwoord1-kernwoord2.md`)
-  - Na het jaar: 2–4 zelfstandige naamwoorden gekozen door Qwen op basis van titel en TLDR
-  - `process_item.py` genereert de bestandsnaam automatisch — niet handmatig opgeven
+- Bestandsnamen: gebruik koppeltekens, geen spaties
+  - `raw/`-bundles: `{citekey}__{itemKey}.md` (door `build-zotero-bundle.py`); `raw/notes/`: stabiele slug (door `promote-to-raw.py`)
+  - `wiki/`-pagina's: naam = het concept/de bron, door olw gegenereerd — niet handmatig opgeven
 
 ## Vault-structuur
 
 | Map | Paginatype | Inhoud |
 | --- | --- | --- |
-| `literature/` | Source notes | Één note per paper of bron uit Zotero |
-| `syntheses/` | Syntheses | Thematische syntheses van meerdere bronnen |
+| `raw/` | Canonieke bronlaag | Één bundle per Zotero-item (`{citekey}__{itemKey}.md`) — verbatim frontmatter, abstract, notities, PDF-annotaties, volledige tekst; geen LLM-bewerking. De input voor olw. |
+| `raw/notes/` | Eigen denkwerk | Gepromote snapshots van rijpe authoring-notities (via `promote-to-raw.py`), gemarkeerd `source_type: personal` |
+| `wiki/` | olw-gegenereerd | Volledig door olw beheerd: conceptpagina's, `sources/` (per-bron), `syntheses/` (thematisch). Vervangt het oude `literature/`. `olw review` = de menselijke gate; `wiki/.drafts/` = staging vóór goedkeuring. |
 | `notes/` | — | Persoonlijke en werknotities |
-| `inbox/` | — | Ruwe input die nog verwerkt moet worden |
-| `meta/candidates/` | — | Staging area: Qwen-drafts vóór promotie naar `literature/` (zie Ingest-procedure) |
+| `inbox/` | — | Ruwe/temp input die nog verwerkt moet worden |
 
-## Literatuurnotities (uit Zotero)
+## Bronlaag (`raw/`) en wiki-pagina's
 
-Elke literatuurnotitie begint met de volgende YAML frontmatter:
+`build-zotero-bundle.py` schrijft per Zotero-item een canonieke bundle naar `raw/` met deze YAML-frontmatter (verbatim, geen LLM-bewerking):
 ```yaml
 ---
+citekey: auteur2024kernwoord
+zotero_item_key: ITEMKEY
 title: "Volledige titel van het werk"
-authors: ["Achternaam, Voornaam", ...]
-year: JJJJ
+creators: ["Achternaam, Voornaam", ...]
+year: "JJJJ"
 journal: "Naam tijdschrift of uitgever"
-citation_key: auteur2024kernwoord
-zotero: "zotero://select/library/items/ITEMKEY"
+zotero_uri: "zotero://select/library/items/ITEMKEY"
 tags: [thema1, thema2]
-status: unread
+source_type: paper|web|youtube|podcast
+exported_at: JJJJ-MM-DD
 ---
 ```
-
-`status` geeft aan of het artikel al gelezen is: `unread` (standaard) of `read`. Uitzondering: als het Zotero-item de tag `✅` had, gebruik dan `status: read`.
+Daarna volgen verbatim: abstract, Zotero-notities, PDF-annotaties per pagina, en de volledige geëxtraheerde tekst. Gepromote eigen notities (`raw/notes/`) dragen `source_type: personal` + `origin_uri`.
 
 **Let op:** schrijf tags zónder `#` in de frontmatter (bijv. `[beleid, zorg]`). Obsidian voegt de `#` automatisch toe in de UI. Een `#` binnen een YAML-array breekt de frontmatter-parse.
 
-Vervang `ITEMKEY` door de werkelijke Zotero item key, op te halen via Zotero MCP:
-`zotero-mcp get-item-key <titel of DOI>` of via het `key`-veld in de MCP-respons.
+**Wiki-pagina's worden door olw gegenereerd** uit de `raw/`-bundles (`olw compile`) en verschijnen eerst als drafts in `wiki/.drafts/`; jij keurt ze goed via **`olw review`** (de menselijke gate). De structuur en cross-links van de concept-/bronpagina's zijn olw's domein (aangestuurd via `wiki.toml`) — niet handmatig geschreven. Er zijn dus geen hand-geschreven literatuurnotities meer.
 
-Na de frontmatter bevat elke notitie:
-
-* **TLDR** — kernvraag en hoofdargument in 2–3 zinnen (wordt gebruikt door de LLM om te beslissen of de volledige notitie gelezen moet worden)
-* Kernbevindingen (3–5 punten)
-* Methodologische notities
-* Citaten die relevant zijn voor mijn onderzoek (in de originele taal) — **alleen voor papers en webartikelen**; weggelaten voor video/podcast (timestamps onbetrouwbaar)
-* Links naar gerelateerde notities in de vault ([[dubbele haken]])
-
-**Cross-link drempelwaarden:** voeg een `[[link]]` toe als een notitie minstens twee gedeelde kernbegrippen heeft met de doelnotitie, of als er een directe citatie-relatie bestaat. Voeg geen links toe op basis van oppervlakkige overeenkomst in thema alleen.
+**Cross-link drempelwaarden** (leidraad, ook voor eigen aanvullingen): voeg een `[[link]]` toe als twee pagina's minstens twee gedeelde kernbegrippen delen, of bij een directe citatie-relatie. Geen links op oppervlakkige thema-overeenkomst alleen.
 
 ## Taal
 - Antwoord in het Nederlands tenzij anders gevraagd
@@ -82,44 +74,42 @@ Na de frontmatter bevat elke notitie:
 
 ## Zotero-workflow
 - Gebruik Zotero MCP om papers op te halen via hun titel of sleutelwoorden
-- Sla literatuurnotities op als `literature/[auteur-jaar-kernwoord].md`
-- Voeg altijd een #tag toe voor het thema van de paper
+- Verwerking loopt via de canonieke bronlaag: Zotero-item → `build-zotero-bundle.py` → `raw/{citekey}__{itemKey}.md` → `olw ingest` → `olw compile` → `olw review` → `wiki/`
+- Zotero-tags komen mee in de bundle-frontmatter; olw beheert de wiki-pagina's (geen handmatige literatuurnotities meer)
 
 ## Ingest-procedure
 
-De LLM compileert bestaande kennis — hij genereert geen nieuwe kennis. Prompts voor Qwen zijn kort en structureel.
+olw compileert bestaande kennis — het genereert geen nieuwe kennis. De pijplijn draait lokaal; alleen JSON-status en tellingen bereiken Claude Code.
 
-**Stap 1 — Kwaliteitscheck (Qwen)**
-Beoordeel of het item de vault waard is via `index-score.py`. Items met score < 40 (🔴) worden niet ingested tenzij er een expliciete reden is.
+**Stap 1 — Kwaliteitscheck (fase 2)**
+Beoordeel of het item de vault waard is via `index-score.py` (semantische relevantiescore t.o.v. je bibliotheek). Lage scores (🔴) worden niet ingest tenzij er een expliciete reden is.
 
-**Stap 2 — Kandidaat aanmaken (Qwen via `process_item.py`)**
+**Stap 2 — Bundle bouwen (Go)**
 ```bash
-~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/process_item.py \
-  --item-key ITEMKEY --output-dir meta/candidates/ [overige vlaggen]
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/build-zotero-bundle.py --item-key ITEMKEY
+# → {"status": "ok", "path": "vault/raw/{citekey}__{itemKey}.md"}
 ```
-De draft verschijnt in `meta/candidates/[auteur-jaar-kw].md`. Geen bron-inhoud bereikt Claude Code.
+Voor eigen denkwerk: `promote-to-raw.py --note <pad>` → `raw/notes/`. Geen bron-inhoud bereikt Claude Code.
 
-**Stap 3 — Human review**
-Lees de kandidaat-notitie. Geef Go of No-go. Bij No-go: verwijder het bestand uit `meta/candidates/`.
-
-**Stap 4 — Promotie naar `literature/` (bij Go)**
+**Stap 3 — Ingest + compile (olw)**
 ```bash
-mv meta/candidates/[bestand].md literature/[bestand].md
+olw ingest vault/raw/{...}.md --vault vault --fast-model mistral-small:22b   # concept-extractie
+olw compile --vault vault                                                    # drafts → wiki/.drafts/
 ```
+De feedreader-Go (`/api/inbox/go`) en `promote-to-raw.py` doen de ingest automatisch; `compile` draai je gebatcht (kan traag zijn — grote-context prefill).
 
-**Stap 5 — Cross-links toevoegen (hyalo + Qwen)**
-Zoek verwante notities:
+**Stap 4 — Human review (de gate)**
 ```bash
-hyalo find "[kernbegrip]" --glob "literature/*.md" --format text
+olw review --vault vault
 ```
-Voeg `[[links]]` toe aan de nieuwe notitie én aan de 2–5 meest verwante bestaande notities (alleen bij drempelwaarde — zie Literatuurnotities).
+Per draft Go/No-go: approve → publiceren naar `wiki/`; reject → draft weg + rejection-feedback (voedt de leerloop). Claude leest geen draft-inhoud — jij beoordeelt in je eigen terminal.
 
-**Stap 6 — Syntheses bijwerken (Qwen)**
-Controleer welke syntheses relevant zijn en voeg een bullet of sectie toe.
+**Stap 5 — Cross-links & syntheses**
+olw legt cross-links en syntheses aan tijdens `compile`; `olw lint` / `olw maintain` bewaken de wiki-gezondheid (orphans, broken links, stubs).
 
-**Ollama-routing:**
-- Kwaliteitscheck, tekstgeneratie, cross-link-suggesties, synthese-aanvullingen → Qwen (lokaal)
-- Coördinatie, beslissingen, review → Claude (orchestrator)
+**Backend-routing:**
+- Concept-extractie, synthese, review-drafts → olw (mistral-small:22b, lokaal)
+- Coördinatie, beslissingen, de review-gate → Claude (orchestrator) + jij
 - Navigatie, zoeken, link management → hyalo (geen LLM)
 
 ## _inbox prioritering (index-score.py)
@@ -164,11 +154,7 @@ Dit doet:
 
 Optioneel: `--whisper-model base` of `--language en` om defaults te overschrijven; `--force` om te hertranscriberen (overschrijft bestaand transcript-bestand, maakt geen duplicaat).
 
-**Na Go: literatuurnotitie aanmaken via `process_item.py`** — zelfde als papers (zie Ingest-procedure).
-
-**Notitiestructuur voor video/podcast:**
-- Geen `## Relevant quotes`-sectie — tijdcodes zijn onbetrouwbaar zonder geverifieerde bron
-- Overige secties zoals papers: TLDR, Key findings, Methodological notes, Related notes, Flashcards
+**Na Go: verwerk via `build-zotero-bundle.py` → `raw/` → olw** — zelfde als papers (zie Ingest-procedure). Het transcript zit als `.txt`-bijlage in het Zotero-item en komt zo mee in de bundle. olw genereert de wiki-pagina; timecodes/citaten worden niet als geverifieerde bron opgenomen.
 
 **Fallback:** `fetch-fulltext.py` leest de transcript-bijlage uit het Zotero-item (lokale API).
 
@@ -186,7 +172,7 @@ Podcast-transcripten worden handmatig aangemaakt via `attach-transcript.py` (zie
 
 **Tip:** als yt-dlp faalt met "Unsupported URL", voeg de feed toe aan `feedreader-list.txt`; na de volgende feedreader-score.py-run is de directe audio-URL gecachet en werkt de download zonder yt-dlp.
 
-**Na transcriptie:** literatuurnotitie aanmaken via `process_item.py` (zelfde als papers). Notitiestructuur: geen `## Relevant quotes` (tijdcodes onbetrouwbaar); overige secties zoals papers.
+**Na transcriptie:** verwerk via `build-zotero-bundle.py` → `raw/` → olw (zelfde als papers, zie Ingest-procedure). Het transcript zit als bijlage in het Zotero-item en komt mee in de bundle.
 
 ## Feedreader — RSS-filtering (feedreader-score.py)
 
@@ -212,13 +198,13 @@ De feedreader scoort RSS/YouTube/podcast-feeds automatisch op relevantie en prod
 - `http://localhost:8765/filtered-podcast.xml` — Atom-feed podcasts voor NetNewsWire
 - `http://localhost:8765/article/{video_id}` — gegenereerd leesartikel voor een YouTube-video (structuur: Inleiding · Kernpunten · Conclusie; taal = originele videotaal)
 - `http://localhost:8765/article/podcast/{episode_id}` — gegenereerd leesartikel voor een podcast-aflevering op basis van show notes (zelfde structuur; alleen voor afleveringen met show notes ≥ 200 tekens)
-- `http://localhost:8765/inbox` — inbox-review pagina (iPad-vriendelijk): toont Zotero `_inbox`-items gesorteerd op score met Go/No-go knoppen; Go → `process_item.py` → `literature/` + verwijder uit `_inbox`; No-go → verwijder direct uit `_inbox`
+- `http://localhost:8765/inbox` — inbox-review pagina (iPad-vriendelijk): toont Zotero `_inbox`-items gesorteerd op score met Go/No-go knoppen; Go → `build-zotero-bundle.py` → `raw/` + `olw ingest` + verwijder uit `_inbox`; No-go → verwijder direct uit `_inbox`
 
 **Inbox-review REST API (POST vereist `Content-Type: application/json`):**
 - `GET  /api/inbox/items` — gecombineerde score + Zotero metadata per `_inbox`-item (JSON)
 - `GET  /api/inbox/jobs` — status van alle achtergrond-jobs (`pending`/`running`/`done`/`error`)
 - `GET  /api/inbox/summary/{key}` — leest `inbox/_summary_{key}.md` als die bestaat
-- `POST /api/inbox/go` — start `process_item.py` voor `key` (asynchroon); vereist `title` in body
+- `POST /api/inbox/go` — bouwt de bundle (`build-zotero-bundle.py`) + `olw ingest` voor `key` (asynchroon); vereist `title` in body. `process_item.py` blijft als fallback beschikbaar maar wordt niet meer door Go aangeroepen
 - `POST /api/inbox/nogo` — verwijdert `key` direct uit Zotero `_inbox` (synchroon)
 - `POST /api/inbox/summarize` — start `summarize_item.py` voor `key` (asynchroon)
 
@@ -253,16 +239,11 @@ Na ≥30 positieven verschijnt een drempeladvies; pas dan `THRESHOLD_GREEN` en `
 - Academische artikelen die interessant zijn: voeg ze toe aan Zotero via de browser-extensie of iOS-app → komen in `_inbox` terecht
 - Niet-academische artikelen: voeg toe via Zotero Connector of de iOS share sheet — alle bronnen komen via de Zotero `_inbox` de vault in
 
-## Spaced repetition (Obsidian plugin)
-- Flashcards worden aangemaakt na elke literatuurnotitie of synthese
-- Formaat: vraag en antwoord gescheiden door `?` op een nieuwe regel, omsloten door `#flashcard`-tag
-- Maak maximaal 5 kaarten per bron — kies de meest relevante concepten
-- Dagelijkse review via Obsidian Spaced Repetition plugin (zijbalk → Kaarten beoordelen)
-
 ## Architectuurprincipes (niet onderhandelbaar)
 
 - **Privacy-grens**: source content (volledige tekst van papers, podcasts, video's) gaat NOOIT naar de Anthropic API. Alleen JSON status-objecten en metadata mogen Claude Code bereiken vanuit de subagents.
-- **Subagent-patroon**: `process_item.py` en `summarize_item.py` worden aangeroepen als lokale Python-subprocessen. Claude Code stuurt ze aan maar voert zelf geen inhoudsverwerking uit.
+- **Subagent-patroon**: `build-zotero-bundle.py`, `promote-to-raw.py` en **olw** (ingest/compile/review) worden aangeroepen als lokale (sub)processen die alleen JSON-status of tellingen teruggeven. `summarize_item.py` (fase-2-previews) en `process_item.py` (fallback) volgen hetzelfde patroon. Claude Code stuurt ze aan maar voert zelf geen inhoudsverwerking uit — draai-uitvoer van olw altijd naar een log, lees alleen exit-code/tellingen, nooit draft-/conceptinhoud.
+- **olw-model**: olw (concept-extractie + synthese) draait op `mistral-small:22b` (fast=heavy) via de vault-lokale `wiki.toml`; `olw review`/`olw compare`/`olw lint` zijn de kwaliteits-backstops. Zie de vault-`CLAUDE.md`-projectdocumentatie voor scoring en daemons.
 - **`--hd` flag**: activeert Claude Sonnet 4.6 in plaats van Qwen3.5:9b. Vereist altijd expliciete bevestiging van de gebruiker vóór verzending naar de API.
 - **LLM-backend**: alle AI-scripts (`process_item.py`, `summarize_item.py`, `attach-transcript.py`, `ollama-generate.py`) ondersteunen twee backends via `--backend ollama|mlx`. Default is `ollama` (localhost:11434). Stel `LLM_BACKEND=mlx` in `ResearchVault/.env` in om alle scripts op de MLX-server (localhost:8080, `mlx-community/Qwen3-8B-4bit`) te laten draaien. Een expliciete `--backend`-vlag wint altijd van de env var. Start MLX-server met: `python3 -m mlx_lm server --model mlx-community/Qwen3-8B-4bit`.
 - **Zotero**: de Zotero Web API (`api.zotero.org`) is **niet het standaardgedrag** — alle scripts gebruiken by default de lokale REST API op `localhost:23119`. Web API-aanroepen vinden alleen plaats als `ZOTERO_ACCESS=web` expliciet is ingesteld. Modus via omgevingsvariabele `ZOTERO_ACCESS`: `local` (default) — localhost:23119, vereist Zotero desktop, geen authenticatie; `auto` — start Zotero als het niet draait (max 60s, anders exit 1), dan local API; `web` — api.zotero.org, headless-safe, vereist `ZOTERO_API_KEY` uit `vault/.env`. Rationale per context: nachtelijke-taken gebruikt `web` omdat de Mac headless opstart (geen GUI-sessie, Zotero kan niet worden gestart); overdagtaken gebruikt `auto` omdat de gebruiker ingelogd is; interactieve sessies gebruiken de default `local`. Alle Zotero-aanroepen lopen via `.claude/zotero_api.py`. Geen andere cloud-diensten.
@@ -272,19 +253,16 @@ Na ≥30 positieven verschijnt een drempeladvies; pas dan `THRESHOLD_GREEN` en `
 
 **Noch de volledige tekst van bronnen (papers, artikelen, transcripten), noch enige door het model gegenereerde tekst op basis daarvan (samenvattingen, parafrases, afgeleide tekst) mag ooit als output van een Bash-commando in Claude's context terechtkomen.** Zodra tekst als tool-output terugkomt, is hij naar de Anthropic API gegaan — ook als de intentie was om hem alleen lokaal te verwerken.
 
-Correcte aanpak voor het genereren van literatuurnotities: gebruik `.claude/process_item.py`. Dit is de privacy-preserving subagent die de volledige lokale pipeline uitvoert en alleen een JSON-statusobject teruggeeft:
+Correcte aanpak voor het verwerken van een bron: bouw eerst de canonieke bundle met `.claude/build-zotero-bundle.py` (privacy-preserving — alleen JSON-status):
 
 ```bash
-~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/process_item.py \
-  --item-key ITEMKEY \
-  --title "Titel" --authors "Achternaam, V." --year 2024 \
-  --journal "..." --citation-key auteur2024kw \
-  --zotero-url "zotero://select/library/items/ITEMKEY" \
-  --tags "thema" --status unread
-# → {"status": "ok", "path": "literature/auteur2024kw.md"}
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/build-zotero-bundle.py --item-key ITEMKEY
+# → {"status": "ok", "path": "vault/raw/{citekey}__{itemKey}.md"}
 ```
 
-De subagent roept intern `fetch-fulltext.py` en `ollama-generate.py` aan. Geen bron-inhoud bereikt Claude Code als tool-output.
+Voor eigen denkwerk: `.claude/promote-to-raw.py --note <pad>` → `raw/notes/` (zelfde JSON-only patroon). Beide roepen intern `fetch-fulltext.py` / olw aan; geen bron-inhoud bereikt Claude Code als tool-output. De wiki-draft ontstaat daarna via `olw compile` (draai-uitvoer naar een log, nooit conceptinhoud tonen) en de menselijke `olw review`-gate.
+
+`process_item.py` (de oude `literature/`-tak) blijft als fallback beschikbaar maar wordt niet meer standaard gebruikt.
 
 Correcte aanpak voor compacte samenvattingen (fase 2, 📖-items): gebruik `.claude/summarize_item.py`. Zelfde privacy-patroon: de samenvatting wordt naar een lokaal bestand geschreven; alleen het pad wordt teruggegeven:
 
@@ -307,7 +285,7 @@ Voor losse stappen of speciale gevallen (transcripten, snapshots): gebruik `.cla
 Daarna verwerken via lokale LLM:
 ```bash
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
-  --input inbox/bestand.txt --output literature/bestand.md --prompt "..." [--backend ollama|mlx]
+  --input inbox/bestand.txt --output raw/notes/bestand.md --prompt "..." [--backend ollama|mlx]
 ```
 
 Dit geldt ook voor snapshot-HTML, VTT-transcripten en podcast-transcripten: nooit `cat` of `print` op de volledige inhoud uitvoeren als Bash-tool.
