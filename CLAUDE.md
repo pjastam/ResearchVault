@@ -173,8 +173,8 @@ Optioneel: `--whisper-model base` of `--language en` om defaults te overschrijve
 **Fallback:** `fetch-fulltext.py` leest de transcript-bijlage uit het Zotero-item (lokale API).
 
 ## Zotero database-onderhoud
-- De semantische zoekdatabase wordt automatisch bijgewerkt dagelijks om 06:00 via de nachtelijke-taken daemon (`nl.pietstam.nachtelijke-taken`) — geen handmatige actie nodig vóór een sessie
-- Herinner de gebruiker eraan de database handmatig bij te werken als zoekopdrachten recente toevoegingen missen die van dezelfde dag zijn (de automatische update draait om 06:00)
+- De semantische zoekdatabase wordt automatisch bijgewerkt bij de eerstvolgende ochtend-login via de login-getriggerde nachtelijke-taken daemon (`nl.pietstam.nachtelijke-taken`; sinds Laag-1 login-getriggerd i.p.v. een 06:00-timer) — geen handmatige actie nodig vóór een sessie
+- Herinner de gebruiker eraan de database handmatig bij te werken als zoekopdrachten recente toevoegingen missen die van dezelfde dag zijn (de automatische update draait bij de ochtend-login, niet meer opnieuw later op de dag behalve via de overdagtaken)
 - Gebruik het commando `update-zotero` (alias) of `zotero-mcp update-db --fulltext` voor een handmatige volledige update
 - Check de status met `zotero-status` of `zotero-mcp db-status`
 
@@ -241,7 +241,7 @@ Na ≥30 positieven verschijnt een drempeladvies; pas dan `THRESHOLD_GREEN` en `
 
 **launchd-daemons (alle vier in `/Library/LaunchDaemons/`, draaien zonder ingelogde gebruiker):**
 - `nl.researchvault.feedreader-server` — HTTP-server permanent actief (poort 8765); log: `~/Library/Logs/feedreader-server.log`
-- `nl.pietstam.nachtelijke-taken` — nachtelijke batchrun dagelijks om 06:00: zotero update-db → enrich-inbox → feedreader-score → freshrss actualize → feedreader-learn → proton-backup → proton-mirror → shutdown; Mac wordt gewekt via `pmset wakeorpoweron` om 05:55 (5 min vóór de trigger; zie RUNBOOK.md voor race condition historie); log: `~/Library/Logs/nachtelijke-taken.log`; rclone heeft **Full Disk Access** nodig (Systeeminstellingen → Privacy en beveiliging → Volledige schijftoegang → `/opt/homebrew/bin/rclone`) — zonder FDA blokkeert macOS TCC de toegang tot `~/Documents` stil tijdens headless runs; **veiligheidsregel: de shutdown-stap vuurt alleen als `LAUNCHD_RUN=1` gezet is (door de plist) — handmatig uitvoeren van het script sluit de Mac nooit af**
+- `nl.pietstam.nachtelijke-taken` — login-getriggerde batchrun (sinds Laag-1, jul 2026; niet meer op een 06:00-timer): `morning-batch.sh` (LaunchAgent) schrijft `~/.cache/morning-trigger` bij je ochtend-login → deze daemon vuurt via `WatchPaths` en draait zotero update-db → enrich-inbox → feedreader-score → freshrss actualize → feedreader-learn; kickstart daarna `nl.pietstam.proton-taken` (proton-backup → time-machine → proton-mirror); aan het eind sluit `idle-shutdown.sh` de Mac af als je weg bent (FileVault vergrendelt zo bij afwezigheid/diefstal). Log: `~/Library/Logs/nachtelijke-taken.log`; rclone heeft **Full Disk Access** nodig (Systeeminstellingen → Privacy en beveiliging → Volledige schijftoegang → `/opt/homebrew/bin/rclone`) — zonder FDA blokkeert macOS TCC de toegang tot `~/Documents` stil tijdens headless runs; **veiligheidsregel: de idle-shutdown-stap sluit alleen echt af als `LAUNCHD_RUN=1` gezet is (door de plist) — handmatig uitvoeren van het script sluit de Mac nooit af**
 - `nl.pietstam.overdagtaken` — dagbatchrun op 09:00, 12:00, 15:00, 18:00 en 21:00: stappen 1–5 (zotero update-db → enrich-inbox → feedreader-score → freshrss actualize → feedreader-learn); sluit de Mac alleen af na de 21:00-run én alleen als er geen actieve gebruikerssessie is; log: `~/Library/Logs/overdagtaken.log`
 - `nl.researchvault.ttyd` — browser-terminal permanent actief (poort 7681, `--writable`); log: `~/Library/Logs/ttyd.log`
 
