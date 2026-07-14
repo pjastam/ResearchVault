@@ -10,7 +10,7 @@ Biedt ook een REST API voor de inbox-review HTML-pagina (/inbox):
   GET  /api/inbox/items     → gecombineerde scores + Zotero metadata
   GET  /api/inbox/summary/{key} → samenvatting van één item (async)
   GET  /api/inbox/jobs      → status van achtergrond-jobs
-  POST /api/inbox/go        → verwerk item (process_item.py, achtergrond)
+  POST /api/inbox/go        → bouw raw-bundle + olw ingest (achtergrond)
   POST /api/inbox/nogo      → verwijder uit _inbox (direct)
   POST /api/inbox/summarize → vraag samenvatting aan (achtergrond)
 
@@ -32,7 +32,7 @@ from pathlib import Path
 SERVE_DIR  = Path.home() / ".local" / "share" / "feedreader-serve"
 SCRIPT_DIR = Path(__file__).parent
 SKIP_QUEUE = SCRIPT_DIR / "skip_queue.jsonl"
-PORT       = 8765
+PORT       = int(os.environ.get("FEEDREADER_PORT", "8765"))   # override voor test-instance
 
 # Zotero keys zijn altijd 8 hoofdletters/cijfers
 _KEY_RE = re.compile(r'^[A-Z0-9]{8}$')
@@ -41,8 +41,9 @@ VAULT_ROOT = Path(__file__).resolve().parent.parent
 VAULT_DIR  = VAULT_ROOT / "vault"     # symlink → ResearchVault/vault/
 PYTHON     = Path("/Users/pietstam/.local/share/uv/tools/zotero-mcp-server/bin/python3")
 INBOX_DIR  = VAULT_ROOT / "inbox"     # summarize_item.py schrijft hier (naast .claude/)
+OLW        = Path("/Users/pietstam/.local/bin/olw")   # Fase C: Go → build-bundle → olw ingest
 
-# Achtergrond job-queue voor process_item.py en summarize_item.py
+# Achtergrond job-queue voor build-zotero-bundle.py (+olw ingest) en summarize_item.py
 _job_queue  = queue.Queue()
 _job_status = {}   # key → {"status": "pending"|"running"|"done"|"error", "path": ..., "error": ...}
 _job_lock   = threading.Lock()
@@ -67,15 +68,37 @@ def _inbox_worker():
             out = result.stdout.strip()
             data = json.loads(out) if out else {}
             if result.returncode == 0 and data.get("status") == "ok":
+                bundle_path = data.get("path")
+                # Fase C: Go-jobs bouwen een raw-bundle → daarna olw ingest (concept-
+                # extractie, GEEN compile). Andere jobs (summarize) slaan dit over.
+                if job.get("ingest") and bundle_path:
+                    abs_bundle = str(VAULT_ROOT / bundle_path)
+                    ingest = subprocess.run(
+                        [str(OLW), "ingest", abs_bundle, "--vault", str(VAULT_DIR),
+                         "--fast-model", "mistral-small:22b"],
+                        capture_output=True, text=True, timeout=1800,
+                        cwd=str(VAULT_DIR), env={**os.environ},
+                    )
+                    if ingest.returncode != 0:
+                        with _job_lock:
+                            _job_status[key] = {
+                                "status": "error", "path": bundle_path,
+                                "error": "olw ingest faalde: "
+                                         + (ingest.stderr.strip()[-300:] or "onbekend"),
+                            }
+                        continue   # niet uit _inbox halen als ingest faalde
                 with _job_lock:
-                    _job_status[key] = {"status": "done", "path": data.get("path"), "error": None}
-                # Verwijder item uit Zotero _inbox na succesvolle verwerking (conform main workflow)
-                subprocess.run(
-                    [str(PYTHON), str(SCRIPT_DIR / "zotero-remove-from-inbox.py"), "--", key],
-                    capture_output=True, text=True, timeout=30,
-                    cwd=str(VAULT_DIR),
-                    env={**os.environ, "ZOTERO_ACCESS": "web"},
-                )
+                    _job_status[key] = {"status": "done", "path": bundle_path, "error": None}
+                # Verwijder item uit Zotero _inbox na succes — alleen go-jobs met een echte
+                # item-key; summarize heeft er geen → item blijft in _inbox voor de beslissing.
+                item_key = job.get("item_key")
+                if item_key:
+                    subprocess.run(
+                        [str(PYTHON), str(SCRIPT_DIR / "zotero-remove-from-inbox.py"), "--", item_key],
+                        capture_output=True, text=True, timeout=30,
+                        cwd=str(VAULT_DIR),
+                        env={**os.environ, "ZOTERO_ACCESS": "web"},
+                    )
             else:
                 err = data.get("message") or result.stderr.strip() or "onbekende fout"
                 with _job_lock:
@@ -259,7 +282,12 @@ class FeedreaderHandler(http.server.SimpleHTTPRequestHandler):
         self._respond_json(200, {"jobs": snapshot, "counts": counts})
 
     def _handle_go(self, data: dict):
-        """Voegt een process_item.py job toe aan de achtergrond-queue."""
+        """Fase C: bouwt via build-zotero-bundle.py een raw-bundle + olw ingest (geen compile).
+
+        Vervangt de oude process_item.py→literature/-tak. De wiki-draft ontstaat later via
+        een batch-compile; `olw review` is de kwaliteitsgate. process_item.py blijft als
+        fallback beschikbaar maar wordt hier niet meer aangeroepen.
+        """
         key = data.get("key", "").strip()
         if not _KEY_RE.fullmatch(key):
             self._respond_json(400, {"error": "Ongeldige key"})
@@ -275,21 +303,12 @@ class FeedreaderHandler(http.server.SimpleHTTPRequestHandler):
             self._respond_json(200, {"queued": False, "reason": "al in wachtrij"})
             return
 
-        cmd = [str(PYTHON), str(SCRIPT_DIR / "process_item.py"), "--item-key", key]
-        # Optionele metadata doorgeven als beschikbaar
-        # Let op: combined item gebruikt "author" (string), niet "authors"
-        for field, flag in [("title", "--title"), ("author", "--authors"),
-                            ("year", "--year"), ("journal", "--journal"),
-                            ("citation_key", "--citation-key"), ("zotero_url", "--zotero-url")]:
-            val = data.get(field, "")
-            if val:
-                cmd += [flag, str(val)]
-        if data.get("tags"):
-            cmd += ["--tags", ",".join(data["tags"]) if isinstance(data["tags"], list) else data["tags"]]
+        # build-zotero-bundle.py haalt zelf alle metadata uit Zotero → alleen --item-key nodig.
+        cmd = [str(PYTHON), str(SCRIPT_DIR / "build-zotero-bundle.py"), "--item-key", key]
 
         with _job_lock:
             _job_status[key] = {"status": "pending", "path": None, "error": None}
-        _job_queue.put({"key": key, "cmd": cmd})
+        _job_queue.put({"key": key, "item_key": key, "cmd": cmd, "ingest": True})
         self._respond_json(200, {"queued": True})
 
     def _handle_nogo(self, data: dict):

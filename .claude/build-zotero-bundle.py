@@ -31,10 +31,13 @@ import os
 import re
 import subprocess
 import sys
-import urllib.request
 from collections import defaultdict
 from datetime import date
 from pathlib import Path
+
+# zotero_api.py zit in dezelfde .claude/-map als dit script → op sys.path zetten
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from zotero_api import zotero_request  # noqa: E402
 
 # ── Padconfiguratie ───────────────────────────────────────────────────────────
 
@@ -47,21 +50,26 @@ PYTHON      = Path(os.environ.get(
 FETCH_SCRIPT      = CLAUDE_DIR / "fetch-fulltext.py"
 RAW_DIR           = VAULT_ROOT / "vault" / "raw"
 CACHE_DIR         = VAULT_ROOT / "vault" / ".cache"
-# TODO Fase C: routeer via .claude/zotero_api.py (ZOTERO_ACCESS local/auto/web)
-# i.p.v. hardcoded localhost, zodat dit ook headless/web draait in de nachtpijplijn.
-ZOTERO_BASE       = "http://localhost:23119/api/users/0"
 EXPORTER_VERSION  = "1.0"
 
 # ── Zotero API ────────────────────────────────────────────────────────────────
 
 def zotero_get(path: str) -> list | dict:
-    """GET-request naar lokale Zotero REST API (poort 23119)."""
-    url = f"{ZOTERO_BASE}{path}"
+    """GET naar de Zotero API via zotero_api.py (ZOTERO_ACCESS local/auto/web).
+
+    path is relatief t.o.v. users/{id}/, bijv. "/items/ABCD1234".
+    """
     try:
-        with urllib.request.urlopen(url, timeout=10) as r:
-            return json.loads(r.read())
+        return json.loads(zotero_request(path))
+    except SystemExit:
+        # zotero_request stopt zelf (sys.exit) bij onbereikbare API/ontbrekende key →
+        # herformuleer als JSON-status zodat stdout JSON-only blijft.
+        _error(
+            f"Zotero API niet bereikbaar "
+            f"(ZOTERO_ACCESS={os.environ.get('ZOTERO_ACCESS', 'local')})"
+        )
     except Exception as exc:
-        _error(f"Zotero lokale API niet bereikbaar ({url}): {exc}")
+        _error(f"Zotero API-fout ({path}): {exc}")
 
 
 def _error(msg: str) -> None:
