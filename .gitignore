@@ -11,14 +11,8 @@
 
 # Persoonlijke onderzoeksinhoud — niet delen, maar mapstructuur wel bewaren
 notes/
-meta/candidates/*.md
-literature/*.md
-literature/annotations/*
-!literature/annotations/.gitkeep
 daily/*
 !daily/.gitkeep
-syntheses/*
-!syntheses/.gitkeep
 craft/dev/*.md
 craft/methods/*.md
 projects/*

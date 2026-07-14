@@ -284,9 +284,8 @@ class FeedreaderHandler(http.server.SimpleHTTPRequestHandler):
     def _handle_go(self, data: dict):
         """Fase C: bouwt via build-zotero-bundle.py een raw-bundle + olw ingest (geen compile).
 
-        Vervangt de oude process_item.py→literature/-tak. De wiki-draft ontstaat later via
-        een batch-compile; `olw review` is de kwaliteitsgate. process_item.py blijft als
-        fallback beschikbaar maar wordt hier niet meer aangeroepen.
+        Vervangt de oude process_item.py→literature/-tak (die tak is in Fase F verwijderd).
+        De wiki-draft ontstaat later via een batch-compile; `olw review` is de kwaliteitsgate.
         """
         key = data.get("key", "").strip()
         if not _KEY_RE.fullmatch(key):

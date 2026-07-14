@@ -204,7 +204,7 @@ De feedreader scoort RSS/YouTube/podcast-feeds automatisch op relevantie en prod
 - `GET  /api/inbox/items` — gecombineerde score + Zotero metadata per `_inbox`-item (JSON)
 - `GET  /api/inbox/jobs` — status van alle achtergrond-jobs (`pending`/`running`/`done`/`error`)
 - `GET  /api/inbox/summary/{key}` — leest `inbox/_summary_{key}.md` als die bestaat
-- `POST /api/inbox/go` — bouwt de bundle (`build-zotero-bundle.py`) + `olw ingest` voor `key` (asynchroon); vereist `title` in body. `process_item.py` blijft als fallback beschikbaar maar wordt niet meer door Go aangeroepen
+- `POST /api/inbox/go` — bouwt de bundle (`build-zotero-bundle.py`) + `olw ingest` voor `key` (asynchroon); vereist `title` in body
 - `POST /api/inbox/nogo` — verwijdert `key` direct uit Zotero `_inbox` (synchroon)
 - `POST /api/inbox/summarize` — start `summarize_item.py` voor `key` (asynchroon)
 
@@ -242,10 +242,10 @@ Na ≥30 positieven verschijnt een drempeladvies; pas dan `THRESHOLD_GREEN` en `
 ## Architectuurprincipes (niet onderhandelbaar)
 
 - **Privacy-grens**: source content (volledige tekst van papers, podcasts, video's) gaat NOOIT naar de Anthropic API. Alleen JSON status-objecten en metadata mogen Claude Code bereiken vanuit de subagents.
-- **Subagent-patroon**: `build-zotero-bundle.py`, `promote-to-raw.py` en **olw** (ingest/compile/review) worden aangeroepen als lokale (sub)processen die alleen JSON-status of tellingen teruggeven. `summarize_item.py` (fase-2-previews) en `process_item.py` (fallback) volgen hetzelfde patroon. Claude Code stuurt ze aan maar voert zelf geen inhoudsverwerking uit — draai-uitvoer van olw altijd naar een log, lees alleen exit-code/tellingen, nooit draft-/conceptinhoud.
+- **Subagent-patroon**: `build-zotero-bundle.py`, `promote-to-raw.py` en **olw** (ingest/compile/review) worden aangeroepen als lokale (sub)processen die alleen JSON-status of tellingen teruggeven. `summarize_item.py` (fase-2-previews) volgt hetzelfde patroon. Claude Code stuurt ze aan maar voert zelf geen inhoudsverwerking uit — draai-uitvoer van olw altijd naar een log, lees alleen exit-code/tellingen, nooit draft-/conceptinhoud.
 - **olw-model**: olw (concept-extractie + synthese) draait op `mistral-small:22b` (fast=heavy) via de vault-lokale `wiki.toml`; `olw review`/`olw compare`/`olw lint` zijn de kwaliteits-backstops. Zie de vault-`CLAUDE.md`-projectdocumentatie voor scoring en daemons.
 - **`--hd` flag**: activeert Claude Sonnet 4.6 in plaats van Qwen3.5:9b. Vereist altijd expliciete bevestiging van de gebruiker vóór verzending naar de API.
-- **LLM-backend**: alle AI-scripts (`process_item.py`, `summarize_item.py`, `attach-transcript.py`, `ollama-generate.py`) ondersteunen twee backends via `--backend ollama|mlx`. Default is `ollama` (localhost:11434). Stel `LLM_BACKEND=mlx` in `ResearchVault/.env` in om alle scripts op de MLX-server (localhost:8080, `mlx-community/Qwen3-8B-4bit`) te laten draaien. Een expliciete `--backend`-vlag wint altijd van de env var. Start MLX-server met: `python3 -m mlx_lm server --model mlx-community/Qwen3-8B-4bit`.
+- **LLM-backend**: alle AI-scripts (`summarize_item.py`, `attach-transcript.py`, `ollama-generate.py`) ondersteunen twee backends via `--backend ollama|mlx`. Default is `ollama` (localhost:11434). Stel `LLM_BACKEND=mlx` in `ResearchVault/.env` in om alle scripts op de MLX-server (localhost:8080, `mlx-community/Qwen3-8B-4bit`) te laten draaien. Een expliciete `--backend`-vlag wint altijd van de env var. Start MLX-server met: `python3 -m mlx_lm server --model mlx-community/Qwen3-8B-4bit`.
 - **Zotero**: de Zotero Web API (`api.zotero.org`) is **niet het standaardgedrag** — alle scripts gebruiken by default de lokale REST API op `localhost:23119`. Web API-aanroepen vinden alleen plaats als `ZOTERO_ACCESS=web` expliciet is ingesteld. Modus via omgevingsvariabele `ZOTERO_ACCESS`: `local` (default) — localhost:23119, vereist Zotero desktop, geen authenticatie; `auto` — start Zotero als het niet draait (max 60s, anders exit 1), dan local API; `web` — api.zotero.org, headless-safe, vereist `ZOTERO_API_KEY` uit `vault/.env`. Rationale per context: nachtelijke-taken gebruikt `web` omdat de Mac headless opstart (geen GUI-sessie, Zotero kan niet worden gestart); overdagtaken gebruikt `auto` omdat de gebruiker ingelogd is; interactieve sessies gebruiken de default `local`. Alle Zotero-aanroepen lopen via `.claude/zotero_api.py`. Geen andere cloud-diensten.
 - **Ontwikkelsessies**: ook tijdens het schrijven of testen van nieuwe scripts gelden dezelfde privacyregels. Test nooit met echte paper-inhoud als die inhoud als tool-output in Claude's context kan komen. Gebruik synthetische testdata of alleen metadata bij ontwikkeling en debugging.
 
@@ -262,7 +262,7 @@ Correcte aanpak voor het verwerken van een bron: bouw eerst de canonieke bundle 
 
 Voor eigen denkwerk: `.claude/promote-to-raw.py --note <pad>` → `raw/notes/` (zelfde JSON-only patroon). Beide roepen intern `fetch-fulltext.py` / olw aan; geen bron-inhoud bereikt Claude Code als tool-output. De wiki-draft ontstaat daarna via `olw compile` (draai-uitvoer naar een log, nooit conceptinhoud tonen) en de menselijke `olw review`-gate.
 
-`process_item.py` (de oude `literature/`-tak) blijft als fallback beschikbaar maar wordt niet meer standaard gebruikt.
+De oude `process_item.py`→`literature/`-tak is verwijderd (Fase F): bronnen lopen uitsluitend via `build-zotero-bundle.py` → `raw/` → olw.
 
 Correcte aanpak voor compacte samenvattingen (fase 2, 📖-items): gebruik `.claude/summarize_item.py`. Zelfde privacy-patroon: de samenvatting wordt naar een lokaal bestand geschreven; alleen het pad wordt teruggegeven:
 
