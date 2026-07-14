@@ -8,7 +8,7 @@ heavy = "mistral-small:22b"
 
 [ollama]
 url = "http://localhost:11434"
-timeout = 600
+timeout = 1800                    # per-request (s); ruim, want prefill van grote 16k-context-concepten op mistral-small:22b kan traag zijn — een ReadTimeout crasht anders de héle compile (niet per-concept)
 fast_ctx = 16384                  # context window fast-model (tokens)
 heavy_ctx = 16384                 # gelijk aan fast_ctx → geen Ollama-herlaad bij één model (punt 2)
 

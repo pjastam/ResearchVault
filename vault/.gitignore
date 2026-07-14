@@ -28,3 +28,6 @@ wiki/.drafts/*
 .cache/
 .olw/
 authoring
+
+# transiënte olw run-logs (compile/ingest stdout) — kunnen broninhoud bevatten
+.olw-*.log
