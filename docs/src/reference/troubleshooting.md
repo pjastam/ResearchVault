@@ -20,5 +20,3 @@
 | feedreader HTML reader not loading | feedreader-server.py not running | Check with `sudo launchctl list \| grep feedreader`; restart with `sudo launchctl kickstart system/nl.researchvault.feedreader-server` |
 | 👎 button in NNW doesn't work | JavaScript not enabled | NetNewsWire → Settings → Article Content → enable "Enable JavaScript" |
 | ttyd terminal button not working | ttyd not running or BTM blocking | Check with `sudo launchctl list \| grep ttyd`; if empty after reboot, go to System Settings → General → Login Items & Extensions → Allow in the Background → enable `sh`; verify port 7681 is open |
-| Obsidian flashcards not appearing | Plugin not enabled | Settings → Community Plugins → enable Spaced Repetition |
-| Flashcards not recognized | Incorrect format | Check that `?` is on its own line and `#flashcard` is present |

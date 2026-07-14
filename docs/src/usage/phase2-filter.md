@@ -42,18 +42,18 @@ The treatment depends on the item's Zotero tag and its relevance score.
 
 | Zotero tag | What Claude Code does |
 |---|---|
-| `✅` | Marked as certain Go in Phase 1 — skip the Go/No-go question and process directly in Phase 3 |
+| `✅` | Marked as certain Go in Phase 1 — skip the Go/No-go question and accept directly into `raw/` (full processing follows in Phase 3) |
 | `📖` | Needs more evaluation — generate a compact summary via `summarize_item.py` (local, privacy-safe); show path; wait for Go/No-go |
 | No tag, `/unread`, or any other tag | Score-based treatment (see below) |
 
-**The `📖` tag** is set in Phase 1 when you need more information before deciding. In Phase 2, `summarize_item.py` generates a compact summary (Introduction · Key findings · Relevance) locally via Qwen3.5:9b and writes it to `inbox/_summary_ITEMKEY.md`. Claude Code shows you the path; you read the file and give your decision. No summary text reaches the Anthropic API.
+**The `📖` tag** is set in Phase 1 when you need more information before deciding. In Phase 2, `summarize_item.py` generates a compact summary (Introduction · Key findings · Relevance) locally via the fallback model `qwen3.5:9b` and writes it to `inbox/_summary_ITEMKEY.md`. Claude Code shows you the path; you read the file and give your decision. No summary text reaches the Anthropic API.
 
 ### Score-based treatment (for untagged items)
 
 | Score | Treatment |
 |---|---|
 | 🟢 ≥70 | Show title + score; ask Go/No-go directly — strong match, no summary needed |
-| 🟡 40–69 | Generate a 2–3 sentence summary via Qwen3.5:9b (local); ask Go/No-go |
+| 🟡 40–69 | Generate a 2–3 sentence summary via `summarize_item.py` (local fallback model `qwen3.5:9b`); ask Go/No-go |
 | 🔴 <40 | Propose No-go ("Score: X — low match with your library. No-go?"); you can still choose Go |
 
 Claude Code asks for one Go/No-go decision at a time, giving you space to decide per item.
@@ -62,9 +62,11 @@ Claude Code asks for one Go/No-go decision at a time, giving you space to decide
 
 ## Go
 
-**Go** means: this item is approved for Phase 3.
+**Go** means: this item is accepted into the vault and queued for Phase 3.
 
-Claude Code moves the item to the appropriate Zotero collection and calls the local subagent `process_item.py` with the item key and metadata (title, authors, year, tags). The subagent fetches the full text locally, generates the literature note via Qwen3.5:9b, builds the YAML frontmatter, and writes the `.md` file to `literature/`. Claude Code receives only a JSON status object — no source content.
+Claude Code moves the item to the appropriate Zotero collection and calls the local subagent `build-zotero-bundle.py` with the item key and metadata (title, authors, year, tags). The subagent fetches the full text locally, builds the YAML frontmatter, and writes a canonical bundle to `raw/{citekey}__{itemKey}.md`. Claude Code receives only a JSON status object — no source content.
+
+The bundle in `raw/` is the intake artifact. The generative work — `olw ingest`, `olw compile` (drafts land in `wiki/.drafts/`), and `olw review` (the human quality gate that publishes to `wiki/`) — happens in Phase 3.
 
 The `status` field in the frontmatter is set based on the Zotero tag:
 - `status: read` — if the item had a `✅` tag (you had already read it)
@@ -82,7 +84,7 @@ Claude Code always asks for confirmation before deleting. After confirmation, th
 
 ## High-definition mode
 
-For a higher-quality summary, add `--hd` to activate Claude Sonnet 4.6 instead of the local Qwen model:
+For a higher-quality preview summary, add `--hd` to activate Claude Sonnet instead of the local fallback model:
 
 ```
 beoordeel inbox --hd

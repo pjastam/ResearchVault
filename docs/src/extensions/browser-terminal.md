@@ -1,4 +1,4 @@
-# Step 17: In-browser terminal — Phase 1 and Phase 2 in one tab
+# Step 16: In-browser terminal — Phase 1 and Phase 2 in one tab
 
 By default, feedreader (reading the filtered feed) happens in the browser, and Phase 2 (running Claude Code) happens in a separate terminal window. This step embeds a fully interactive terminal directly into the feedreader HTML reader, so both phases run in the same browser tab — on Mac, iPad, or any other device on your local network.
 

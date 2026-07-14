@@ -66,11 +66,11 @@ claude
 Give the instruction:
 
 ```
-Process the podcast transcript in inbox/[filename].txt into a structured
-note in literature/ with summary, key points, and timestamped quotes.
+Process the podcast transcript in inbox/[filename].txt into a canonical
+bundle in raw/ with summary, key points, and timestamped quotes.
 ```
 
-Claude Code follows the conventions from `CLAUDE.md` (see step 7d): title, speaker, summary, key points with timestamps, and links to related vault notes.
+Claude Code builds a canonical bundle at `raw/{citekey}__{itemKey}.md`, then runs the olw pipeline: `olw ingest` reads the bundle, `olw compile` produces draft pages in `wiki/.drafts/`, and `olw review` is the human quality gate before pages are published to `wiki/`. This follows the conventions from `CLAUDE.md` (see step 7d): title, speaker, summary, key points with timestamps, and links to related vault pages.
 
 > **Privacy note:** whisper.cpp runs entirely locally on your M4. No audio leaves your machine.
 
@@ -82,4 +82,4 @@ You can also have Claude Code run the full pipeline with a single instruction:
 podcast https://[url-to-episode]
 ```
 
-Claude Code downloads the audio, automatically determines the language based on metadata, runs whisper.cpp, and processes the transcript into a literature note — see also the skill (step "activate skill"). The Zotero `_inbox` step is skipped: the podcast goes directly to Obsidian. This is intended for episodes you have already evaluated and approved.
+Claude Code downloads the audio, automatically determines the language based on metadata, runs whisper.cpp, and feeds the transcript into the olw pipeline (canonical bundle in `raw/` → `olw ingest` → `olw compile` → `olw review` → published to `wiki/`) — see also the skill (step "activate skill"). The Zotero `_inbox` step is skipped: the podcast goes straight to bundle building. This is intended for episodes you have already evaluated and approved.

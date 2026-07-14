@@ -6,6 +6,17 @@ The workflow is production-ready and in daily use, but several planned improveme
 
 ## Completed
 
+### Ingest overhaul: bundles + olw wiki pipeline ✅
+
+The Phase-3 processing path was rebuilt. On **Go**, an approved item is no longer turned directly into a literature note by `process_item.py`. Instead:
+
+1. `build-zotero-bundle.py` writes a canonical bundle at `raw/{citekey}__{itemKey}.md` (metadata, notes, annotations, full text — verbatim, no LLM).
+2. `olw ingest` reads the new bundles into obsidian-llm-wiki.
+3. `olw compile` generates draft pages into `wiki/.drafts/` using the primary local model (`mistral-small:22b`, run by olw via `wiki.toml`).
+4. `olw review` is the single human quality gate: approved drafts are published to `wiki/`; rejected drafts are discarded.
+
+The old `meta/candidates/` staging area is gone — `wiki/.drafts/` plus `olw review` is now the gate. Personal thinking is captured separately via `promote-to-raw.py` into `raw/notes/`. **Flashcards and spaced-repetition review have been retired**; the olw concept pages in `wiki/` now carry the synthesised knowledge.
+
 ### Rename: phase0-* → feedreader-* ✅
 
 All scripts, configuration files, launchd agents, and internal references renamed. "Phase 0" was not a separate phase in the workflow but the automatic filtering function within Phase 1. The name `feedreader` better reflects the function: scoring, filtering, and serving RSS/YouTube/podcast feeds.
@@ -14,7 +25,7 @@ All scripts, configuration files, launchd agents, and internal references rename
 
 The HTML reader now shows a short text excerpt below each item title (max. 2 lines). For web articles and podcasts this comes from the RSS description or show notes. For YouTube videos it comes from the video description, with a fallback to the opening lines of the cached transcript for channels that provide no meaningful description.
 
-This replaced an earlier design where clicking a YouTube or podcast headline generated a full reading article via Ollama (`qwen2.5:7b`). That approach placed article generation in the wrong part of the workflow: the HTML reader is for filtering, not for deep reading. All headlines now link directly to the original source URL.
+This replaced an earlier design where clicking a YouTube or podcast headline generated a full reading article via Ollama (`mistral-small:22b`). That approach placed article generation in the wrong part of the workflow: the HTML reader is for filtering, not for deep reading. All headlines now link directly to the original source URL.
 
 ---
 
@@ -74,9 +85,9 @@ The three type-specific Atom feeds (`filtered-webpage.xml`, `filtered-youtube.xm
 
 ### Local orchestrator
 
-The only component in this stack that does not run fully locally is Claude Code as orchestrator. All generation tasks (summaries, notes, syntheses, flashcards) already run via Qwen3.5:9b on Ollama — fully local, fully private. What goes through the Anthropic API are the workflow instructions: intake, phase monitoring, vault conventions, and the iterative Go/No-go dialogue.
+The only component in this stack that does not run fully locally is Claude Code as orchestrator. All generation tasks already run locally: bundle compilation and wiki drafting go through `mistral-small:22b` (run by olw via `wiki.toml`), and Phase-2 previews fall back to `qwen3.5:9b` on Ollama — fully local, fully private. In other words, olw is already the local generator. What still goes through the Anthropic API are the workflow instructions Claude Code orchestrates: intake, phase monitoring, vault conventions, and the iterative Go/No-go dialogue.
 
-Two serious candidates exist for replacing this layer with a local model:
+The open question is therefore not "can a local model do the generation" — olw already does — but whether the orchestration layer itself can move local. Two serious candidates exist:
 
 **Open WebUI + MCPO** — a self-hosted browser interface that connects to Ollama and can call MCP servers (including zotero-mcp) via the MCPO proxy. Mature interface, actively maintained, works on macOS without Docker.
 

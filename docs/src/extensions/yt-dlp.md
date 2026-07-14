@@ -56,8 +56,9 @@ claude
 Then give Claude Code the instruction:
 
 ```
-Process the transcript in inbox/ into a structured note in literature/
-with summary, key points, and timestamped quotes.
+Process the transcript in inbox/ into a canonical bundle in raw/,
+then run olw ingest and olw compile so a draft lands in wiki/.drafts/
+for review before it is published to wiki/.
 ```
 
 ### Multiple videos at once (search results)

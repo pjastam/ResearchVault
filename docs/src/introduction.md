@@ -14,8 +14,8 @@ Every source — paper, podcast, video, RSS article — passes through three exp
 | Phase | Goal | How |
 |---|---|---|
 | **1 — Cast wide** | Capture everything relevant | Items flow into Zotero `_inbox` from three sources: (1) the feedreader (`feedreader-score.py`) scores RSS/YouTube/podcast feeds daily and produces a sorted HTML reader and Atom feed; (2) items shared directly via the iOS share sheet; (3) manual additions from desktop/email/notes |
-| **2 — Filter** | You decide what enters the vault | `index-score.py` ranks inbox items by semantic similarity to your library; Qwen3.5:9b (local) generates a summary for mid-range items; you give a **Go** or **No-go** |
-| **3 — Process** | Full processing of approved items | The local subagent `process_item.py` fetches the full text, generates a structured literature note via Qwen3.5:9b, and writes it to the Obsidian vault — including key findings, methodology notes, relevant quotes, and `[[internal links]]` |
+| **2 — Filter** | You decide what enters the vault | `index-score.py` ranks inbox items by semantic similarity to your library; `summarize_item.py` (using the qwen3.5:9b fallback model) generates a Phase-2 preview for mid-range items; you give a **Go** or **No-go** |
+| **3 — Process** | Full processing of approved items | On **Go**, `build-zotero-bundle.py` assembles a canonical bundle at `raw/{citekey}__{itemKey}.md`; then `olw ingest` and `olw compile` (running mistral-small:22b locally) turn it into drafts in `wiki/.drafts/`; `olw review` is the human quality gate, and approved pages are published to `wiki/` — with key findings, methodology notes, relevant quotes, and `[[internal links]]` |
 
 The separation between phases 1 and 3 keeps both your feed reader and your vault clean: only sources you have consciously approved end up in the vault.
 
@@ -32,9 +32,9 @@ The separation between phases 1 and 3 keeps both your feed reader and your vault
 | [yt-dlp](https://github.com/yt-dlp/yt-dlp) | Download YouTube transcripts and podcast audio | Local |
 | [whisper.cpp](https://github.com/ggerganov/whisper.cpp) | Local speech-to-text transcription for podcasts | Local |
 | [NetNewsWire](https://netnewswire.com) | RSS reader for academic and non-academic feeds | Local |
-| [Claude Code](https://claude.ai/claude-code) | AI assistant that orchestrates the workflow; generative work runs locally via Qwen3.5:9b (Ollama) | Local (default) / Cloud API with `--hd` |
+| [Claude Code](https://claude.ai/claude-code) | AI assistant that orchestrates the workflow; generative work runs locally via mistral-small:22b (Ollama) | Local (default) / Cloud API with `--hd` |
 
-In standard mode, only orchestration instructions are sent to the Anthropic API; all generative work is handled locally by Qwen3.5:9b. Only when `--hd` is explicitly requested do the prompt and source content go to the Anthropic API (Claude Sonnet 4.6). Reference data, notes, and transcriptions always stay local.
+In standard mode, only orchestration instructions are sent to the Anthropic API; all generative work is handled locally by mistral-small:22b (with qwen3.5:9b as a fallback for Phase-2 previews). Only when `--hd` is explicitly requested do the prompt and source content go to the Anthropic API (Claude Sonnet 4.6). Reference data, notes, and transcriptions always stay local.
 
 ---
 
@@ -52,5 +52,4 @@ In standard mode, only orchestration instructions are sent to the Anthropic API;
 10. Optional extensions (yt-dlp, semantic search, automatic updates)
 11. Podcast integration (whisper.cpp)
 12. RSS integration + feedreader filtering (NetNewsWire + feedreader-score.py)
-13. Spaced repetition (Obsidian plugin)
-14. Set up filter layer per source
+13. Set up filter layer per source

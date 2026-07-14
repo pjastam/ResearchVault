@@ -8,7 +8,9 @@ The workflow has three phases. Phase 3 is handled by tooling; phases 1 and 2 inv
 |---|---|---|
 | **1 — Cast wide** | Items flow into Zotero `_inbox` from three sources | Forward items from the feedreader or share directly from iOS |
 | **2 — Filter** | Claude Code presents each `_inbox` item with a relevance score and summary; you decide | Go / No-go per item |
-| **3 — Process** | Claude Code writes a structured literature note to the Obsidian vault | Review the generated note |
+| **3 — Process** | On Go, `build-zotero-bundle.py` writes a canonical bundle to `raw/`, then `olw` (ingest → compile → review) turns it into wiki pages | Sign off at the `olw review` gate before publication to `wiki/` |
+
+In Phase 3, Claude Code only orchestrates — it invokes the local tools and reports status. All generative work runs locally through `olw` (obsidian-llm-wiki), which drives the primary local model `mistral-small:22b` via `wiki.toml`; source content never leaves the machine. Compiled drafts land in `wiki/.drafts/`, and `olw review` is the human quality gate before pages are published to `wiki/`.
 
 ---
 
@@ -34,7 +36,7 @@ The feedreader is in **calibration mode** until its scoring threshold is stable.
 
 - The feedreader runs automatically but does **not** yet route items to Zotero `_inbox` on its own.
 - You browse the HTML reader daily and give feedback signals: click on interesting items (and add them to Zotero) for positive signals, press 👎 on irrelevant items for explicit negative signals.
-- `feedreader-learn.py` processes these signals every morning as part of the nightly batch job (06:00).
+- `feedreader-learn.py` processes these signals every morning as part of the batch job triggered at your morning login.
 - Once **≥30 positive signals** have accumulated, `feedreader-learn.py` will recommend an initial threshold.
 
 ---

@@ -28,11 +28,10 @@
 - [Step 10: yt-dlp & semantic search](extensions/yt-dlp.md)
 - [Step 11: Podcast integration](extensions/podcasts.md)
 - [Step 12: RSS integration + feedreader filtering](extensions/rss.md)
-- [Step 13: Spaced repetition](extensions/spaced-repetition.md)
-- [Step 14: Filter layer per source](extensions/filter-layer.md)
-- [Step 15: Future perspective — local orchestrator](extensions/future-orchestrator.md)
-- [Step 16: iPad access via SSH terminal](extensions/ipad-ssh.md)
-- [Step 17: In-browser terminal](extensions/browser-terminal.md)
+- [Step 13: Filter layer per source](extensions/filter-layer.md)
+- [Step 14: Future perspective — local orchestrator](extensions/future-orchestrator.md)
+- [Step 15: iPad access via SSH terminal](extensions/ipad-ssh.md)
+- [Step 16: In-browser terminal](extensions/browser-terminal.md)
 
 # Reference
 

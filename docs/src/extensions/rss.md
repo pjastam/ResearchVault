@@ -147,7 +147,7 @@ Three separate Atom feeds are produced — one per source type. Each feed only c
 
 The HTML reader includes an **⌨️ terminal** button in the header. Clicking it opens an embedded terminal panel (powered by ttyd — see [Step 17](browser-terminal.md)) alongside the article list, so you can run Phase 2 (Claude Code) without leaving the browser tab. The terminal works both on Mac (via `localhost`) and on iPad (via the Mac's local IP address).
 
-**YouTube articles:** clicking a YouTube headline in the HTML reader opens a generated reading article at `http://localhost:8765/article/{video_id}` instead of going to YouTube. The article (Introduction + Key Points + Conclusion, written in the original video language) is generated locally by `qwen2.5:7b` via Ollama. The first visit takes 30–60 seconds; a loading page refreshes automatically every 5 seconds until it is ready. Subsequent visits are instant (cached in `.claude/article_cache/`).
+**YouTube articles:** clicking a YouTube headline in the HTML reader opens a generated reading article at `http://localhost:8765/article/{video_id}` instead of going to YouTube. The article (Introduction + Key Points + Conclusion, written in the original video language) is generated locally by `mistral-small:22b` via Ollama. The first visit takes 30–60 seconds; a loading page refreshes automatically every 5 seconds until it is ready. Subsequent visits are instant (cached in `.claude/article_cache/`).
 
 **Podcast articles:** clicking a podcast headline opens a similar generated article at `http://localhost:8765/article/podcast/{episode_id}`, based on the episode's show notes rather than an audio transcript. Only episodes with show notes of at least 200 characters get an article page; episodes with thinner show notes link directly to the source. Generation follows the same async pattern as YouTube articles.
 
@@ -400,4 +400,4 @@ Tailscale must be installed and active on iPhone and iPad for the Tailscale IP t
 For academic articles from NetNewsWire, the recommended route is to always add them to Zotero first before having them processed. This way you have BibTeX metadata and annotation capabilities available:
 
 1. Open the article in a browser → click the Zotero icon → item is saved to `_inbox` with richer metadata
-2. In the next research session, run `index-score.py` and process items from `_inbox` via the skill
+2. In the next research session, run `index-score.py`, then process items from `_inbox` via the ingest skill — Go builds a canonical bundle in `raw/` (`build-zotero-bundle.py`), which `olw ingest` + `olw compile` turn into a draft in `wiki/.drafts/`; after `olw review` (the human quality gate) the page is published to `wiki/`

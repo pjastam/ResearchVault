@@ -1,4 +1,4 @@
-# Step 16: iPad access via SSH terminal
+# Step 15: iPad access via SSH terminal
 
 Phase 1 of the workflow run naturally on an iPad — the feedreader HTML reader at `http://[mac-ip]:8765/filtered.html` is accessible from any browser on your local network, and adding items to Zotero works via the iOS app. Phase 2 and Phase 3 require Claude Code, which runs on the Mac mini.
 

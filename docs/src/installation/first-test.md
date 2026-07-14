@@ -22,9 +22,11 @@ Search my Zotero library for recent additions and give an overview.
 
 **Test 2 — Retrieve a paper:**
 ```
-Find a paper about [a topic you have in Zotero] and write a literature note
-to literature/ in Obsidian format.
+Find a paper about [a topic you have in Zotero] and show its title, authors
+and abstract.
 ```
+This confirms the Zotero MCP ↔ Claude Code connection. (Testing the full
+ingest pipeline — bundle → olw ingest/compile/review — is a separate step.)
 
 **Test 3 — Semantic search:**
 ```

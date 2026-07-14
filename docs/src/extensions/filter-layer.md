@@ -1,4 +1,4 @@
-# Step 14: Set up filter layer per source
+# Step 13: Set up filter layer per source
 
 This is the core of the 3-phase model: each source has its own capture route (phase 1) and filter moment (phase 2). Below is a per-source overview of all phases and how you indicate what may enter the vault.
 
@@ -7,9 +7,9 @@ This is the core of the 3-phase model: each source has its own capture route (ph
 | Phase | What |
 |------|-----|
 | Dump layer | Zotero `_inbox` collection — central collection bucket for all sources |
-| Filter moment | Run `index-score.py` to rank items by relevance; read abstract in Zotero, or have Claude Code summarize via Qwen3.5:9b (locally) |
-| Go | Move item to the relevant collection in your library |
-| No-go | Delete item from `_inbox` — no note is created |
+| Filter moment | Run `index-score.py` to rank items by relevance; read abstract in Zotero, or have Claude Code preview via `summarize_item.py` (locally) |
+| Go | `build-zotero-bundle.py` writes a canonical bundle to `raw/{citekey}__{itemKey}.md`, then `olw ingest` → `olw compile` (drafts land in `wiki/.drafts/`) → `olw review` (the human gate) → published to `wiki/` |
+| No-go | Delete item from `_inbox` — no bundle or page is created |
 
 ### Tag-based filter logic
 
@@ -17,27 +17,27 @@ Claude Code adjusts its evaluation based on the Zotero tag of the item:
 
 | Tag | Treatment |
 |-----|------------|
-| `✅` | Previously approved — skip Go/No-go, go directly to processing |
-| `📖` | Marked as interesting — generate a compact summary via `summarize_item.py` (local, Qwen3.5:9b); show path; wait for Go/No-go |
-| `/unread`, no tag, or another tag | Generate summary + relevance indication, ask Go or No-go |
+| `✅` | Previously approved — skip Go/No-go, go directly to bundle building and the olw pipeline |
+| `📖` | Marked as interesting — generate a compact preview via `summarize_item.py` (local fallback model, qwen3.5:9b); show path; wait for Go/No-go |
+| `/unread`, no tag, or another tag | Generate preview + relevance indication, ask Go or No-go |
 
-Items with unknown tags (e.g. your own project tags or type indicators) are therefore treated as `/unread`: Claude Code generates a summary and asks for a Go/No-go decision.
+Items with unknown tags (e.g. your own project tags or type indicators) are therefore treated as `/unread`: Claude Code generates a preview and asks for a Go/No-go decision.
 
-**No-go is always final:** a rejected item is deleted from `_inbox` and receives no note in the vault. Claude Code always asks for confirmation before deletion.
+**No-go is always final:** a rejected item is deleted from `_inbox` and receives no bundle or page in the vault. Claude Code always asks for confirmation before deletion.
 
-### Reading status in Obsidian
+### Reading status in the wiki
 
-Every literature note gets a `status` field in its YAML frontmatter:
-- `status: unread` — default for all new notes
+Every published `wiki/` page gets a `status` field in its YAML frontmatter:
+- `status: unread` — default for all new pages
 - `status: read` — set automatically when the Zotero item had a `✅` tag (meaning you had already read it before approving)
 
-After reading a note in Obsidian, change `status: unread` to `status: read` manually.
+After reading a page in Obsidian, change `status: unread` to `status: read` manually.
 
-To see all unread notes at a glance, create a note with this [Dataview](https://blacksmithgu.github.io/obsidian-dataview/) query:
+To see all unread pages at a glance, create a note with this [Dataview](https://blacksmithgu.github.io/obsidian-dataview/) query:
 
 ```dataview
 TABLE authors, year, journal, tags
-FROM "literature"
+FROM "wiki"
 WHERE status = "unread"
 SORT year DESC, file.name ASC
 ```
@@ -73,7 +73,7 @@ Claude Code retrieves the metadata and abstract via Zotero MCP and gives a recom
 |------|-----|
 | Dump layer | Zotero `_inbox` via iOS share sheet from the YouTube app |
 | Filter moment | Watch the first 5–10 minutes, or have Claude Code summarize based on metadata |
-| Go | `transcript [URL]` in Claude Code |
+| Go | `transcript [URL]` in Claude Code (transcript + bundle → olw ingest/compile/review) |
 | No-go | Delete item from `_inbox` |
 
 ---
@@ -84,7 +84,7 @@ Claude Code retrieves the metadata and abstract via Zotero MCP and gives a recom
 |------|-----|
 | Dump layer | Zotero `_inbox` via iOS share sheet from Overcast (overcast.fm URL) |
 | Filter moment | Listen to the first 5–10 minutes |
-| Go | `podcast [URL]` in Claude Code (download + transcription + processing) |
+| Go | `podcast [URL]` in Claude Code (download + transcription + bundle → olw ingest/compile/review) |
 | No-go | Delete item from `_inbox` |
 
 For podcasts with rich show notes (≥ 200 characters), clicking the headline in the HTML reader opens a generated article at `/article/podcast/{episode_id}` — the same layout as YouTube articles, with tag buttons and abstract injection via COinS. For episodes with thin show notes the headline links directly to the source. You can also ask Claude Code to fetch show notes manually:
@@ -102,7 +102,7 @@ Fetch the show notes from [URL] and give a 3-sentence summary.
 | Feedreader (fase 1, bron 1) | `feedreader-score.py` scores all feed items daily; YouTube items are scored using transcript text fetched via `youtube_transcript_api`; podcast items with show notes ≥ 200 chars have their show notes cached; produces filtered Atom feed + HTML reader sorted by relevance at `http://localhost:8765/filtered.html`; clicking a YouTube headline opens a generated article (`/article/{video_id}`) with Zotero tag buttons; clicking a podcast headline (with sufficient show notes) opens a similar article (`/article/podcast/{episode_id}`); both article types inject the full text into the Zotero Abstract field via `rft.description` in COinS |
 | Phase 1 — Dump layer | Browse the filtered feed in the HTML reader or NetNewsWire; interesting items forwarded to Zotero `_inbox` via browser extension or iOS app |
 | Phase 2 — Filter moment | Scan headline and intro of items in `_inbox` |
-| Go (academic) | Item already in Zotero `_inbox` → run `index-score.py` and process via the skill |
+| Go (academic) | Item already in Zotero `_inbox` → run `index-score.py`, then build the bundle and run the olw pipeline (`olw ingest` → `olw compile` → `olw review`) via the skill |
 | Go (non-academic) | Save via Zotero Connector, or pass `inbox [URL]` to Claude Code |
 | No-go | Mark item as read or delete from NetNewsWire; remove from `_inbox` if already saved |
 

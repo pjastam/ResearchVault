@@ -60,10 +60,10 @@ You do not need to know exactly what you are looking for — the skill is design
 
    This ranks all `_inbox` items by semantic similarity to your existing library (using the ChromaDB embeddings from zotero-mcp), so you know which items to focus on.
 
-5. Claude Code retrieves all items from your Zotero `_inbox` and presents each one with a short summary and relevance assessment — the summary is generated locally by Qwen3.5:9b. You respond **Go** or **No-go** per item.
-6. For each **Go**: Claude Code writes a structured literature note using the safe pipeline below.
+5. Claude Code retrieves all items from your Zotero `_inbox` and presents each one with a short summary and relevance assessment — the Phase-2 preview summary is generated locally by `summarize_item.py` (fallback model qwen3.5:9b). You respond **Go** or **No-go** per item.
+6. For each **Go**: Claude Code builds a canonical bundle with `build-zotero-bundle.py` (writing `raw/{citekey}__{itemKey}.md`), then runs the olw pipeline — `olw ingest` → `olw compile` (drafts land in `wiki/.drafts/`) → `olw review`. The `olw review` step is the human quality gate; approved pages are published to `wiki/`. olw drives the local primary model (mistral-small:22b) via `wiki.toml`.
 7. For each **No-go**: Claude Code removes the item from `_inbox` (after your confirmation).
-8. At the end of the session, Claude Code shows a summary: X approved, Y removed. The Zotero semantic search database is updated automatically each day as part of the nightly batch job (`nl.pietstam.nachtelijke-taken` daemon, runs at 06:00) — no manual action needed before a session. If you process items later in the day and want the database to reflect them immediately, run:
+8. At the end of the session, Claude Code shows a summary: X approved, Y removed. The Zotero semantic search database is updated automatically each day as part of the login-triggered morning batch job (`nl.pietstam.nachtelijke-taken` daemon) — no manual action needed before a session. If you process items later in the day and want the database to reflect them immediately, run:
 
    ```bash
    zotero-mcp update-db --fulltext # recommended (includes full text, 5–20 min on Apple Silicon)
@@ -92,15 +92,15 @@ Calls a local LLM REST API directly (no CLI, no ANSI codes). Supports two backen
 - **ollama** (default): Ollama REST API on localhost:11434
 - **mlx**: mlx_lm OpenAI-compatible server on localhost:8080
 
-Backend is selected via `--backend ollama|mlx` or the `LLM_BACKEND` env var in `ResearchVault/.env`. Prepends `/no_think` to suppress Qwen3.5:9b's reasoning step. Prints only status lines.
+Backend is selected via `--backend ollama|mlx` or the `LLM_BACKEND` env var in `ResearchVault/.env`. Prepends `/no_think` to suppress the reasoning step. Prints only status lines.
 
 ```bash
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
   --input  inbox/bron.txt \
-  --output literature/notitie.md \
-  --prompt "Write a literature note in Dutch..." \
+  --output raw/notitie.md \
+  --prompt "Summarise this source in Dutch..." \
   [--backend ollama|mlx]
-# Output: Input: inbox/bron.txt (12,345 chars) | Model: qwen3.5:9b | backend: ollama | Written: literature/notitie.md (3,200 chars)
+# Output: Input: inbox/bron.txt (12,345 chars) | Model: mistral-small:22b | backend: ollama | Written: raw/notitie.md (3,200 chars)
 ```
 
 ### `zotero-remove-from-inbox.py` — remove processed item from `_inbox`
