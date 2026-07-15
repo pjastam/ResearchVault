@@ -87,6 +87,28 @@ CHROMA_PATH   = Path.home() / ".config" / "zotero-mcp" / "chroma_db"
 ZOTERO_SQLITE = Path.home() / "Zotero" / "zotero.sqlite"
 INBOX_ID      = 333
 
+
+def _public_base_url() -> str:
+    """Publieke Tailscale-Funnel-basis van de feedreader-server (bijv. https://host:8443).
+
+    Gebruikt voor de channel home-<link> in de Atom-feeds, zodat FreshRSS een htmlUrl
+    opslaat en NNW-clients niet de kale poort-443-root raden (die faalt: de funnel
+    luistert alleen op :8443). Leest FEEDREADER_PUBLIC_URL uit de omgeving of uit
+    ~/bin/.researchvault-env — zelfde fallback-patroon als freshrss_utils. Leeg = geen link.
+    """
+    val = os.environ.get("FEEDREADER_PUBLIC_URL", "")
+    if not val:
+        env_file = Path.home() / "bin" / ".researchvault-env"
+        if env_file.exists():
+            for line in env_file.read_text(encoding="utf-8").splitlines():
+                if line.strip().startswith("FEEDREADER_PUBLIC_URL="):
+                    val = line.split("=", 1)[1].strip().strip('"').strip("'")
+                    break
+    return val.rstrip("/")
+
+
+PUBLIC_BASE_URL = _public_base_url()
+
 FEED_TIMEOUT = 15  # seconden per feed
 MAX_FEED_ITEMS = 300  # max items per type in de Atom-feed (sortering op score, dus top-N)
 MAX_AGE_DAYS_DEFAULT  = 30   # max leeftijd voor web/podcast/YouTube-items
@@ -551,11 +573,15 @@ def generate_atom(items: list[dict], generated_at: datetime, feed_title: str = "
   </entry>""")
 
     entries_xml = "\n".join(entries)
+    home_link = (
+        f'\n  <link rel="alternate" type="text/html" href="{atom_escape(PUBLIC_BASE_URL)}/filtered.html"/>'
+        if PUBLIC_BASE_URL else ""
+    )
     return f"""<?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom"
       xmlns:rv="urn:researchvault:feedreader:1">
   <title>{atom_escape(feed_title)}</title>
-  <id>urn:feedreader:filtered-feed</id>
+  <id>urn:feedreader:filtered-feed</id>{home_link}
   <updated>{ts}</updated>
   <author><name>feedreader-score.py</name></author>
 {entries_xml}
