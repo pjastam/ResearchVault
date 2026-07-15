@@ -42,7 +42,7 @@ VAULT_ROOT           = Path(__file__).resolve().parent.parent
 CLAUDE_DIR           = VAULT_ROOT / ".claude"
 TRANSCRIPT_CACHE_DIR = CLAUDE_DIR / "transcript_cache"
 TRANSCRIPTS_DIR      = Path.home() / "Zotero" / "Transcripts"
-INBOX_DIR            = VAULT_ROOT / "inbox"
+INBOX_DIR            = VAULT_ROOT / "vault" / ".cache"
 
 _env = VAULT_ROOT / ".env"
 if _env.exists():

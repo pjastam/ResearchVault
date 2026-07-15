@@ -40,7 +40,7 @@ _KEY_RE = re.compile(r'^[A-Z0-9]{8}$')
 VAULT_ROOT = Path(__file__).resolve().parent.parent
 VAULT_DIR  = VAULT_ROOT / "vault"     # symlink → ResearchVault/vault/
 PYTHON     = Path("/Users/pietstam/.local/share/uv/tools/zotero-mcp-server/bin/python3")
-INBOX_DIR  = VAULT_ROOT / "inbox"     # summarize_item.py schrijft hier (naast .claude/)
+INBOX_DIR  = VAULT_ROOT / "vault" / ".cache"   # temp-input (fase-2 previews e.d.); gitignored
 OLW        = Path("/Users/pietstam/.local/bin/olw")   # Fase C: Go → build-bundle → olw ingest
 
 # Achtergrond job-queue voor build-zotero-bundle.py (+olw ingest) en summarize_item.py
@@ -261,7 +261,7 @@ class FeedreaderHandler(http.server.SimpleHTTPRequestHandler):
             self._respond_json(500, {"error": str(exc)})
 
     def _handle_inbox_summary(self, key: str):
-        """Leest een al-gegenereerde samenvatting uit inbox/_summary_{key}.md."""
+        """Leest een al-gegenereerde samenvatting uit .cache/_summary_{key}.md."""
         if not _KEY_RE.fullmatch(key):
             self._respond_json(400, {"error": "Ongeldige key"})
             return

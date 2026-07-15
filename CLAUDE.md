@@ -40,7 +40,7 @@ Als Ollama niet bereikbaar is: meld dit en vraag of de gebruiker wil overschakel
 | `raw/notes/` | Eigen denkwerk | Gepromote snapshots van rijpe authoring-notities (via `promote-to-raw.py`), gemarkeerd `source_type: personal` |
 | `wiki/` | olw-gegenereerd | Volledig door olw beheerd: conceptpagina's, `sources/` (per-bron), `syntheses/` (thematisch). Vervangt het oude `literature/`. `olw review` = de menselijke gate; `wiki/.drafts/` = staging vóór goedkeuring. |
 | `notes/` | — | Persoonlijke en werknotities |
-| `inbox/` | — | Ruwe/temp input die nog verwerkt moet worden |
+| `.cache/` | — | Ruwe/temp input die nog verwerkt moet worden |
 
 ## Bronlaag (`raw/`) en wiki-pagina's
 
@@ -166,7 +166,7 @@ Optioneel: `--whisper-model base` of `--language en` om defaults te overschrijve
 
 ## Podcast-transcripten (whisper.cpp via attach-transcript.py)
 
-Podcast-transcripten worden handmatig aangemaakt via `attach-transcript.py` (zie § Transcripten hierboven). Whisper.cpp draait volledig lokaal (Metal GPU, geen data naar buiten). Audio wordt tijdelijk opgeslagen in `inbox/` als `_audio_{ITEMKEY}.mp3` en na verwerking automatisch opgeruimd.
+Podcast-transcripten worden handmatig aangemaakt via `attach-transcript.py` (zie § Transcripten hierboven). Whisper.cpp draait volledig lokaal (Metal GPU, geen data naar buiten). Audio wordt tijdelijk opgeslagen in `.cache/` als `_audio_{ITEMKEY}.mp3` en na verwerking automatisch opgeruimd.
 
 **Taaldetectie:** whisper-cli detecteert de taal automatisch op basis van de show notes in de feedreader-cache. Voor Nederlandstalige podcasts wordt `--language nl` automatisch doorgegeven; voor Engelstalige podcasts (Engelse show notes) wordt niets meegegeven (whisper auto-detect). Gebruik `--language` om dit handmatig te overschrijven.
 
@@ -203,7 +203,7 @@ De feedreader scoort RSS/YouTube/podcast-feeds automatisch op relevantie en prod
 **Inbox-review REST API (POST vereist `Content-Type: application/json`):**
 - `GET  /api/inbox/items` — gecombineerde score + Zotero metadata per `_inbox`-item (JSON)
 - `GET  /api/inbox/jobs` — status van alle achtergrond-jobs (`pending`/`running`/`done`/`error`)
-- `GET  /api/inbox/summary/{key}` — leest `inbox/_summary_{key}.md` als die bestaat
+- `GET  /api/inbox/summary/{key}` — leest `.cache/_summary_{key}.md` als die bestaat
 - `POST /api/inbox/go` — bouwt de bundle (`build-zotero-bundle.py`) + `olw ingest` voor `key` (asynchroon); vereist `title` in body
 - `POST /api/inbox/nogo` — verwijdert `key` direct uit Zotero `_inbox` (synchroon)
 - `POST /api/inbox/summarize` — start `summarize_item.py` voor `key` (asynchroon)
@@ -271,7 +271,7 @@ Correcte aanpak voor compacte samenvattingen (fase 2, 📖-items): gebruik `.cla
   --item-key ITEMKEY \
   --type paper|youtube|podcast \
   --title "Titel" --authors "Achternaam, V." --year 2024
-# → {"status": "ok", "path": "inbox/_summary_ITEMKEY.md"}
+# → {"status": "ok", "path": ".cache/_summary_ITEMKEY.md"}
 ```
 
 Claude Code toont het pad; de gebruiker leest het bestand en geeft Go of No-go.
@@ -279,13 +279,13 @@ Claude Code toont het pad; de gebruiker leest het bestand en geeft Go of No-go.
 Voor losse stappen of speciale gevallen (transcripten, snapshots): gebruik `.claude/fetch-fulltext.py` direct:
 
 ```bash
-~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/fetch-fulltext.py ITEMKEY inbox/bestand.txt
+~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/fetch-fulltext.py ITEMKEY .cache/bestand.txt
 ```
 
 Daarna verwerken via lokale LLM:
 ```bash
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
-  --input inbox/bestand.txt --output raw/notes/bestand.md --prompt "..." [--backend ollama|mlx]
+  --input .cache/bestand.txt --output raw/notes/bestand.md --prompt "..." [--backend ollama|mlx]
 ```
 
 Dit geldt ook voor snapshot-HTML, VTT-transcripten en podcast-transcripten: nooit `cat` of `print` op de volledige inhoud uitvoeren als Bash-tool.

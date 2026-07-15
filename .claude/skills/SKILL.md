@@ -67,7 +67,7 @@ De structuur, cross-links en syntheses van de wiki zijn **olw's domein** (aanges
 - Zorg dat goedgekeurde bronnen daadwerkelijk ge-ingest en gecompileerd zijn (`olw status` toont wat nog "pending" staat)
 - Stel voor om `olw compile` te draaien als er nieuwe bronnen zijn ingest maar nog geen drafts gemaakt; herinner aan de `olw review`-gate voor openstaande drafts
 - `olw lint` / `olw maintain` bewaken de wiki-gezondheid (orphans, broken links, stubs) — stel voor die te draaien als de wiki gegroeid is
-- Vraag of `inbox/` opgeruimd moet worden (verwerkte transcripten/samenvattingen verwijderen)
+- Vraag of `.cache/` opgeruimd moet worden (verwerkte transcripten/samenvattingen verwijderen)
 - Herinner aan database-update als er nieuwe papers zijn toegevoegd en de laatste update meer dan een week geleden was: "Je hebt recent nieuwe papers toegevoegd. Zal ik de Zotero-zoekdatabase bijwerken zodat semantisch zoeken ze ook vindt? (`update-zotero`)"
 
 ---
@@ -192,7 +192,7 @@ Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laa
 
 **Samenvatting voor 📖-items via `summarize_item.py`:**
 
-Roep de subagent aan met het juiste type. De samenvatting wordt naar `inbox/_summary_ITEMKEY.md` geschreven; alleen het pad wordt teruggegeven — geen afgeleide tekst bereikt Claude Code.
+Roep de subagent aan met het juiste type. De samenvatting wordt naar `.cache/_summary_ITEMKEY.md` geschreven; alleen het pad wordt teruggegeven — geen afgeleide tekst bereikt Claude Code.
 
 Paper met abstract (geen modelaanroep):
 ```bash
@@ -223,8 +223,8 @@ Podcast (episode_id = `podcast_` + MD5-hash van aflevering-URL, zonder prefix):
   --title "Afleveringstitel" --cache-id EPISODE_ID
 ```
 
-Na ontvangst van `{"status": "ok", "path": "inbox/_summary_ITEMKEY.md"}`:
-- Toon het pad aan de gebruiker: "Samenvatting klaar: `inbox/_summary_ITEMKEY.md`"
+Na ontvangst van `{"status": "ok", "path": ".cache/_summary_ITEMKEY.md"}`:
+- Toon het pad aan de gebruiker: "Samenvatting klaar: `.cache/_summary_ITEMKEY.md`"
 - Wacht op Go of No-go
 
 **Stappenplan:**
@@ -323,7 +323,7 @@ Na ontvangst van `{"status": "ok", "path": "inbox/_summary_ITEMKEY.md"}`:
    ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/zotero-remove-from-inbox.py ITEMKEY
    ```
 
-> **Fallback (losse stap):** ontbreekt de bijlage-route, dan kan het transcript via `fetch-fulltext.py ITEMKEY inbox/{video_id}.txt` naar `inbox/` en desgewenst lokaal verwerkt worden met `ollama-generate.py` (`--backend ollama|mlx`, of `--hd` voor Sonnet na bevestiging) — nooit `cat`/`print` op de volledige inhoud.
+> **Fallback (losse stap):** ontbreekt de bijlage-route, dan kan het transcript via `fetch-fulltext.py ITEMKEY .cache/{video_id}.txt` naar `.cache/` en desgewenst lokaal verwerkt worden met `ollama-generate.py` (`--backend ollama|mlx`, of `--hd` voor Sonnet na bevestiging) — nooit `cat`/`print` op de volledige inhoud.
 
 ### Type 4: Podcast ophalen en verwerken
 
@@ -350,7 +350,7 @@ Na ontvangst van `{"status": "ok", "path": "inbox/_summary_ITEMKEY.md"}`:
    ```bash
    ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/zotero-remove-from-inbox.py ITEMKEY
    ```
-   Het tijdelijke audiobestand (`inbox/_audio_{ITEMKEY}.mp3`) wordt door `attach-transcript.py` automatisch opgeruimd.
+   Het tijdelijke audiobestand (`.cache/_audio_{ITEMKEY}.mp3`) wordt door `attach-transcript.py` automatisch opgeruimd.
 
 ### Type 5: RSS-items verwerken
 
@@ -360,7 +360,7 @@ Na ontvangst van `{"status": "ok", "path": "inbox/_summary_ITEMKEY.md"}`:
 
 1. Vraag: wil je het item toevoegen aan Zotero (voor BibTeX, annotaties en opname in de semantische database), of gaat het om eigen denkwerk?
 2. **Via Zotero:** het item is al opgeslagen via de Zotero Connector of iOS-app; verwerk het naar de wiki zoals type 1 (build-zotero-bundle → olw ingest → compile → review)
-3. **Eigen denkwerk / losse notitie:** schrijf de notitie in `authoring/notes/` (of geef `inbox [URL]` om de inhoud lokaal op te halen als Markdown in `inbox/`), en promoveer die daarna naar de bronlaag:
+3. **Eigen denkwerk / losse notitie:** schrijf de notitie in `authoring/notes/` (of geef `inbox [URL]` om de inhoud lokaal op te halen als Markdown in `.cache/`), en promoveer die daarna naar de bronlaag:
    ```bash
    ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/promote-to-raw.py --note <pad>
    # → schone snapshot naar vault/raw/notes/<slug>.md (source_type: personal) + olw ingest
@@ -400,7 +400,7 @@ Navigatie, zoeken en link-management lopen via **hyalo** (geen LLM). De cross-li
 
 ### Type 8: Inbox opruimen
 
-1. Toon wat er in `inbox/` staat (temp-bestanden: `_summary_*.md`, transcripten, snapshots, `_audio_*.mp3`)
+1. Toon wat er in `.cache/` staat (temp-bestanden: `_summary_*.md`, transcripten, snapshots, `_audio_*.mp3`)
 2. Per item: is de bron al verwerkt naar `raw/` + olw? Zo ja → opruimen; zo nee → alsnog verwerken (type 1/3/4) of verwijderen
 3. Verwijder verwerkte transcripten en samenvattingen
 4. Bevestig na afloop: "Inbox is leeg. Alles verwerkt."
@@ -433,7 +433,7 @@ Navigatie, zoeken en link-management lopen via **hyalo** (geen LLM). De cross-li
 | "transcript [URL]" | Start type 3 met de opgegeven URL; transcript-bijlage → raw → olw; slaat Zotero `_inbox` over |
 | "transcript [URL] --hd" | Start type 3; de losse `ollama-generate.py`-fallback via Claude Sonnet 4.6 (na bevestiging) |
 | "podcast [URL]" | Start type 4: transcribeer via whisper.cpp → bijlage → raw → olw; slaat Zotero `_inbox` over |
-| "inbox [URL]" | Haal artikel op en sla op als Markdown in `inbox/`, zonder Zotero |
+| "inbox [URL]" | Haal artikel op en sla op als Markdown in `.cache/`, zonder Zotero |
 | "rss [URL of item]" | Start type 5 voor het opgegeven item |
 | "synthese over [thema]" | Start type 6 (via olw compile/review) |
 | "wat staat er in de wiki" | Start type 7, geef overzicht via hyalo |
