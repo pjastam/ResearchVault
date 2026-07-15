@@ -1,0 +1,202 @@
+<svg width="100%" viewBox="0 0 820 928" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <style>
+      text { font-family: 'JetBrains Mono','Fira Code','Courier New',monospace; }
+      .bg { fill: #0d1117; }
+      .spine { stroke: rgba(255,255,255,0.12); stroke-width: 1.5; stroke-dasharray: 4 3; }
+      .hdr-box { fill: rgba(74,158,255,0.08); stroke: rgba(74,158,255,0.22); stroke-width: 0.5; }
+      .hdr { fill: #4a9eff; font-size: 9px; font-weight: 700; letter-spacing: 0.15em; }
+      .hdr-sub { fill: #636e7b; font-size: 10px; }
+      .panel-1 { fill: rgba(74,158,255,0.04); stroke: rgba(74,158,255,0.22); stroke-width: 0.5; }
+      .panel-2 { fill: rgba(232,167,53,0.04); stroke: rgba(232,167,53,0.22); stroke-width: 0.5; }
+      .panel-3 { fill: rgba(224,108,74,0.04); stroke: rgba(224,108,74,0.28); stroke-width: 0.5; }
+      .panel-priv { fill: rgba(255,255,255,0.02); stroke: rgba(255,255,255,0.08); stroke-width: 0.5; }
+      .card-1 { fill: rgba(74,158,255,0.08); stroke: rgba(74,158,255,0.2); stroke-width: 0.5; }
+      .card-1d { fill: rgba(74,158,255,0.04); stroke: rgba(74,158,255,0.18); stroke-width: 0.5; stroke-dasharray: 4 3; }
+      .card-1i { fill: rgba(74,158,255,0.04); stroke: rgba(74,158,255,0.12); stroke-width: 0.5; }
+      .card-2 { fill: rgba(232,167,53,0.08); stroke: rgba(232,167,53,0.2); stroke-width: 0.5; }
+      .card-3 { fill: rgba(224,108,74,0.08); stroke: rgba(224,108,74,0.2); stroke-width: 0.5; }
+      .card-olw { fill: rgba(30,180,140,0.1); stroke: rgba(30,180,140,0.3); stroke-width: 0.5; }
+      .card-go { fill: rgba(40,200,120,0.08); stroke: rgba(40,200,120,0.22); stroke-width: 0.5; }
+      .card-no { fill: rgba(200,60,60,0.07); stroke: rgba(200,60,60,0.2); stroke-width: 0.5; }
+      .card-gray { fill: rgba(150,150,150,0.08); stroke: rgba(150,150,150,0.2); stroke-width: 0.5; }
+      .card-inbox { fill: rgba(74,158,255,0.1); stroke: rgba(74,158,255,0.35); stroke-width: 1; }
+      .card-wiki { fill: rgba(124,92,191,0.1); stroke: rgba(124,92,191,0.35); stroke-width: 1; }
+      .arr-flow { stroke: rgba(74,158,255,0.65); stroke-width: 1.5; fill: none; }
+      .arr-wiki { stroke: rgba(124,92,191,0.65); stroke-width: 1.5; fill: none; }
+      .arr-inner { stroke: rgba(180,180,180,0.5); stroke-width: 1.2; fill: none; }
+      .arr-phase { stroke: rgba(255,255,255,0.3); stroke-width: 1.5; fill: none; }
+      .arr-dash { stroke: rgba(74,158,255,0.35); stroke-width: 1.5; fill: none; stroke-dasharray: 4 3; }
+      .lbl-1 { fill: #4a9eff; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; }
+      .lbl-2 { fill: #e8a735; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; }
+      .lbl-3 { fill: #e06c4a; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; }
+      .lbl-sub { fill: #5a6473; font-size: 9px; }
+      .dot-1 { fill: #4a9eff; } .dot-2 { fill: #e8a735; } .dot-3 { fill: #e06c4a; }
+      .dot-num { fill: #0d1117; font-size: 9px; font-weight: 700; }
+      .t-head { fill: #e6edf3; font-size: 11px; font-weight: 600; }
+      .t-sub { fill: #7a8494; font-size: 9px; }
+      .t-mute { fill: #5a6473; font-size: 8.5px; }
+      .t-sec { fill: #7a8494; font-size: 9px; }
+      .t-amber { fill: #e8a735; font-size: 10px; }
+      .t-inbox { fill: #4a9eff; font-size: 12px; font-weight: 700; }
+      .t-inbox-sub { fill: #6aaeff; font-size: 9px; }
+      .t-wiki { fill: #9d79e0; font-size: 12px; font-weight: 700; }
+      .t-wiki-sub { fill: #b49ee0; font-size: 9px; }
+      .t-olw { fill: #2ecc9a; font-size: 8.5px; }
+      .t-go { fill: #4dbb8a; font-size: 10px; font-weight: 600; }
+      .t-no { fill: #cc6666; font-size: 10px; font-weight: 600; }
+      .t-hd { fill: #ffd060; font-size: 9px; font-weight: 600; }
+      .t-hd-sub { fill: #c8a040; font-size: 8.5px; }
+      .t-priv-ok { fill: #4dbb8a; font-size: 9.5px; }
+      .t-priv-warn { fill: #e8a735; font-size: 9.5px; }
+      .t-foot { fill: #3a424e; font-size: 9px; }
+    </style>
+  </defs>
+
+  <rect width="820" height="928" class="bg"/>
+
+  <!-- HEADER -->
+  <rect x="290" y="12" width="240" height="22" rx="4" class="hdr-box"/>
+  <text x="410" y="27" text-anchor="middle" class="hdr">LOCAL RESEARCH WORKFLOW v2.0</text>
+  <text x="410" y="50" text-anchor="middle" class="hdr-sub">Mac mini M4 · privacy-first · 3-phase model · compounding olw wiki</text>
+
+  <line x1="40" y1="68" x2="40" y2="888" class="spine"/>
+
+  <!-- ═══ PHASE 1 — CAPTURE ═══ -->
+  <circle cx="40" cy="76" r="9" class="dot-1"/>
+  <text x="40" y="80" text-anchor="middle" class="dot-num">1</text>
+  <text x="58" y="80" class="lbl-1">CAPTURE</text>
+  <text x="178" y="80" class="lbl-sub">— three sources · feedreader scores automatically · share sheet in apps</text>
+
+  <rect x="64" y="90" width="736" height="270" rx="8" class="panel-1"/>
+
+  <!-- Feedreader -->
+  <rect x="76" y="102" width="232" height="110" rx="5" class="card-1"/>
+  <text x="192" y="118" text-anchor="middle" class="t-head">Feedreader</text>
+  <text x="192" y="132" text-anchor="middle" class="t-sub">RSS · YouTube · podcasts</text>
+  <line x1="90" y1="140" x2="294" y2="140" stroke="rgba(128,128,128,0.25)" stroke-width="0.5"/>
+  <rect x="88" y="143" width="208" height="62" rx="3" class="card-1i"/>
+  <text x="192" y="158" text-anchor="middle" class="t-mute">feedreader-score.py</text>
+  <text x="192" y="172" text-anchor="middle" class="t-mute">→  filtered.html  /  .xml</text>
+  <text x="192" y="186" text-anchor="middle" class="t-mute">→  browse  ·  forward</text>
+
+  <!-- Share Sheet -->
+  <rect x="316" y="102" width="232" height="110" rx="5" class="card-1"/>
+  <text x="432" y="148" text-anchor="middle" class="t-head">Share Sheet</text>
+  <text x="432" y="165" text-anchor="middle" class="t-sub">Apps</text>
+  <text x="432" y="179" text-anchor="middle" class="t-mute">Browser · YouTube · Podcasts</text>
+
+  <!-- Other -->
+  <rect x="556" y="102" width="232" height="110" rx="5" class="card-1d"/>
+  <text x="672" y="137" text-anchor="middle" class="t-head">Other</text>
+  <text x="672" y="153" text-anchor="middle" class="t-sub">Documents · Emails</text>
+  <text x="672" y="167" text-anchor="middle" class="t-sub">Notes</text>
+
+  <line x1="192" y1="214" x2="192" y2="258" class="arr-flow" marker-end="url(#arrow)"/>
+  <line x1="432" y1="214" x2="432" y2="258" class="arr-flow" marker-end="url(#arrow)"/>
+  <line x1="672" y1="214" x2="672" y2="258" class="arr-dash" marker-end="url(#arrow)"/>
+
+  <!-- _inbox bucket -->
+  <rect x="76" y="260" width="712" height="54" rx="8" class="card-inbox"/>
+  <text x="432" y="282" text-anchor="middle" dominant-baseline="central" class="t-inbox">Zotero _inbox</text>
+  <text x="432" y="300" text-anchor="middle" dominant-baseline="central" class="t-inbox-sub">central collection bucket · all sources converge here</text>
+
+  <line x1="432" y1="316" x2="432" y2="396" class="arr-phase" marker-end="url(#arrow)"/>
+
+  <!-- ═══ PHASE 2 — FILTER ═══ -->
+  <circle cx="40" cy="404" r="9" class="dot-2"/>
+  <text x="40" y="408" text-anchor="middle" class="dot-num">2</text>
+  <text x="58" y="408" class="lbl-2">FILTER</text>
+  <text x="148" y="408" class="lbl-sub">— you decide · local previews assist · fully local</text>
+
+  <rect x="64" y="418" width="736" height="170" rx="8" class="panel-2"/>
+
+  <text x="154" y="434" class="t-sec">TAG LOGIC</text>
+  <rect x="154" y="440" width="208" height="34" rx="4" class="card-go"/>
+  <text x="168" y="457" dominant-baseline="central" class="t-go">✅  direct processing</text>
+  <rect x="154" y="480" width="208" height="34" rx="4" class="card-2"/>
+  <text x="168" y="497" dominant-baseline="central" class="t-amber">📖  Go/No-go only</text>
+  <rect x="154" y="520" width="208" height="34" rx="4" class="card-2"/>
+  <text x="168" y="537" dominant-baseline="central" class="t-amber">/unread  summary + decision</text>
+  <rect x="154" y="562" width="208" height="20" rx="4" class="card-olw"/>
+  <text x="258" y="572" text-anchor="middle" dominant-baseline="central" class="t-olw">summarize_item.py · local</text>
+
+  <line x1="362" y1="497" x2="376" y2="497" class="arr-inner" marker-end="url(#arrow)"/>
+
+  <rect x="380" y="472" width="136" height="56" rx="5" class="card-gray"/>
+  <text x="448" y="495" text-anchor="middle" dominant-baseline="central" class="t-head">Your</text>
+  <text x="448" y="511" text-anchor="middle" dominant-baseline="central" class="t-head">Go / No-go</text>
+
+  <line x1="516" y1="500" x2="530" y2="500" class="arr-inner" marker-end="url(#arrow)"/>
+
+  <rect x="534" y="472" width="152" height="34" rx="4" class="card-no"/>
+  <text x="610" y="489" text-anchor="middle" dominant-baseline="central" class="t-no">Reject → delete</text>
+  <rect x="534" y="514" width="152" height="34" rx="4" class="card-go"/>
+  <text x="610" y="531" text-anchor="middle" dominant-baseline="central" class="t-go">Approve → phase 3</text>
+
+
+  <line x1="432" y1="588" x2="432" y2="608" class="arr-phase" marker-end="url(#arrow)"/>
+
+  <!-- ═══ PHASE 3 — PROCESS &amp; STORE (raw → olw → wiki) ═══ -->
+  <circle cx="40" cy="616" r="9" class="dot-3"/>
+  <text x="40" y="620" text-anchor="middle" class="dot-num">3</text>
+  <text x="58" y="620" class="lbl-3">PROCESS &amp; STORE</text>
+  <text x="248" y="620" class="lbl-sub">— approved items only · content stays local</text>
+
+  <rect x="64" y="630" width="736" height="110" rx="8" class="panel-3"/>
+  <text x="76" y="646" class="t-sec">CLAUDE CODE · orchestrator — coordinates; only JSON status returns</text>
+  <text x="788" y="646" text-anchor="end" class="t-hd-sub">--hd → Sonnet 4.6 · optional · preview/helper · confirm first</text>
+
+  <!-- Pipeline: 4 stages, w=168 gap=13, x: 76,257,438,619 -->
+  <!-- Stage 1: Zotero item / fetch tools -->
+  <rect x="76" y="654" width="168" height="66" rx="5" class="card-3"/>
+  <text x="160" y="676" text-anchor="middle" dominant-baseline="central" class="t-head">Zotero item</text>
+  <text x="160" y="693" text-anchor="middle" dominant-baseline="central" class="t-sub">zotero-mcp · yt-dlp</text>
+  <text x="160" y="706" text-anchor="middle" dominant-baseline="central" class="t-mute">whisper.cpp — local fetch</text>
+
+  <!-- Stage 2: build-zotero-bundle → raw/ -->
+  <rect x="257" y="654" width="168" height="66" rx="5" class="card-2"/>
+  <text x="341" y="676" text-anchor="middle" dominant-baseline="central" class="t-head">build-zotero-bundle</text>
+  <text x="341" y="693" text-anchor="middle" dominant-baseline="central" class="t-amber">→  raw/  bundle</text>
+  <text x="341" y="706" text-anchor="middle" dominant-baseline="central" class="t-mute">verbatim text+notes+annots</text>
+
+  <!-- Stage 3: olw ingest → compile -->
+  <rect x="438" y="654" width="168" height="66" rx="5" class="card-olw"/>
+  <text x="522" y="676" text-anchor="middle" dominant-baseline="central" class="t-head">olw  ingest → compile</text>
+  <text x="522" y="693" text-anchor="middle" dominant-baseline="central" class="t-olw">mistral-small:22b · local</text>
+  <text x="522" y="706" text-anchor="middle" dominant-baseline="central" class="t-mute">→  wiki/.drafts/</text>
+
+  <!-- Stage 4: olw review gate -->
+  <rect x="619" y="654" width="168" height="66" rx="5" class="card-go"/>
+  <text x="703" y="676" text-anchor="middle" dominant-baseline="central" class="t-head">olw review</text>
+  <text x="703" y="693" text-anchor="middle" dominant-baseline="central" class="t-go">human Go/No-go gate</text>
+  <text x="703" y="706" text-anchor="middle" dominant-baseline="central" class="t-mute">approve → wiki/</text>
+
+  <!-- Pipeline arrows -->
+  <line x1="244" y1="687" x2="257" y2="687" class="arr-inner" marker-end="url(#arrow)"/>
+  <line x1="425" y1="687" x2="438" y2="687" class="arr-inner" marker-end="url(#arrow)"/>
+  <line x1="606" y1="687" x2="619" y2="687" class="arr-inner" marker-end="url(#arrow)"/>
+
+  <!-- Gate → wiki bucket -->
+  <line x1="703" y1="720" x2="703" y2="762" class="arr-wiki" marker-end="url(#arrow)"/>
+
+  <!-- wiki bucket -->
+  <rect x="76" y="764" width="712" height="54" rx="8" class="card-wiki"/>
+  <text x="432" y="785" text-anchor="middle" dominant-baseline="central" class="t-wiki">wiki/  —  compounding knowledge base</text>
+  <text x="432" y="804" text-anchor="middle" dominant-baseline="central" class="t-wiki-sub">concepts · sources/ · syntheses/  —  interlinked, olw-maintained, human-reviewed</text>
+
+  <!-- PRIVACY BAR -->
+  <rect x="64" y="836" width="736" height="56" rx="8" class="panel-priv"/>
+  <text x="76" y="852" class="t-sec">PRIVACY  —  source content never leaves the Mac</text>
+  <text x="76"  y="874" class="t-priv-ok">✅ Zotero+MCP</text>
+  <text x="188" y="874" class="t-priv-ok">✅ Obsidian</text>
+  <text x="280" y="874" class="t-priv-ok">✅ whisper.cpp</text>
+  <text x="392" y="874" class="t-priv-ok">✅ olw · mistral-small</text>
+  <text x="560" y="874" class="t-priv-ok">✅ Claude Code</text>
+  <text x="668" y="874" class="t-priv-warn">⚠ --hd → Anthropic</text>
+
+  <text x="410" y="908" text-anchor="middle" class="t-foot">v2.0 · capture → filter → process · raw → olw → wiki · mistral-small:22b (olw) · Sonnet 4.6 with --hd</text>
+</svg>
