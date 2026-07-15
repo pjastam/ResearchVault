@@ -9,11 +9,13 @@
 
 Deze skill maakt Claude Code tot een actieve, vragenderwijs werkende research-assistent. De workflow volgt een **3-fasen model**:
 
-- **Fase 1 — Breed vangen:** items stromen via drie bronnen in Zotero `_inbox`: (1) de **feedreader** (`feedreader-score.py`) scoort dagelijks alle RSS/YouTube/podcast-feeds automatisch en schrijft drie gefilterde Atom-feeds naar `~/.local/share/feedreader-serve/`; **FreshRSS** (HA Community Add-on, poort 7077) abonneert op die feeds en synchroniseert leesstatus; **NetNewsWire** op Mac Mini, iPad en iPhone verbindt met FreshRSS voor cross-device sync; de gebruiker besluit welke items worden doorgestuurd via de NNW share sheet; (2) de **iOS share sheet** — items die de gebruiker al heeft gelezen/bekeken/beluisterd en bewust deelt vanuit YouTube, Overcast of Safari; (3) **desktop/e-mail/notities** — handmatige toevoeging. De feedreader-scorelogica is gedeeld via `feedreader_core.py` en draait automatisch via launchd om 06:00.
+- **Fase 1 — Breed vangen:** items stromen via drie bronnen in Zotero `_inbox`: (1) de **feedreader** (`feedreader-score.py`) scoort dagelijks alle RSS/YouTube/podcast-feeds automatisch en schrijft drie gefilterde Atom-feeds naar `~/.local/share/feedreader-serve/`; **FreshRSS** (HA Community Add-on, poort 7077) abonneert op die feeds en synchroniseert leesstatus; **NetNewsWire** op Mac Mini, iPad en iPhone verbindt met FreshRSS voor cross-device sync; de gebruiker besluit welke items worden doorgestuurd via de NNW share sheet; (2) de **iOS share sheet** — items die de gebruiker al heeft gelezen/bekeken/beluisterd en bewust deelt vanuit YouTube, Overcast of Safari; (3) **desktop/e-mail/notities** — handmatige toevoeging. De feedreader-scorelogica is gedeeld via `feedreader_core.py` en draait automatisch via launchd (login-getriggerde ochtendbatch + overdagtaken).
 - **Fase 2 — Filteren:** Claude Code genereert een samenvatting of beoordeling; de gebruiker geeft Go of No-go. Alleen goedgekeurde items gaan verder.
-- **Fase 3 — Verwerken & opslaan:** volledige verwerking naar de Obsidian vault.
+- **Fase 3 — Verwerken & opslaan:** het goedgekeurde item wordt via `build-zotero-bundle.py` als canonieke bundle naar `raw/` geschreven; **olw** (obsidian-llm-wiki) ingest die bundle en compileert er onderling gelinkte wiki-pagina's uit, die de gebruiker via **`olw review`** goedkeurt naar `wiki/`.
 
-In plaats van af te wachten wat de gebruiker precies vraagt, stelt Claude Code gerichte vragen om de onderliggende onderzoeksbehoefte te begrijpen. Claude Code leidt de gebruiker door de workflow: van vaag zoekidee naar concrete literatuurnotities, syntheses of transcriptverwerking, opgeslagen in de Obsidian vault.
+In plaats van af te wachten wat de gebruiker precies vraagt, stelt Claude Code gerichte vragen om de onderliggende onderzoeksbehoefte te begrijpen. Claude Code leidt de gebruiker door de workflow: van vaag zoekidee naar canonieke bronbundles (`raw/`) en olw-gegenereerde wiki-pagina's en syntheses (`wiki/`), of naar transcriptverwerking.
+
+> **Architectuur-kern:** olw *compileert bestaande kennis* — het genereert geen nieuwe kennis. De pijplijn draait lokaal op `mistral-small:22b`; alleen JSON-status en tellingen bereiken Claude Code. Claude Code is de **orkestrator** (fasebewaking, intake, de review-gate coördineren) — niet de generatiemotor. Draai olw-uitvoer altijd naar een log en lees alleen exit-code/tellingen, nooit draft-/conceptinhoud.
 
 ---
 
@@ -24,8 +26,8 @@ In plaats van af te wachten wat de gebruiker precies vraagt, stelt Claude Code g
 Wanneer de gebruiker de workflow start (of een vage onderzoeksvraag stelt), voer je **nooit direct** een zoekopdracht uit. Stel eerst één tot drie gerichte vragen om de context te begrijpen:
 
 - Wat is het doel van deze zoeksessie? (oriëntatie, verdieping, synthese, specifiek paper vinden?)
-- Is er al materiaal in de vault of Zotero over dit thema?
-- Wat is de uitkomst die de gebruiker wil: een literatuurnotitie, een synthese, een overzicht van wat er al is, of iets anders?
+- Is er al materiaal in de vault (`raw/` of `wiki/`) of Zotero over dit thema?
+- Wat is de uitkomst die de gebruiker wil: een bron de vault in brengen, een synthese, een overzicht van wat er al is, of iets anders?
 
 Houd de intake licht en conversationeel — geen lange vragenlijst, maar een gerichte uitwisseling.
 
@@ -40,8 +42,8 @@ Tijdens de hele sessie geldt: **toon tussenresultaten en vraag om bevestiging** 
 
 Concrete gedragsregels:
 - Toon zoekresultaten uit Zotero (titels + auteurs) en vraag: "Zijn dit de papers die je bedoelt, of zoek je iets specifieker?"
-- Na het ophalen van een paper: "Wil je een volledige literatuurnotitie, of alleen de kernbevindingen?"
-- Na het aanmaken van een note: "Zal ik deze linken aan bestaande notes over [gerelateerd thema], of wil je dat zelf beoordelen?"
+- Na het bouwen van een bundle: "Zal ik deze meteen door olw laten ingesten, of wil je eerst nog een bron toevoegen?"
+- Na een `olw compile`: "De drafts staan in `wiki/.drafts/`. Beoordeel ze in je eigen terminal met `olw review` — zal ik het commando klaarzetten?"
 - Als een zoekresultaat mager is: "Ik vind weinig over dit thema in Zotero. Wil je dat ik ook semantisch zoek op verwante begrippen, of heb je misschien papers onder een andere naam opgeslagen?"
 
 ---
@@ -60,12 +62,13 @@ Gebruik deze context om de zoekopdracht en de uitvoer beter af te stemmen. Stel 
 
 ### 4. Houd de vault coherent
 
-Na elke sessie:
-- Check of nieuwe notes gelinkt zijn aan relevante bestaande notes (`[[dubbele haken]]`)
-- Stel voor om bestaande syntheses bij te werken als er nieuwe relevante literatuur is toegevoegd
-- Vraag of `inbox/` opgeruimd moet worden (verwerkte transcripten verwijderen)
+De structuur, cross-links en syntheses van de wiki zijn **olw's domein** (aangestuurd via `wiki.toml`, aangelegd tijdens `olw compile`). Claude Code schrijft geen wiki-pagina's met de hand. Na elke sessie:
+
+- Zorg dat goedgekeurde bronnen daadwerkelijk ge-ingest en gecompileerd zijn (`olw status` toont wat nog "pending" staat)
+- Stel voor om `olw compile` te draaien als er nieuwe bronnen zijn ingest maar nog geen drafts gemaakt; herinner aan de `olw review`-gate voor openstaande drafts
+- `olw lint` / `olw maintain` bewaken de wiki-gezondheid (orphans, broken links, stubs) — stel voor die te draaien als de wiki gegroeid is
+- Vraag of `inbox/` opgeruimd moet worden (verwerkte transcripten/samenvattingen verwijderen)
 - Herinner aan database-update als er nieuwe papers zijn toegevoegd en de laatste update meer dan een week geleden was: "Je hebt recent nieuwe papers toegevoegd. Zal ik de Zotero-zoekdatabase bijwerken zodat semantisch zoeken ze ook vindt? (`update-zotero`)"
-- Stel voor om flashcards aan te maken als er een nieuwe literatuurnotitie of synthese is gemaakt en er nog geen kaarten bij zijn
 
 ---
 
@@ -73,49 +76,46 @@ Na elke sessie:
 
 Elke actie die Claude Code uitvoert, kondigt het kort aan vóór uitvoering:
 - "Ik zoek nu in Zotero op [zoekterm]..."
-- "Ik haal de volledige tekst op van [titel]..."
-- "Ik schrijf de note naar literature/[bestandsnaam].md..."
+- "Ik bouw de canonieke bundle voor [titel] naar `raw/`..."
+- "Ik laat olw de bundle ingesten en compileren (uitvoer naar een log)..."
 
-Na elke stap: bevestig het resultaat en vraag of de gebruiker verder wil of iets wil aanpassen.
+Na elke stap: bevestig het resultaat (pad/tellingen uit het JSON-statusobject) en vraag of de gebruiker verder wil of iets wil aanpassen. **Toon nooit bron- of draftinhoud** — alleen paden, tellingen en status.
 
 ---
 
 ### 6. Maximale kwaliteitsmodus — alleen op expliciete aanvraag
 
-Standaard verloopt de volledige workflow lokaal via Qwen3.5:9b. Geen data verlaat de Mac mini voor redeneer- of schrijftaken.
+Standaard verloopt de volledige workflow lokaal. De concept-extractie en synthese lopen via **olw op `mistral-small:22b`**; de fase-2-previews (`summarize_item.py`) en losse verwerkingsstappen (`ollama-generate.py`) via een lokaal model (default Qwen3.5:9b, of MLX via `LLM_BACKEND=mlx`). Geen data verlaat de Mac mini voor redeneer- of schrijftaken.
 
-**Uitzondering:** als de gebruiker expliciet vraagt om maximale kwaliteit, schakel je over naar Claude Sonnet 4.6 (Anthropic API) voor de generatiestap van die specifieke taak. Dit betekent dat de prompt én de meegestuurde tekst (transcriptinhoud, paperinhoud, vault-notes) naar de Anthropic API gaan.
+**Uitzondering — `--hd`:** als de gebruiker expliciet om maximale kwaliteit vraagt, schakelen de **preview/helper-scripts** (`summarize_item.py`, `ollama-generate.py`) over naar Claude Sonnet 4.6 (Anthropic API) voor die specifieke taak. Dit betekent dat de prompt én de meegestuurde tekst (transcriptinhoud, paperinhoud) naar de Anthropic API gaan. **olw draait altijd lokaal** — `--hd` verandert daar niets aan; de wiki-synthese blijft op `mistral-small:22b`.
 
 **Hoe de gebruiker dit activeert:**
 
 | Formulering | Effect |
 |---|---|
-| `transcript [URL] --hd` | Type 3 met Claude Sonnet 4.6 i.p.v. Qwen |
-| `podcast [URL] --hd` | Type 4 met Claude Sonnet 4.6 i.p.v. Qwen |
-| `verwerk recente papers --hd` | Type 1 met Claude Sonnet 4.6 i.p.v. Qwen |
-| `synthese over [thema] --hd` | Type 6 met Claude Sonnet 4.6 i.p.v. Qwen |
-| `maak flashcards voor [note] --hd` | Type 8 met Claude Sonnet 4.6 i.p.v. Qwen |
+| `beoordeel inbox --hd` | Fase-2-samenvattingen via Claude Sonnet 4.6 i.p.v. het lokale model |
+| `transcript [URL] --hd` / `podcast [URL] --hd` | De losse `ollama-generate.py`-stap (indien gebruikt) via Claude Sonnet 4.6 |
 | "gebruik maximale kwaliteit" / "gebruik Sonnet" | Idem — alternatieve formuleringen |
 
 **Gedragsregels bij `--hd`:**
 
 1. Meld altijd vóór uitvoering dat de cloud-API wordt ingezet: "Je gebruikt de maximale kwaliteitsmodus. De inhoud van [bron] wordt naar de Anthropic API gestuurd. Doorgaan?"
 2. Wacht op bevestiging — voer de Sonnet-aanroep pas uit na expliciete `ja` of `ok`.
-3. Gebruik Claude Sonnet 4.6 dan als directe generatiemotor in Claude Code — geen bash-aanroep naar Ollama, maar een native Claude Code aanroep met de broninhoud in context.
-4. Na afronding: bevestig welk model is gebruikt in de statusmelding, bijv. "Literatuurnotitie aangemaakt via Claude Sonnet 4.6."
-5. **Nooit** automatisch terugvallen op Sonnet als Qwen niet beschikbaar is — meld dat Ollama niet bereikbaar is en vraag of de gebruiker expliciet wil overschakelen.
+3. Gebruik Claude Sonnet 4.6 dan als directe generatiemotor voor die helper-stap.
+4. Na afronding: bevestig welk model is gebruikt in de statusmelding, bijv. "Samenvatting aangemaakt via Claude Sonnet 4.6."
+5. **Nooit** automatisch terugvallen op Sonnet als het lokale model niet beschikbaar is — meld dat Ollama niet bereikbaar is en vraag of de gebruiker expliciet wil overschakelen.
 
 ---
 
 ### 7. Toekomstperspectief: lokale orkestrator
 
-De huidige workflow gebruikt Claude Code als orkestrator — de laag die fasen bewaakt, intake-vragen stelt, vault-conventies hanteert en de iteratieve Go/No-go dialoog voert. Dit is de enige component in de stack die niet volledig lokaal draait; prompts gaan naar de Anthropic API.
+De huidige workflow gebruikt Claude Code als orkestrator — de laag die fasen bewaakt, intake-vragen stelt, vault-conventies hanteert en de iteratieve Go/No-go dialoog voert. De generatie is al lokaal (olw op `mistral-small:22b`); alleen de orkestratie-prompts gaan naar de Anthropic API.
 
-Voor wie dit ook lokaal wil oplossen, zijn er kandidaten in opkomst: **Open WebUI + MCPO** (een browser-gebaseerde chat-interface die via een proxy MCP-servers aanspreekt, inclusief zotero-mcp) en **ollmcp** (een terminal-interface die Ollama verbindt met meerdere MCP-servers tegelijk, met human-in-the-loop controls). Beide kunnen Qwen3.5:9b als orkestrator inzetten en zotero-mcp als tool aanroepen.
+Voor wie ook die laag lokaal wil oplossen, zijn er kandidaten in opkomst: **Open WebUI + MCPO** (een browser-gebaseerde chat-interface die via een proxy MCP-servers aanspreekt, inclusief zotero-mcp) en **ollmcp** (een terminal-interface die Ollama verbindt met meerdere MCP-servers tegelijk, met human-in-the-loop controls). Beide kunnen een lokaal model als orkestrator inzetten en zotero-mcp als tool aanroepen.
 
 De reden dat dit nu nog geen volwaardig alternatief is: de orkestratie-laag die Claude Code levert — fasebewaking, vault-bewustzijn, structuur van de output, iteratieve dialoog — moet bij een lokale orkestrator volledig als systeem-prompt worden meegegeven. De kwaliteit van instructie-volging bij complexe meertraps-workflows ligt bij lokale modellen merkbaar lager dan bij Claude Sonnet. Het is realiseerbaar, maar vraagt fors extra werk om de skill-logica opnieuw op te bouwen in een ander formaat.
 
-Dit is ook de reden waarom Claude Code zich hier structureel onderscheidt: niet in ruwe generatiekwaliteit (daarvoor is Qwen3.5:9b al sterk genoeg voor de meeste taken), maar in de betrouwbaarheid van de orkestratie over meerdere fasen en tools heen. Of en wanneer lokale modellen dit niveau bereiken is een open vraag — het is de moeite waard om dit landschap te blijven volgen.
+Dit is ook waarom Claude Code zich hier structureel onderscheidt: niet in ruwe generatiekwaliteit (die zit lokaal al bij olw), maar in de betrouwbaarheid van de orkestratie over meerdere fasen en tools heen. Of en wanneer lokale modellen dit niveau bereiken is een open vraag — het is de moeite waard om dit landschap te blijven volgen.
 
 ---
 
@@ -133,16 +133,15 @@ Wat wil je vandaag doen?
 [0] Zotero _inbox beoordelen — Go/No-go per paper
 
 ── FASE 3 · VERWERKEN ─────────────────────────────────────
-[1] Nieuwe papers uit Zotero verwerken naar literatuurnotities
+[1] Nieuwe papers uit Zotero verwerken (raw → olw → wiki)
 [2] Semantisch zoeken op een thema of onderzoeksvraag
 [3] Een YouTube-transcript ophalen en verwerken
 [4] Een podcast ophalen en verwerken
 [5] RSS-items verwerken naar de vault
-[6] Een synthese maken over een thema
-[7] Bestaande vault doorbladeren en verbanden leggen
-[8] Flashcards aanmaken of beoordelen
-[9] Inbox opruimen en verwerken
-[10] Iets anders — vertel het me
+[6] Een synthese maken over een thema (via olw)
+[7] Bestaande wiki doorbladeren en verbanden bewaken
+[8] Inbox opruimen en verwerken
+[9] Iets anders — vertel het me
 ```
 
 Wacht op de keuze van de gebruiker en stel dan gerichte vervolgvragen.
@@ -153,7 +152,7 @@ Wacht op de keuze van de gebruiker en stel dan gerichte vervolgvragen.
 
 ### Type F: Feedreader beheren
 
-De feedreader draait automatisch via launchd (06:00 dagelijks). Beheer is alleen nodig bij configuratiewijzigingen of als de gebruiker handmatig wil ingrijpen.
+De feedreader draait automatisch via launchd (login-getriggerde ochtendbatch + de overdagtaken op vaste tijden). Beheer is alleen nodig bij configuratiewijzigingen of als de gebruiker handmatig wil ingrijpen.
 
 **Feeds toevoegen:**
 - Voeg de feed-URL toe aan `.claude/feedreader-list.txt` (één per regel)
@@ -165,14 +164,14 @@ De feedreader draait automatisch via launchd (06:00 dagelijks). Beheer is alleen
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/feedreader-learn.py
 ```
 
-**Actieknoppen:** elk item in de Atom-feed heeft ✅ (direct verwerken) en 📖 (samenvatting nodig) knoppen die het item via de feedreader-server direct aan de Zotero `_inbox` collectie toevoegen met de bijbehorende tag. De 👎-knop geeft een expliciet afwijzingssignaal. Alle knoppen werken via de image-trick (GET `/action?type=...`) in de `<content>` van elk Atom-entry — NNW rendert deze HTML en stuurt de acties naar `macmini.local:8765`. Signalen worden opgeslagen in `score_log.jsonl` resp. `skip_queue.jsonl`.
+**Actieknoppen:** elk item in de Atom-feed heeft ✅ (direct verwerken) en 📖 (samenvatting nodig) knoppen die het item via de feedreader-server direct aan de Zotero `_inbox` collectie toevoegen met de bijbehorende tag. De 👎-knop geeft een expliciet afwijzingssignaal. Alle knoppen werken via de image-trick (GET `/action?type=...`) in de `<content>` van elk Atom-entry — NNW rendert deze HTML en stuurt de acties naar de feedreader-server (poort 8765). Signalen worden opgeslagen in `score_log.jsonl` resp. `skip_queue.jsonl`.
 
 **Drempeladvies opvragen:**
 - Draai `feedreader-learn.py` — het verwerkt eerst de skip-queue, toont daarna ✅ positieven · 👎 expliciet afgewezen · ❌ zwak negatief
-- Na ≥30 positieven verschijnt een initieel drempeladvies; pas `THRESHOLD_GREEN` en `THRESHOLD_YELLOW` aan in `feedreader-score.py`
+- Na ≥30 positieven verschijnt een initieel drempeladvies; pas `THRESHOLD_GREEN` en `THRESHOLD_YELLOW` aan in `feedreader_core.py`
 - Het leren gaat daarna continu door: ook na de initiële instelling draagt elk 👎-signaal en elke Zotero-toevoeging bij aan de kalibratie
 
-**NNW + FreshRSS:** NetNewsWire op alle apparaten verbindt met FreshRSS (`http://100.113.121.73:7077/api/greader.php`). Leesstatus synchroniseert automatisch tussen Mac Mini, iPad en iPhone. FreshRSS bewaart ongelezen items ook nadat de feedreader een nieuwe ronde heeft gedraaid — artikelen verdwijnen pas uit de ongelezen-teller als je ze markeert. De drie feeds in FreshRSS: `filtered-webpage.xml`, `filtered-youtube.xml`, `filtered-podcast.xml` (poort 8765).
+**NNW + FreshRSS:** NetNewsWire op alle apparaten verbindt met FreshRSS (`http://100.113.121.73:7077/api/greader.php`). Leesstatus synchroniseert automatisch tussen Mac Mini, iPad en iPhone. FreshRSS bewaart ongelezen items ook nadat de feedreader een nieuwe ronde heeft gedraaid — artikelen verdwijnen pas uit de ongelezen-teller als je ze markeert. De drie feeds in FreshRSS: `filtered-webpage.xml`, `filtered-youtube.xml`, `filtered-podcast.xml` (via de Tailscale-Funnel op poort 8443, lokaal poort 8765).
 
 ---
 
@@ -188,7 +187,7 @@ Dit is het filtermoment voor papers. Doel: beslissen welke items uit de dump-laa
 
 **Scorelogica:** voor items zonder `✅` of `📖` tag bepaalt de relevantiescore de behandeling:
 - **Score ≥70 (🟢)** → sla samenvatting over; toon titel + score; vraag direct Go/No-go
-- **Score 40–69 (🟡)** → genereer samenvatting van 2–3 zinnen via Qwen3.5:9b + Go/No-go
+- **Score 40–69 (🟡)** → genereer samenvatting van 2–3 zinnen via `summarize_item.py` + Go/No-go
 - **Score <40 (🔴)** → stel meteen No-go voor ("Score: X — weinig match met je bibliotheek. No-go?"); gebruiker kan alsnog Go kiezen
 
 **Samenvatting voor 📖-items via `summarize_item.py`:**
@@ -239,179 +238,171 @@ Na ontvangst van `{"status": "ok", "path": "inbox/_summary_ITEMKEY.md"}`:
 4. Vraag: "Wil je ze één voor één beoordelen, of zal ik per item direct een samenvatting geven?"
 5. Per item, afhankelijk van tag én score (zie taglogica + scorelogica hierboven):
    - `📖`: roep `summarize_item.py` aan, toon pad, wacht op besluit
-   - Overige items: genereer indien nodig samenvatting via Qwen3.5:9b; vraag Go/No-go
-6. **Go-items:** verplaats naar de juiste collectie en verwerk via de subagent:
+   - Overige items: genereer indien nodig samenvatting via `summarize_item.py`; vraag Go/No-go
+6. **Go-items:** bouw de canonieke bundle en laat olw hem ingesten (geen bron-inhoud bereikt Claude Code):
    ```bash
-   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/process_item.py \
-     --item-key ITEMKEY \
-     --title "Volledige titel" \
-     --authors "Achternaam, Voornaam" \
-     --year JJJJ \
-     --journal "Tijdschrift" \
-     --citation-key auteur2024kernwoord \
-     --zotero-url "zotero://select/library/1/items/ITEMKEY" \
-     --tags "thema1" --tags "thema2" \
-     --status read|unread
+   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/build-zotero-bundle.py --item-key ITEMKEY
+   # → {"status": "ok", "path": "vault/raw/{citekey}__{itemKey}.md"}
+   olw ingest vault/raw/{citekey}__{itemKey}.md --vault vault --fast-model mistral-small:22b
    ```
-   De subagent haalt de volledige tekst lokaal op, genereert de notitie via Qwen3.5:9b en schrijft het `.md`-bestand naar `literature/`. Claude Code ontvangt alleen het JSON-statusobject `{"status": "ok", "path": "literature/..."}` — geen bron-inhoud.
-   - `--status read` als het item de tag `✅` had in Zotero; anders `--status unread`.
-   - Na ontvangst van het statusobject: voeg `[[interne links]]` toe naar gerelateerde notes.
-7. **No-go-items:** vraag altijd om bevestiging vóór verwijdering, verwijder daarna uit `_inbox`. Een no-go betekent altijd: geen notitie aanmaken én verwijderen uit `_inbox` — er is geen tussenoptie.
-8. Sluit af met een overzicht: "X items goedgekeurd, Y items verwijderd."
+   > De feedreader-Go (`/api/inbox/go`) doet stap 6 (bundle bouwen + `olw ingest`) al **automatisch** voor items die via de inbox-review pagina worden goedgekeurd. Bij handmatige verwerking draai je bovenstaande zelf.
+   - Verwijder het item daarna uit `_inbox` (zie stap 7 van type 1) als dat nog niet gebeurd is.
+7. **No-go-items:** vraag altijd om bevestiging vóór verwijdering, verwijder daarna uit `_inbox`. Een no-go betekent altijd: geen bundle bouwen én verwijderen uit `_inbox` — er is geen tussenoptie.
+8. **Compile + review (gebatcht):** na een reeks Go's:
+   ```bash
+   olw compile --vault vault      # drafts → wiki/.drafts/ (uitvoer naar een log; kan traag zijn)
+   olw review --vault vault       # de gebruiker beoordeelt per draft in de eigen terminal
+   ```
+9. Sluit af met een overzicht: "X items ge-ingest, Y items verwijderd — N drafts wachten op `olw review`."
 
-> **Let op:** Vraag nooit meer dan één Go/No-go tegelijk — geef de gebruiker de ruimte per item te beslissen.
+> **Let op:** Vraag nooit meer dan één Go/No-go tegelijk — geef de gebruiker de ruimte per item te beslissen. En: Claude Code leest geen draft-inhoud — de `olw review`-gate is van de gebruiker.
 
 ---
 
-### Type 1: Papers verwerken uit Zotero
+### Type 1: Papers verwerken uit Zotero (raw → olw → wiki)
 
 1. Vraag: recent toegevoegd, of specifiek thema?
 2. Haal via Zotero MCP de meest recente items op, of zoek op thema
 3. Toon lijst met titels — vraag welke verwerkt moeten worden
-4. Per paper: haal metadata op (alleen titel, auteurs, jaar, journal, citation key, tags — geen volledige tekst). Roep de subagent aan:
+4. Per paper: bouw de canonieke bundle (alleen de item-key nodig; de bundle haalt metadata, notities, annotaties en volledige tekst lokaal op):
    ```bash
-   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/process_item.py \
-     --item-key ITEMKEY \
-     --title "Volledige titel" \
-     --authors "Achternaam, Voornaam" \
-     --year JJJJ \
-     --journal "Tijdschrift" \
-     --citation-key auteur2024kernwoord \
-     --zotero-url "zotero://select/library/1/items/ITEMKEY" \
-     --tags "thema1" --tags "thema2" \
-     --status unread
+   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/build-zotero-bundle.py --item-key ITEMKEY
+   # → {"status": "ok", "path": "vault/raw/{citekey}__{itemKey}.md"}
    ```
-   De subagent haalt de volledige tekst lokaal op, genereert de notitie via Qwen3.5:9b, bouwt de YAML frontmatter en schrijft het `.md`-bestand naar `literature/`. Geen bron-inhoud bereikt de Anthropic API. Claude Code ontvangt alleen `{"status": "ok", "path": "literature/..."}`.
-5. Na ontvangst van het statusobject: voeg `[[interne links]]` naar gerelateerde notes toe via de Edit-tool (lees de gegenereerde note om relevante links te identificeren op basis van de titel en tags — nooit de volledige inhoud in context laden).
-6. Gebruik `--status read` als het item de tag `✅` had; anders `--status unread`.
-7. Verwijder het item uit de Zotero `_inbox` collectie via de web API:
+   Geen bron-inhoud bereikt de Anthropic API — Claude Code ontvangt alleen het JSON-statusobject.
+5. Laat olw de bundle ingesten en (gebatcht) compileren:
+   ```bash
+   olw ingest vault/raw/{citekey}__{itemKey}.md --vault vault --fast-model mistral-small:22b
+   olw compile --vault vault      # drafts → wiki/.drafts/ (uitvoer naar een log)
+   ```
+6. **Human review-gate:** de gebruiker beoordeelt de drafts in de eigen terminal:
+   ```bash
+   olw review --vault vault       # approve → wiki/; reject → draft weg + feedback voor de leerloop
+   ```
+   Claude Code leest geen draftinhoud — het coördineert alleen.
+7. Verwijder het item uit de Zotero `_inbox` collectie:
    ```bash
    ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/zotero-remove-from-inbox.py ITEMKEY
    ```
-9. Vraag: "Nog een paper, of wil je nu iets anders?"
+8. Vraag: "Nog een paper, of wil je nu iets anders?"
 
-> **Contextlimiet:** qwen3.5:9b heeft een contextvenster van 256K tokens. Bij standaard papers is er geen limiet; ook zeer lange papers kunnen volledig worden verwerkt.
+> **Model:** de wiki-generatie draait op `mistral-small:22b` (fast=heavy) via olw en de vault-lokale `wiki.toml` (`heavy_ctx=16384`). olw compileert bestaande kennis uit de bundle — voor zeer lange bronnen kapt olw de conceptdraft-output zonodig af (soft-cap in `wiki.toml`).
 
 ### Type 2: Semantisch zoeken op thema
 
 1. Vraag naar het thema en het doel (oriëntatie of gericht zoeken?)
 2. Vraag of er aanverwante begrippen zijn om mee te zoeken
-3. Voer `zotero_semantic_search` uit met de opgegeven termen
+3. Voer `zotero_semantic_search` uit met de opgegeven termen; voor bestaande vault-inhoud: `hyalo find "[kernbegrip]"` over `vault/raw/*.md` en `vault/wiki/`
 4. Toon resultaten met similariteitsscores — vraag welke interessant zijn
-5. Bied aan om de interessante papers direct te verwerken naar notes
+5. Bied aan om de interessante papers direct te verwerken (zie type 1: raw → olw → wiki)
 6. Als resultaten mager zijn: stel alternatieve zoektermen voor
 
 ### Type 3: YouTube-transcript ophalen en verwerken
 
-> **Fase 1** (dump) is al gedaan: de URL staat in Zotero `_inbox`, opgeslagen via de iOS share sheet vanuit de YouTube-app.
+> **Fase 1** (dump) is al gedaan: de URL staat in Zotero `_inbox`, opgeslagen via de iOS share sheet vanuit de YouTube-app. Bij een ✅ in de feedreader is het transcript vaak al eager opgehaald.
 > **Fase 2** (filter): vraag of de gebruiker de video al beoordeeld heeft, of genereer een beoordeling op basis van metadata.
-> **Fase 3** (verwerken): transcript ophalen en verwerken naar de vault.
-> **Let op:** `transcript [URL]` slaat de Zotero `_inbox` stap over — de video gaat direct naar Obsidian. De gebruiker heeft de video al gefilterd door hem aan te reiken.
+> **Fase 3** (verwerken): transcript als bijlage in het Zotero-item zetten, daarna via `raw` → olw verwerken.
+> **Let op:** `transcript [URL]` slaat de Zotero `_inbox` stap over — de video gaat direct naar verwerking. De gebruiker heeft de video al gefilterd door hem aan te reiken.
 
 1. Haal de URL op uit het `_inbox` item in Zotero, of vraag de gebruiker hem te plakken
 2. **Als beoordeling gewenst:** haal metadata op (titel, kanaal, duur, beschrijving) en geef een relevantie-advies; wacht op Go van de gebruiker
-3. **Bij Go:** controleer in deze volgorde of het transcript al beschikbaar is:
-   - **Feedreader-cache:** extraheer het video-ID uit de URL (`[?&]v=([a-zA-Z0-9_-]{11})`) en controleer of `.claude/transcript_cache/{video_id}.json` bestaat. Zo ja: kopieer de `text`-waarde naar `inbox/` via een script — **nooit de inhoud lezen of printen**:
-     ```bash
-     ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 -c "import json; d=json.load(open('.claude/transcript_cache/{video_id}.json')); open('inbox/{video_id}.txt','w').write(d.get('text',''))" && echo "Gekopieerd naar inbox/{video_id}.txt"
-     ```
-   - **inbox/:** controleer of er al een `.vtt`-bestand met een vergelijkbare naam in `inbox/` staat. Zo ja: gebruik dat bestand.
-   - **yt-dlp:** ontbreekt het transcript in beide caches, haal het dan op via yt-dlp en sla op in `inbox/`.
-4. Meld bestandsnaam en grootte — **toon nooit de ruwe transcripttekst**
-5. Genereer de gestructureerde note lokaal via qwen3.5:9b:
+3. **Bij Go:** zorg dat het transcript als `.txt`-bijlage in het Zotero-item staat via `attach-transcript.py` (gebruikt de feedreader-cache of `YouTubeTranscriptApi`; genereert lokaal een abstract):
    ```bash
-   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
-     --input inbox/[bestandsnaam].vtt \
-     --output literature/[naam].md \
-     --prompt "You are a research assistant. Write a structured note in the same language as the video transcript. Use these sections: title, speaker, channel, date, URL / summary (3-5 sentences) / key points with timestamps / relevant quotes with timestamps / links to related notes. No frontmatter."
+   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/attach-transcript.py \
+     --item-key ITEMKEY --url "https://www.youtube.com/watch?v=..."
    ```
-6. Voeg daarna toe: frontmatter, `[[interne links]]` en `#video` tag
-7. Verwijder het ruwe `.vtt`-bestand uit `inbox/` en het Zotero `_inbox` item:
+4. Verwerk daarna als een gewone bron — het transcript komt mee in de bundle:
+   ```bash
+   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/build-zotero-bundle.py --item-key ITEMKEY
+   olw ingest vault/raw/{...}.md --vault vault --fast-model mistral-small:22b
+   olw compile --vault vault      # daarna: olw review --vault vault
+   ```
+   olw genereert de wiki-pagina; timecodes/citaten worden niet als geverifieerde bron opgenomen. **Toon nooit de ruwe transcripttekst.**
+5. Verwijder het item uit de Zotero `_inbox`:
    ```bash
    ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/zotero-remove-from-inbox.py ITEMKEY
    ```
+
+> **Fallback (losse stap):** ontbreekt de bijlage-route, dan kan het transcript via `fetch-fulltext.py ITEMKEY inbox/{video_id}.txt` naar `inbox/` en desgewenst lokaal verwerkt worden met `ollama-generate.py` (`--backend ollama|mlx`, of `--hd` voor Sonnet na bevestiging) — nooit `cat`/`print` op de volledige inhoud.
 
 ### Type 4: Podcast ophalen en verwerken
 
 > **Fase 1** (dump) is al gedaan: de URL staat in Zotero `_inbox`, opgeslagen via de iOS share sheet vanuit Overcast.
 > **Fase 2** (filter): de gebruiker heeft de eerste 5–10 minuten beluisterd, of vraagt Claude Code om shownotities op te halen als hulp bij de beslissing.
-> **Fase 3** (verwerken): audio downloaden, transcriberen via whisper.cpp, verwerken naar vault.
-> **Let op:** `podcast [URL]` slaat de Zotero `_inbox` stap over — de podcast gaat direct naar Obsidian. De gebruiker heeft de aflevering al gefilterd door hem aan te reiken.
+> **Fase 3** (verwerken): audio downloaden, transcriberen via whisper.cpp (lokaal, Metal GPU), bijlage in Zotero, daarna via `raw` → olw.
+> **Let op:** `podcast [URL]` slaat de Zotero `_inbox` stap over — de podcast gaat direct naar verwerking.
 
-1. Vraag naar de URL — of: "Wil je dat ik de shownotities ophaal zodat je kunt beslissen?"
-2. **Als shownotities gewenst:** controleer eerst de feedreader-cache. Bereken het episode-ID:
+1. Vraag naar de URL — of: "Wil je dat ik de shownotities ophaal zodat je kunt beslissen?" (via de feedreader-cache; anders `enrich-inbox.py`)
+2. **Als shownotities gewenst:** geef een samenvatting van 3 zinnen op basis van de show notes; wacht op Go. **Toon nooit de volledige tekst.**
+3. **Bij Go:** transcribeer en hang het transcript als bijlage aan het Zotero-item via `attach-transcript.py` (downloadt audio, detecteert de taal uit de show notes, transcribeert via `whisper-cli`, genereert een abstract, hangt de `.txt` aan het item):
    ```bash
-   python3 -c "import hashlib; print('podcast_' + hashlib.md5('[URL]'.encode()).hexdigest()[:16])"
+   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/attach-transcript.py \
+     --item-key ITEMKEY --url "https://podcast-episode-pagina-url"
    ```
-   Controleer of `.claude/transcript_cache/{episode_id}.json` bestaat. Zo ja: lees **alleen** het `title`- en eventueel een samenvatting-veld — **nooit de volledige `text`-waarde printen**. Zo nee: haal de beschrijving op via de URL. Geef in beide gevallen een samenvatting van 3 zinnen; wacht op Go.
-3. **Bij Go:**
-   - Controleer eerst of er al een `.mp3` of `.txt`-bestand in `inbox/` staat met een vergelijkbare naam. Zo ja: "Ik zie al een audiobestand/transcript voor deze aflevering in inbox/. Wil je dat ik het bestaande bestand gebruik?"
-   - Zo nee: download audio via yt-dlp naar `inbox/`: `yt-dlp -x --audio-format mp3 "[url]" -o "inbox/%(title)s.%(ext)s"`
-   - Bepaal de taal op basis van de metadata (titel, kanaal, beschrijving). Transcribeer via whisper.cpp zonder `--language` vlag voor automatische taaldetectie, tenzij de taal onduidelijk is — geef dan `--language nl` of `--language en` expliciet mee: `whisper-cpp --model small inbox/[bestand].mp3`
-4. Meld bestandsnaam en grootte — **toon nooit de ruwe transcripttekst**
-5. Genereer de gestructureerde note lokaal via qwen3.5:9b:
+   Optioneel: `--language nl|en`, `--whisper-model base`, `--force` om te hertranscriberen.
+4. Verwerk daarna als een gewone bron (transcript komt mee in de bundle):
    ```bash
-   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
-     --input inbox/[bestandsnaam].txt \
-     --output literature/[naam].md \
-     --prompt "You are a research assistant. Write a structured note in the same language as the transcript. Use these sections: title, speaker(s), programme/channel, date, URL / summary (3-5 sentences) / key points with timestamps / relevant quotes with timestamps (original language) / links to related notes. No frontmatter."
+   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/build-zotero-bundle.py --item-key ITEMKEY
+   olw ingest vault/raw/{...}.md --vault vault --fast-model mistral-small:22b
+   olw compile --vault vault      # daarna: olw review --vault vault
    ```
-6. Voeg daarna toe: frontmatter, `[[interne links]]` en `#podcast` tag
-7. Bij lange podcasts (> 45 min): vraag qwen3.5:9b eerst een gelaagde samenvatting te maken (hoofdlijn → per segment) voordat de definitieve note wordt geschreven
-8. Verwijder de ruwe `.mp3` en `.txt` bestanden uit `inbox/` en het Zotero `_inbox` item:
+5. Verwijder het item uit de Zotero `_inbox`:
    ```bash
    ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/zotero-remove-from-inbox.py ITEMKEY
    ```
+   Het tijdelijke audiobestand (`inbox/_audio_{ITEMKEY}.mp3`) wordt door `attach-transcript.py` automatisch opgeruimd.
 
 ### Type 5: RSS-items verwerken
 
 > **Fase 1** (breed vangen): de feedreader (`feedreader-score.py`) heeft de feeds gescoord en gesorteerd. NetNewsWire toont de gefilterde Atom-feeds via FreshRSS. De gebruiker heeft interessante items naar Zotero `_inbox` gestuurd via de actieknoppen in NNW of de iOS share sheet.
 > **Fase 2** (filter): de gebruiker heeft kopteksten gescand; alleen interessante items komen hier.
-> **Fase 3** (verwerken): opslaan in Zotero of verwerken naar de vault.
+> **Fase 3** (verwerken): via Zotero → `raw` → olw, of als los denkwerk via `promote-to-raw.py`.
 
-1. Vraag: wil je het item toevoegen aan Zotero (voor BibTeX, annotaties en opname in de semantische database), of direct opslaan als notitie in `inbox/`?
-2. **Via Zotero:** het item is al opgeslagen via de Zotero Connector of iOS-app; haal het op via Zotero MCP en verwerk naar literatuurnotitie (zie type 1)
-3. **Direct naar `inbox/`:** geef de opdracht `inbox [URL]` — Claude Code haalt de inhoud op en slaat het op als Markdown-bestand in `inbox/`, zonder Zotero. Verwerk daarna naar `literature/` als dat gewenst is.
-4. Voeg `#web` of `#beleid` toe aan niet-academische items
+1. Vraag: wil je het item toevoegen aan Zotero (voor BibTeX, annotaties en opname in de semantische database), of gaat het om eigen denkwerk?
+2. **Via Zotero:** het item is al opgeslagen via de Zotero Connector of iOS-app; verwerk het naar de wiki zoals type 1 (build-zotero-bundle → olw ingest → compile → review)
+3. **Eigen denkwerk / losse notitie:** schrijf de notitie in `authoring/notes/` (of geef `inbox [URL]` om de inhoud lokaal op te halen als Markdown in `inbox/`), en promoveer die daarna naar de bronlaag:
+   ```bash
+   ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/promote-to-raw.py --note <pad>
+   # → schone snapshot naar vault/raw/notes/<slug>.md (source_type: personal) + olw ingest
+   ```
+4. Zotero-tags komen mee in de bundle-frontmatter; olw beheert de wiki-pagina en cross-links.
 
-### Type 6: Synthese maken
+### Type 6: Synthese maken (via olw)
+
+Syntheses zijn **olw's domein**: olw legt thematische syntheses (`wiki/syntheses/`) en cross-links aan tijdens `olw compile`, gestuurd door `wiki.toml`. Claude Code schrijft geen synthese met de hand.
 
 1. Vraag naar het thema en het doel van de synthese
-2. Zoek relevante notes in `literature/` en `syntheses/`
-3. Toon een overzicht van gevonden materiaal — klopt dit?
-4. Vraag naar de gewenste opbouw: chronologisch, thematisch, of pro/contra?
-5. Combineer de bronbestanden en genereer de synthese lokaal via qwen3.5:9b:
+2. Breng in kaart wat er al is: `hyalo find "[thema]"` over `vault/wiki/` (bestaande concepten + syntheses) en `vault/raw/*.md` (welke bronnen zijn al ge-ingest?)
+3. Toon een overzicht van gevonden materiaal — klopt dit? Ontbreken er bronnen die eerst ge-ingest moeten worden (zie type 1)?
+4. Draai olw om (opnieuw) te compileren zodat de synthese en cross-links worden bijgewerkt (uitvoer naar een log):
+   ```bash
+   olw compile --vault vault        # olw legt cross-links + syntheses aan
    ```
-   cat literature/[bron1].md literature/[bron2].md | ollama run qwen3.5:9b > syntheses/[thema].md
+   Voor een gerichte hercompilatie van specifieke concepten: `olw compile --vault vault --concept "[naam]"` (herhaalbaar).
+5. **Human review-gate:** de gebruiker keurt de synthese-draft goed:
+   ```bash
+   olw review --vault vault
    ```
-   > **Contextlimiet:** qwen3.5:9b heeft een contextvenster van 256K tokens — ruim voldoende voor tientallen literatuurnotities tegelijk. Batching is bij dit model zelden nodig.
-6. Voeg daarna toe: `[[interne links]]` naar alle verwerkte bronnen en `#tags`
-7. Vraag: "Wil je de synthese nog uitbreiden met een Zotero-zoekopdracht op dit thema?"
+6. Voor eigen synthetiserend denkwerk dat geen bron ís: schrijf het in `authoring/notes/` en promoveer via `promote-to-raw.py` → `raw/notes/` → olw.
 
-### Type 7: Vault doorbladeren en verbanden leggen
+### Type 7: Wiki doorbladeren en verbanden bewaken
 
-1. Geef een overzicht van de mapstructuur en het aantal notes per map
-2. Vraag: wil je verbanden leggen binnen een specifiek thema, of breed over de hele vault?
-3. Identificeer notes die inhoudelijk gerelateerd zijn maar nog niet gelinkt
-4. Stel voor om `[[links]]` toe te voegen — vraag per suggestie om bevestiging
-5. Stel voor om verouderde of dunne notes bij te werken als er nieuwer materiaal is
+Navigatie, zoeken en link-management lopen via **hyalo** (geen LLM). De cross-links en structuur zelf zijn olw's domein.
 
-### Type 8: Flashcards aanmaken of beoordelen
-
-1. Vraag: nieuwe kaarten aanmaken bij een bestaande note, of herinnering geven aan de dagelijkse review?
-2. **Nieuwe kaarten:** vraag bij welke note of synthese; genereer 3–5 kaarten lokaal via qwen3.5:9b:
+1. Geef een overzicht van `wiki/` (concepten, `sources/`, `syntheses/`) en `raw/` via hyalo
+2. Vraag: wil je binnen een specifiek thema kijken, of breed over de hele wiki?
+3. Signaleer wiki-gezondheidsproblemen met olw's backstops:
+   ```bash
+   olw lint --vault vault           # orphans, broken links, stubs
+   olw maintain --vault vault       # onderhoud op basis van de lint-bevindingen
    ```
-   ollama run qwen3.5:9b < literature/[notitie].md
-   ```
-   Plak de gegenereerde kaarten in Spaced Repetition formaat (`?` als scheidingsteken, `#flashcard` tag) aan het einde van de bestaande note. Gebruik `flashcards/` alleen voor zelfstandige kaarten die niet aan één specifieke bron gebonden zijn.
-3. **Review herinnering:** herinner de gebruiker dat de dagelijkse review in Obsidian plaatsvindt via de zijbalk (kaartpictogram) — dit is niet iets dat Claude Code zelf uitvoert
-4. Na het aanmaken: "Wil je dat ik ook flashcards maak voor andere recent toegevoegde notes?"
+4. Stel voor om ontbrekende bronnen te ingesten of een `olw compile` te draaien als concepten stub blijven; de daadwerkelijke `[[links]]` legt olw aan tijdens compile — niet met de hand.
 
-### Type 9: Inbox opruimen
+### Type 8: Inbox opruimen
 
-1. Toon wat er in `inbox/` staat
-2. Per item: verwerken naar een note, verplaatsen, of verwijderen?
-3. Verwerk onverwerkte transcripten (YouTube of podcast) of ruwe notities naar de juiste map
+1. Toon wat er in `inbox/` staat (temp-bestanden: `_summary_*.md`, transcripten, snapshots, `_audio_*.mp3`)
+2. Per item: is de bron al verwerkt naar `raw/` + olw? Zo ja → opruimen; zo nee → alsnog verwerken (type 1/3/4) of verwijderen
+3. Verwijder verwerkte transcripten en samenvattingen
 4. Bevestig na afloop: "Inbox is leeg. Alles verwerkt."
 
 ---
@@ -424,6 +415,7 @@ Na ontvangst van `{"status": "ok", "path": "inbox/_summary_ITEMKEY.md"}`:
 - Als iets onduidelijk is, gok dan niet: vraag het
 - Als een zoekopdracht weinig oplevert, zeg dat eerlijk en stel alternatieven voor
 - Denk proactief mee: signaleer als iets ontbreekt, verouderd is, of beter kan
+- **Privacy-grens:** toon nooit bron- of draftinhoud als tool-output; olw-uitvoer gaat naar een log, je leest alleen exit-code/tellingen/paden
 
 ---
 
@@ -434,26 +426,23 @@ Na ontvangst van `{"status": "ok", "path": "inbox/_summary_ITEMKEY.md"}`:
 | "feedreader" of "voeg feed toe" | Start type F: beheer feedreader-feeds of instellingen |
 | "score feeds" of "run feedreader" | Draai `feedreader-score.py` handmatig |
 | "drempeladvies" | Draai `feedreader-learn.py` en toon drempeladvies |
-| "beoordeel inbox" of "filter inbox" | Start type 0: haal `_inbox` op uit Zotero, geef per item een Go/No-go beoordeling (samenvatting via Qwen3.5:9b, volledig lokaal) |
+| "beoordeel inbox" of "filter inbox" | Start type 0: haal `_inbox` op uit Zotero, geef per item een Go/No-go beoordeling (samenvatting via `summarize_item.py`, volledig lokaal) |
 | "beoordeel inbox --hd" | Start type 0 met Claude Sonnet 4.6 voor de samenvattingen (na bevestiging) |
-| "verwerk recente papers" | Start type 1 (lokaal via Qwen3.5:9b) |
-| "verwerk recente papers --hd" | Start type 1 met Claude Sonnet 4.6 (na bevestiging) |
+| "verwerk recente papers" | Start type 1 (raw → olw → wiki, lokaal via `mistral-small:22b`) |
 | "zoek op [thema]" | Start type 2 met opgegeven thema |
-| "transcript [URL]" | Start type 3 direct met de opgegeven URL; lokaal via Qwen3.5:9b; slaat Zotero `_inbox` over |
-| "transcript [URL] --hd" | Start type 3 met Claude Sonnet 4.6 (na bevestiging) |
-| "podcast [URL]" | Start type 4: download audio, transcribeer via whisper.cpp, verwerk lokaal via Qwen3.5:9b; slaat Zotero `_inbox` over |
-| "podcast [URL] --hd" | Start type 4 met Claude Sonnet 4.6 (na bevestiging) |
+| "transcript [URL]" | Start type 3 met de opgegeven URL; transcript-bijlage → raw → olw; slaat Zotero `_inbox` over |
+| "transcript [URL] --hd" | Start type 3; de losse `ollama-generate.py`-fallback via Claude Sonnet 4.6 (na bevestiging) |
+| "podcast [URL]" | Start type 4: transcribeer via whisper.cpp → bijlage → raw → olw; slaat Zotero `_inbox` over |
 | "inbox [URL]" | Haal artikel op en sla op als Markdown in `inbox/`, zonder Zotero |
 | "rss [URL of item]" | Start type 5 voor het opgegeven item |
-| "synthese over [thema]" | Start type 6 (lokaal via Qwen3.5:9b) |
-| "synthese over [thema] --hd" | Start type 6 met Claude Sonnet 4.6 (na bevestiging) |
-| "wat staat er in de vault" | Start type 7, geef overzicht |
-| "maak flashcards voor [note]" | Start type 8 (lokaal via Qwen3.5:9b) |
-| "maak flashcards voor [note] --hd" | Start type 8 met Claude Sonnet 4.6 (na bevestiging) |
-| "ruim inbox op" | Start type 9 |
+| "synthese over [thema]" | Start type 6 (via olw compile/review) |
+| "wat staat er in de wiki" | Start type 7, geef overzicht via hyalo |
+| "compile" of "olw compile" | Draai `olw compile --vault vault` (uitvoer naar log); daarna `olw review` |
+| "review drafts" | Herinner de gebruiker aan de `olw review --vault vault`-gate in de eigen terminal |
+| "ruim inbox op" | Start type 8 |
 | "update database" | Voer `zotero-mcp update-db --fulltext` uit |
-| "wat heb ik gisteren gedaan" | Zoek in `daily/` naar de meest recente dagnotitie |
+| "wat heb ik gisteren gedaan" | Zoek in `notes/` naar de meest recente dagnotitie |
 
 ---
 
-*Skill versie 1.21 — april 2026 — HTML-lezer verwijderd; NNW + FreshRSS sync operationeel; deduplicatiefilter toegevoegd aan feedreader-score.py*
+*Skill versie 2.0 — juli 2026 — raw→olw-reconciliatie: `process_item.py`→`literature/` vervangen door `build-zotero-bundle.py`→`raw/`→olw ingest/compile/`olw review`→`wiki/`; model `mistral-small:22b` (olw), qwen alleen fallback; transcripten via `attach-transcript.py`→bundle; syntheses = olw's domein; flashcards/spaced-repetition verwijderd.*
