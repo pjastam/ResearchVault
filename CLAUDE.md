@@ -239,6 +239,27 @@ Na ≥30 positieven verschijnt een drempeladvies; pas dan `THRESHOLD_GREEN` en `
 - Academische artikelen die interessant zijn: voeg ze toe aan Zotero via de browser-extensie of iOS-app → komen in `_inbox` terecht
 - Niet-academische artikelen: voeg toe via Zotero Connector of de iOS share sheet — alle bronnen komen via de Zotero `_inbox` de vault in
 
+## Vertrouwelijke compartimenten (Fase G)
+
+Naast de persoonlijke vault kan vertrouwelijk materiaal (bijv. per organisatie/commissie/klant/scope) in **gescheiden compartimenten** worden verwerkt, volgens een **need-to-know lattice** (Bell–LaPadula "no write-down"):
+
+- **Persoonlijk (LAAG) → compartiment (HOOG)** is toegestaan; uit een compartiment stroomt **niets** terug naar persoonlijk. De scheiding is **structureel** (fysiek gescheiden olw-vaults, geen code-pad), niet policy-based.
+- Elk compartiment is een **zelfstandige olw-workspace-vault** (`raw/`, `wiki/`, `authoring/`, `.obsidian/`, `wiki.toml`, `.olw/`), **buiten de git-repo** (`~/Confidential/<naam>/`, mode 700), platte tekst — FileVault + Laag-1-afsluiten dekken data-at-rest.
+
+**Scripts (`.claude/`):**
+- `new-compartment.py <naam>` — richt een compartiment-workspace-vault in.
+- `sync-personal-context.py <naam>` — kopieert gepubliceerde persoonlijke wiki-kennis naar `raw/_personal-context/` (gemarkeerd), zodat olw-synthese in het compartiment die kennis meeweegt.
+- `sync-personal-wiki-ref.py <naam>` — APFS-kloont persoonlijke concepten read-only naar `wiki/_personal/` zodat Obsidian-`[[links]]`/backlinks binnen het compartiment resolveren.
+- `declassify-to-personal.py --note <pad> --confirm-desensitized` — de **enige** neerwaartse klep: promoveert een bewust ontgevoeligd, algemeen inzicht naar de persoonlijke `raw/notes/` (dubbele bevestiging + provenance-strip; menselijk oordeel dragend).
+- `compartment-serve.py <naam>` — iPad thin-client: read-only viewer + draft-review over het **Tailnet** (bindt op het Tailnet-IP, nooit Funnel).
+
+**Principes:**
+- **Privacy-grens (As B):** vertrouwelijke inhoud komt nooit als tool-output in Claude's context; alle olw-operaties via lokale subagents. De agent-grens voor *authoring* is nog open — vertrouwelijk schrijven vereist t.z.t. lokale agents.
+- **Backup:** opt-in per compartiment (`.backup-enabled`) naar een aparte, E2E-versleutelde Proton-locatie (`~/bin/compartment-backup.sh`); niet naar de lokale mirror tot die schijf versleuteld is.
+- **Toegang:** Obsidian alleen op de Mac; op iPad/iPhone uitsluitend via de thin-client (gerenderde HTML); compartimenten worden nooit naar mobiel gesynct.
+
+De per-compartiment guardrails staan in elk `~/Confidential/<naam>/_COMPARTMENT.md`.
+
 ## Architectuurprincipes (niet onderhandelbaar)
 
 - **Privacy-grens**: source content (volledige tekst van papers, podcasts, video's) gaat NOOIT naar de Anthropic API. Alleen JSON status-objecten en metadata mogen Claude Code bereiken vanuit de subagents.
