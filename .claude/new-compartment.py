@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """new-compartment.py — Fase G/G1: scaffolding voor een vertrouwelijk compartiment.
 
-Maakt één geïsoleerde olw-vault per compartiment (need-to-know lattice, Bell-LaPadula
-"no write-down"). Elk compartiment is een op zichzelf staande olw-vault met eigen
-raw/, wiki/, wiki.toml en (na de eerste ingest) .olw/state.db — fysiek gescheiden van
-de persoonlijke ResearchVault-vault én van elkaar.
+Maakt één geïsoleerde, volwaardige workspace-vault per compartiment (need-to-know lattice,
+Bell-LaPadula "no write-down"). Elk compartiment is een op zichzelf staande Obsidian-vault
+met eigen raw/, wiki/, authoring/, .obsidian/, wiki.toml en (na de eerste ingest)
+.olw/state.db — fysiek gescheiden van de persoonlijke ResearchVault-vault én van elkaar.
+Parallel aan de persoonlijke vault, maar Obsidian-Mac-only (nooit naar mobiel gesynct).
 
 Ontwerpbesluiten (ontwerpsessie 2026-07-10, sectie "compartimenten-lattice"):
 - Compartimenten leven BUITEN de git-repo (~/Confidential/<naam>/) — voorkomt per
@@ -70,7 +71,8 @@ graph_quality_checks = true
 COMPARTMENT_MEMO = """\
 # Compartiment: {name}
 
-> Vertrouwelijk compartiment (Fase G — need-to-know lattice). **Buiten de git-repo.**
+> Vertrouwelijk compartiment (Fase G — need-to-know lattice). Volwaardige workspace-vault,
+> **buiten de git-repo**, mode 700. Parallel aan de persoonlijke ResearchVault-vault.
 
 ## Lattice-regels (niet onderhandelbaar)
 
@@ -78,21 +80,48 @@ COMPARTMENT_MEMO = """\
   compartiment stroomt **niets** terug naar de persoonlijke vault. De scheiding is
   structureel (fysiek gescheiden vault + state), niet policy-based.
 - **Nooit `olw maintain` of `olw lint --fix`** op dit compartiment — die willen de
-  read-only `wiki/_personal/`-context (G2) herschrijven.
-- **Privacy-grens.** Vertrouwelijke bron- én afgeleide inhoud komt nooit als tool-output
-  in Claude's context. Alle operaties via lokale subagents (olw, build-zotero-bundle);
-  het sync-/hardlink-script (G2) doet geen `cat`/`print` op inhoud.
+  read-only `wiki/_personal/`-referentie herschrijven.
+- **Privacy-grens (As B).** Vertrouwelijke bron- én afgeleide inhoud komt nooit als
+  tool-output in Claude's context. Alle olw-operaties via lokale subagents; de sync-scripts
+  doen geen `cat`/`print` op inhoud. **Agent-grens voor authoring is nog OPEN** — Claude/
+  Anthropic mag vertrouwelijke inhoud niet lezen, dus confidential authoring vereist t.z.t.
+  lokale agents (Ollama). Tot dat besluit valt: geen Anthropic-agents op `authoring/`-inhoud.
 - **Één uitzonderingsklep:** `promote-to-wiki` (G3) = de enige toegestane neerwaartse
   stroom, handmatig + bewust ontgevoeligd (algemene methode wél, klant-data niet).
 
-## Structuur
+## Structuur (volwaardige workspace-vault)
 
-- `raw/`   — olw-invoerlaag (Zotero-bundels + `raw/notes/` van dit compartiment)
-- `wiki/`  — olw-uitvoer; `wiki/_personal/` (G2) = read-only hardlink-farm van persoonlijk
-- `.olw/`  — per-vault state (door olw aangemaakt bij eerste ingest)
+- `raw/`        — olw-invoerlaag (Zotero-bundels + `raw/notes/` + `raw/_personal-context/`
+                  = G2-A synthese-bron: kopieën van persoonlijke wiki-kennis, gemarkeerd)
+- `wiki/`       — olw-uitvoer; `wiki/_personal/` (G2-B) = read-only **APFS-klonen** van de
+                  persoonlijke wiki, zodat Obsidian-`[[links]]`/backlinks ernaartoe resolveren
+- `authoring/`  — vertrouwelijke projecten/rapporten. **ECHTE map, GEEN symlink naar myfiles/**
+                  en **nooit naar Syncthing/iPad** — anders lekt vertrouwelijk werk de LAAG-sync in
+- `.obsidian/`  — Obsidian opent dit als vault. **Mac-only**: compartimenten worden nooit naar
+                  mobiel gesynct; op iPad/iPhone alleen via de thin-client (:8766, G6) als HTML
+- `.olw/`       — per-vault state (door olw aangemaakt bij eerste ingest)
 
-Backup: Proton Route A (G5), **niet** "Available Offline" gepind (dormant = placeholder).
+## Backup & Proton-sync (G5 — nog te bouwen)
+
+Proton Route A, **niet** "Available Offline" gepind (dormant = placeholder). Twee noten om
+NIET te vergeten bij het inrichten:
+
+- **Mobiel-lek-discipline.** Proton-sync opent een tweede kanaal naar mobiel náást de thin-client
+  (:8766). De confidential Proton-categorie **niet** op iPhone/iPad-Proton-apps synchroniseren/openen
+  — anders landt vertrouwelijke inhoud op mobiel, tegen de thin-client-only-keuze in. iPad-toegang
+  blijft uitsluitend de thin-client.
+- **Per-compartiment regelgeving-check.** Het model (platte tekst + FileVault + Laag-1 + Proton-E2E)
+  rust op de aanname "geen formele contract-eisen". Compartimenten met gereguleerde/privacygevoelige
+  data kunnen formele data-handling-eisen hebben die dit niet dekt →
+  **check de data-handling-regels vóór je dit compartiment naar Proton synct.**
+- **Sync alleen het niet-regenereerbare deel:** `raw/`, `authoring/`, `wiki.toml`, dit bestand
+  (+ evt. `.olw/state.db`); sla `wiki/` en `wiki/_personal/` over (regenereerbaar via olw resp. re-sync).
 """
+
+# .obsidian/app.json — alleen de link-instelling; Obsidian genereert de rest (kern-plugins AAN)
+# bij de eerste keer openen. Een kale core-plugins.json zou file-explorer/backlinks/graph juist
+# uitzetten, dus die schrijven we bewust NIET.
+OBSIDIAN_APP = {"alwaysUpdateLinks": True}
 
 
 def fail(message):
@@ -140,15 +169,27 @@ def main():
         chmod_700(CONFIDENTIAL_ROOT)  # mkdir-mode wordt door umask gemaskeerd → forceer
         created.append(str(CONFIDENTIAL_ROOT))
 
-    # Compartiment + submappen (mode 700).
+    # Compartiment + submappen (mode 700). authoring/ = vertrouwelijke projecten/rapporten
+    # (echte map, GEEN symlink naar myfiles/ — dat zou vertrouwelijk werk in de persoonlijke
+    # Proton-sync trekken). Volwaardige workspace-vault, parallel aan de persoonlijke vault.
     target.mkdir(mode=0o700)
     chmod_700(target)
     created.append(str(target))
-    for sub in ("raw", "wiki"):
+    for sub in ("raw", "wiki", "authoring"):
         d = target / sub
         d.mkdir(mode=0o700)
         chmod_700(d)
         created.append(str(d))
+
+    # .obsidian/ zodat Obsidian de map als vault opent (Mac-only; compartimenten worden
+    # nooit naar mobiel gesynct). Alleen app.json met de link-instelling; Obsidian genereert
+    # de rest met defaults (kern-plugins AAN) bij de eerste keer openen — een kale
+    # core-plugins.json zou die juist uitzetten.
+    obs_dir = target / ".obsidian"
+    obs_dir.mkdir(mode=0o700)
+    chmod_700(obs_dir)
+    (obs_dir / "app.json").write_text(json.dumps(OBSIDIAN_APP, indent=2) + "\n", encoding="utf-8")
+    created.append(str(obs_dir))
 
     # wiki.toml + guardrail-memo.
     toml_path = target / "wiki.toml"
