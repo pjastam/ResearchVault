@@ -19,7 +19,8 @@ Gebruik:
     new-compartment.py <naam>
     # → {"status": "ok", "path": "/Users/.../Confidential/<naam>", "created": [...]}
 
-De .olw/-map wordt niet hier aangemaakt maar door olw zelf bij de eerste `olw ingest`.
+De .olw/-map wordt hier voorgemaakt op mode 700 (G4) zodat olw de state (state.db/chroma)
+er bij de eerste ingest in schrijft zonder hem op 755 aan te maken.
 """
 
 import json
@@ -80,7 +81,9 @@ COMPARTMENT_MEMO = """\
   compartiment stroomt **niets** terug naar de persoonlijke vault. De scheiding is
   structureel (fysiek gescheiden vault + state), niet policy-based.
 - **Nooit `olw maintain` of `olw lint --fix`** op dit compartiment — die willen de
-  read-only `wiki/_personal/`-referentie herschrijven.
+  read-only `wiki/_personal/`-referentie herschrijven. (Netheid, GÉÉN veiligheidsgrens: de
+  klonen isoleren personal via eigen inode, dus een per ongeluk uitgevoerde maintain lekt niet
+  naar personal; `sync-personal-wiki-ref` herbouwt de subtree schoon.)
 - **Privacy-grens (As B).** Vertrouwelijke bron- én afgeleide inhoud komt nooit als
   tool-output in Claude's context. Alle olw-operaties via lokale subagents; de sync-scripts
   doen geen `cat`/`print` op inhoud. **Agent-grens voor authoring is nog OPEN** — Claude/
@@ -99,7 +102,15 @@ COMPARTMENT_MEMO = """\
                   en **nooit naar Syncthing/iPad** — anders lekt vertrouwelijk werk de LAAG-sync in
 - `.obsidian/`  — Obsidian opent dit als vault. **Mac-only**: compartimenten worden nooit naar
                   mobiel gesynct; op iPad/iPhone alleen via de thin-client (:8766, G6) als HTML
-- `.olw/`       — per-vault state (door olw aangemaakt bij eerste ingest)
+- `.olw/`       — per-vault state (state.db/chroma). **Voorgemaakt op mode 700** (G4) zodat de
+                  afgeleide concepten afgeschermd zijn; olw schrijft de state hierin bij ingest
+
+## Operationeel
+
+- **Laag-1 idle-shutdown dekt compartiment-werk al:** olw-runs op dit compartiment
+  (`ingest`/`compile`/`review`) worden gevangen door de idle-shutdown-guards #6/#7 (die matchen
+  het olw-proces, ongeacht `--vault`) → de Mac sluit niet af midden in een run. Obsidian-bewerken
+  is HID-gedreven (actief = wakker, wegstappen = afsluiten — precies de "dicht als ik weg ben"-bedoeling).
 
 ## Backup & Proton-sync (G5 — nog te bouwen)
 
@@ -190,6 +201,14 @@ def main():
     chmod_700(obs_dir)
     (obs_dir / "app.json").write_text(json.dumps(OBSIDIAN_APP, indent=2) + "\n", encoding="utf-8")
     created.append(str(obs_dir))
+
+    # .olw/ vooraf op mode 700 (G4-hardening) zodat olw de state-map niet bij de eerste ingest
+    # op 755 aanmaakt. olw schrijft state.db/chroma (afgeleide concepten) hierin; de 700-map
+    # schermt die af. olw tolereert een bestaande lege .olw/ (het forceert geen eigen init).
+    olw_dir = target / ".olw"
+    olw_dir.mkdir(mode=0o700)
+    chmod_700(olw_dir)
+    created.append(str(olw_dir))
 
     # wiki.toml + guardrail-memo.
     toml_path = target / "wiki.toml"
