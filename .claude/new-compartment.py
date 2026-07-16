@@ -111,6 +111,10 @@ COMPARTMENT_MEMO = """\
   (`ingest`/`compile`/`review`) worden gevangen door de idle-shutdown-guards #6/#7 (die matchen
   het olw-proces, ongeacht `--vault`) → de Mac sluit niet af midden in een run. Obsidian-bewerken
   is HID-gedreven (actief = wakker, wegstappen = afsluiten — precies de "dicht als ik weg ben"-bedoeling).
+- **iPad-review (thin-client, G6):** draai `compartment-serve.py <naam>` op de Mac → open
+  `http://<Tailnet-IP>:8766` op iPad/iPhone: read-only viewer (wiki/ + authoring/) + draft
+  approve/reject over het **Tailnet** (nooit Funnel; bindt op het Tailnet-IP). Ctrl-C stopt.
+  Guard #7 houdt de Mac wakker tijdens de sessie (tot 2u HID-idle).
 
 ## Backup & Proton-sync (G5 — nog te bouwen)
 
