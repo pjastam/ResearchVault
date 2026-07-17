@@ -9,19 +9,9 @@
 .claude/settings.local.json
 .claude/*.local.md
 
-# Persoonlijke onderzoeksinhoud — niet delen, maar mapstructuur wel bewaren
-notes/
-daily/*
-!daily/.gitkeep
-craft/dev/*.md
-craft/methods/*.md
-projects/*
-!projects/.gitkeep
-inbox/*.vtt
-inbox/*.mp3
-inbox/*.txt
-inbox/*.md
-!inbox/.gitkeep
+# NB: persoonlijke onderzoeksinhoud leeft nu in vault/ (zie vault/.gitignore) en
+# authoring/ (→ myfiles/, Proton) — de oude platte root-dirs (notes/, daily/,
+# craft/, projects/) zijn met de raw/→olw→wiki/-migratie verdwenen.
 
 # Feedreader — gegenereerde output en persoonlijke leesgeschiedenis
 .claude/score_log.jsonl

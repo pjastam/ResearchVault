@@ -1,13 +1,7 @@
 # .ignore — overschrijft .gitignore voor lokale tools (hyalo, ripgrep, etc.)
 # De .gitignore houdt persoonlijke onderzoeksinhoud buiten git.
 # Dit bestand maakt diezelfde bestanden toegankelijk voor lokale zoekopdrachten.
-
-!meta/candidates/*.md
-!literature/*.md
-!literature/annotations/*
-!daily/*
-!syntheses/*
-!syntheses/**/*.md
-!projects/*
-!projects/**/*.md
-!inbox/*.md
+#
+# (Momenteel geen actieve regels: de oude platte mappen — literature/, meta/,
+# daily/, syntheses/, inbox/ — zijn met de raw/→olw→wiki/-migratie verdwenen.
+# vault/-inhoud blijft bewust buiten ripgrep/hyalo; hyalo werkt via .hyalo.toml.)
