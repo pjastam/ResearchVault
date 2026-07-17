@@ -39,7 +39,7 @@ Als Ollama niet bereikbaar is: meld dit en vraag of de gebruiker wil overschakel
 | `raw/` | Canonieke bronlaag | Één bundle per Zotero-item (`{citekey}__{itemKey}.md`) — verbatim frontmatter, abstract, notities, PDF-annotaties, volledige tekst; geen LLM-bewerking. De input voor olw. |
 | `raw/notes/` | Eigen denkwerk | Gepromote snapshots van rijpe authoring-notities (via `promote-to-raw.py`), gemarkeerd `source_type: personal` |
 | `wiki/` | olw-gegenereerd | Volledig door olw beheerd: conceptpagina's, `sources/` (per-bron), `syntheses/` (thematisch). Vervangt het oude `literature/`. `olw review` = de menselijke gate; `wiki/.drafts/` = staging vóór goedkeuring. |
-| `notes/` | — | Persoonlijke en werknotities |
+| `authoring/notes/` | Eigen denkwerk (bron) | Symlink → Proton-app-map/`Notes` (Route A). Persoonlijke werknotities, bron voor `promote-to-raw.py`. `authoring/` is een echte map met per-item symlinks (venster, Mac-only, gitignored); géén vault-native `notes/`-map. |
 | `.cache/` | — | Ruwe/temp input die nog verwerkt moet worden |
 
 ## Bronlaag (`raw/`) en wiki-pagina's
