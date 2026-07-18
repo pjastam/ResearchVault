@@ -98,8 +98,9 @@ COMPARTMENT_MEMO = """\
                   = G2-A synthese-bron: kopieën van persoonlijke wiki-kennis, gemarkeerd)
 - `wiki/`       — olw-uitvoer; `wiki/_personal/` (G2-B) = read-only **APFS-klonen** van de
                   persoonlijke wiki, zodat Obsidian-`[[links]]`/backlinks ernaartoe resolveren
-- `authoring/`  — vertrouwelijke projecten/rapporten. **ECHTE map, GEEN symlink naar myfiles/**
-                  en **nooit naar Syncthing/iPad** — anders lekt vertrouwelijk werk de LAAG-sync in
+- `authoring/`  — vertrouwelijke projecten/rapporten. **ECHTE map, GEEN symlink naar een gesyncte
+                  persoonlijke store (Proton/repos)** en **nooit naar Syncthing/iPad** — anders lekt
+                  vertrouwelijk werk de LAAG-sync in
 - `.obsidian/`  — Obsidian opent dit als vault. **Mac-only**: compartimenten worden nooit naar
                   mobiel gesynct; op iPad/iPhone alleen via de thin-client (:8766, G6) als HTML
 - `.olw/`       — per-vault state (state.db/chroma). **Voorgemaakt op mode 700** (G4) zodat de
@@ -185,8 +186,8 @@ def main():
         created.append(str(CONFIDENTIAL_ROOT))
 
     # Compartiment + submappen (mode 700). authoring/ = vertrouwelijke projecten/rapporten
-    # (echte map, GEEN symlink naar myfiles/ — dat zou vertrouwelijk werk in de persoonlijke
-    # Proton-sync trekken). Volwaardige workspace-vault, parallel aan de persoonlijke vault.
+    # (echte map, GEEN symlink naar een gesyncte persoonlijke store — dat zou vertrouwelijk werk
+    # in de persoonlijke Proton-sync trekken). Volwaardige workspace-vault, parallel aan de persoonlijke vault.
     target.mkdir(mode=0o700)
     chmod_700(target)
     created.append(str(target))

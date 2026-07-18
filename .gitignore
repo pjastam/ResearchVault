@@ -10,8 +10,8 @@
 .claude/*.local.md
 
 # NB: persoonlijke onderzoeksinhoud leeft nu in vault/ (zie vault/.gitignore) en
-# authoring/ (→ myfiles/, Proton) — de oude platte root-dirs (notes/, daily/,
-# craft/, projects/) zijn met de raw/→olw→wiki/-migratie verdwenen.
+# authoring/ (echte map met per-item symlinks → Proton-app-map / repos) — de oude platte
+# root-dirs (notes/, daily/, craft/, projects/) zijn met de raw/→olw→wiki/-migratie verdwenen.
 
 # Feedreader — gegenereerde output en persoonlijke leesgeschiedenis
 .claude/score_log.jsonl
