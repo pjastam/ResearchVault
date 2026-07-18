@@ -1,0 +1,23 @@
+# _triage-seeds.example.toml — SJABLOON voor confidential-triage.py
+#
+# Kopieer dit naar een LOKALE, niet-gecommitte locatie (aanbevolen: ~/Confidential/_triage-seeds.toml,
+# mode 700) en vul echte termen in. De ingevulde versie NOEMT KLANTEN en hoort daarom NOOIT in de
+# (publieke) repo — dit sjabloon bevat bewust alleen generieke placeholders.
+#
+# Formaat: één TOML-tabel per organisatie/compartiment. De tabelnaam wordt het compartiment
+# (moet matchen ^[A-Za-z0-9_-]+$, zelfde regel als new-compartment.py). `terms` = een lijst
+# zoektermen: organisatienaam + aliassen + kernpersonen + projectcodenamen. Termen zijn
+# hoofdletter-ongevoelig; termen die met een letter/cijfer beginnen/eindigen matchen op heel-woord.
+# Bestandsnaam-treffers wegen zwaarder dan body-treffers (× 5).
+#
+# Tip: begin ruim (meer termen = minder gemiste notities). Vals-positieven filter je in de
+# rapport-review; gemiste notities zie je niet. Codenamen/persoonsnamen vangen notities die de
+# organisatienaam zelf niet spellen.
+
+[OrgA]
+terms = ["OrgA", "OrgA Instituut", "Volledige Naam BV", "Projectcodenaam", "Kernpersoon Achternaam"]
+
+[OrgB]
+terms = ["OrgB", "OrgB alias", "Commissienaam", "Andere Persoon"]
+
+# … voeg per vertrouwelijke relatie een tabel toe.

@@ -248,6 +248,7 @@ Naast de persoonlijke vault kan vertrouwelijk materiaal (bijv. per organisatie/c
 
 **Scripts (`.claude/`):**
 - `new-compartment.py <naam>` — richt een compartiment-workspace-vault in.
+- `confidential-triage.py {scan|move}` — de inkomende classificatie-stap (personal LAAG → compartiment HOOG). `scan` (read-only) vlagt persoonlijke notities tegen een lokale seed-config (per compartiment zoektermen: naam/aliassen/personen/codenamen) en schrijft een lokaal vlag-rapport; `move` (dry-run default, `--apply` voert uit) verplaatst bevestigde notities + gerefereerde bijlagen naar `~/Confidential/<naam>/authoring/notes/` met behoud van mapstructuur + omkeerbaar move-manifest. Seed-config + rapport zijn zelf vertrouwelijk → lokaal/gitignored; alleen JSON-status naar Claude (privacy-grens). Zie het sjabloon `.claude/_triage-seeds.example.toml`.
 - `sync-personal-context.py <naam>` — kopieert gepubliceerde persoonlijke wiki-kennis naar `raw/_personal-context/` (gemarkeerd), zodat olw-synthese in het compartiment die kennis meeweegt.
 - `sync-personal-wiki-ref.py <naam>` — APFS-kloont persoonlijke concepten read-only naar `wiki/_personal/` zodat Obsidian-`[[links]]`/backlinks binnen het compartiment resolveren.
 - `declassify-to-personal.py --note <pad> --confirm-desensitized` — de **enige** neerwaartse klep: promoveert een bewust ontgevoeligd, algemeen inzicht naar de persoonlijke `raw/notes/` (dubbele bevestiging + provenance-strip; menselijk oordeel dragend).
