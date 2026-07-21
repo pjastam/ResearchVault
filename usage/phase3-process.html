@@ -220,7 +220,7 @@
 </code></pre>
 <p>This script:</p>
 <ol>
-<li>Fetches the transcript via <code>YouTubeTranscriptApi</code> (or from <code>.claude/transcript_cache/</code>)</li>
+<li>Fetches the transcript via <code>YouTubeTranscriptApi</code> (or from <code>.claude/transcript_cache/</code>), preferring <code>nl</code>/<code>en</code> and falling back to any available language (needed for Dutch sources such as NOS/VPRO/NPO)</li>
 <li>The local LLM generates an abstract</li>
 <li>Uploads the transcript as a <code>.txt</code> attachment to Zotero; sets <code>abstractNote</code></li>
 </ol>

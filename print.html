@@ -427,7 +427,7 @@ zotero-mcp db-status   # check current database status
 </code></pre>
 <p>This script:</p>
 <ol>
-<li>Fetches the transcript via <code>YouTubeTranscriptApi</code> (or from <code>.claude/transcript_cache/</code>)</li>
+<li>Fetches the transcript via <code>YouTubeTranscriptApi</code> (or from <code>.claude/transcript_cache/</code>), preferring <code>nl</code>/<code>en</code> and falling back to any available language (needed for Dutch sources such as NOS/VPRO/NPO)</li>
 <li>The local LLM generates an abstract</li>
 <li>Uploads the transcript as a <code>.txt</code> attachment to Zotero; sets <code>abstractNote</code></li>
 </ol>
@@ -553,6 +553,7 @@ claude
 <pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/fetch-fulltext.py ITEMKEY inbox/bron.txt
 # Output: Saved: inbox/bron.txt (12,345 chars, type: application/pdf)
 </code></pre>
+<p>For HTML snapshots the script extracts only the main article text via <strong>trafilatura</strong> (<code>extract_article_text()</code>), stripping navigation/ads/comments so full-page snapshots (e.g. Tweakers) don't bloat the bundle or slow <code>olw ingest</code>; it falls back to a naive tag-strip if trafilatura is unavailable or returns nothing. <code>trafilatura</code> must be installed in the zotero-mcp venv.</p>
 <h3 id="ollama-generatepy--generate-text-via-local-llm-ollama-or-mlx"><a class="header" href="#ollama-generatepy--generate-text-via-local-llm-ollama-or-mlx"><code>ollama-generate.py</code> — generate text via local LLM (Ollama or MLX)</a></h3>
 <p>Calls a local LLM REST API directly (no CLI, no ANSI codes). Supports two backends:</p>
 <ul>
