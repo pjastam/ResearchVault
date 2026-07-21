@@ -104,7 +104,16 @@ def get_transcript_text(video_id: str | None) -> str | None:
 
     try:
         from youtube_transcript_api import YouTubeTranscriptApi
-        snippets = YouTubeTranscriptApi().fetch(video_id)
+        api = YouTubeTranscriptApi()
+        # Prefereer Nederlands/Engels; val anders terug op elke beschikbare taal
+        # (veel bronnen zijn NL — NOS, VPRO, NPO — waarvoor 'en'-only faalde).
+        try:
+            snippets = api.fetch(video_id, languages=["nl", "en"])
+        except Exception:
+            codes = [t.language_code for t in api.list(video_id)]
+            if not codes:
+                raise
+            snippets = api.fetch(video_id, languages=codes)
         text = " ".join(s.text for s in snippets)
         print(f"  Transcript via YouTubeTranscriptApi: {len(text):,} tekens", file=sys.stderr)
         return text

@@ -46,7 +46,7 @@ YouTube items follow an **eager transcript pipeline**: when you mark a video ✅
 ```
 
 This script:
-1. Fetches the transcript via `YouTubeTranscriptApi` (or from `.claude/transcript_cache/`)
+1. Fetches the transcript via `YouTubeTranscriptApi` (or from `.claude/transcript_cache/`), preferring `nl`/`en` and falling back to any available language (needed for Dutch sources such as NOS/VPRO/NPO)
 2. The local LLM generates an abstract
 3. Uploads the transcript as a `.txt` attachment to Zotero; sets `abstractNote`
 

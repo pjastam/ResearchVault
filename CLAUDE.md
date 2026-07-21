@@ -131,14 +131,14 @@ olw legt cross-links en syntheses aan tijdens `compile`; `olw lint` / `olw maint
 
 ## Transcripten (attach-transcript.py)
 
-`attach-transcript.py` verwerkt zowel YouTube- als podcast-items: haalt audio/transcript op, genereert een abstract via de geconfigureerde LLM-backend (Ollama of MLX) en slaat het transcript als `.txt`-bijlage op in Zotero. Alle Zotero-aanroepen lopen via `zotero_api.py` (default: local API, vereist Zotero desktop).
+`attach-transcript.py` verwerkt zowel YouTube- als podcast-items: haalt audio/transcript op, genereert een abstract via de geconfigureerde LLM-backend (Ollama of MLX) en slaat het transcript als `.txt`-bijlage op in Zotero. Alle Zotero-aanroepen lopen via `zotero_api.py`. **Let op:** de **schrijf**acties (abstractNote-PATCH, transcript-bijlage, child-notes) vereisen `ZOTERO_ACCESS=web` — de lokale API (:23119) is read-only en geeft 501/400 op writes; de feedreader-Go draait deze stap daarom in web-modus (het lokale `.txt` wordt als `linked_file` gekoppeld).
 
 **YouTube** — eager pipeline: bij ✅ in de feedreader wordt het transcript meteen opgehaald. Handmatig aanroepen:
 ```bash
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/attach-transcript.py \
   --item-key ITEMKEY --url "https://www.youtube.com/watch?v=..."
 ```
-Gebruikt `YouTubeTranscriptApi` (of `transcript_cache/`); geconfigureerde LLM-backend genereert abstract.
+Gebruikt `YouTubeTranscriptApi` (of `transcript_cache/`); prefereert het transcript in `nl`/`en` en valt anders terug op elke beschikbare taal (nodig voor NL-bronnen als NOS/VPRO/NPO — `en`-only faalde daarop). Geconfigureerde LLM-backend genereert abstract.
 
 **Podcast** — altijd handmatig (whisper.cpp vereist audio-download, duurt minuten):
 ```bash
@@ -204,8 +204,8 @@ De feedreader scoort RSS/YouTube/podcast-feeds automatisch op relevantie en prod
 - `GET  /api/inbox/items` — gecombineerde score + Zotero metadata per `_inbox`-item (JSON)
 - `GET  /api/inbox/jobs` — status van alle achtergrond-jobs (`pending`/`running`/`done`/`error`)
 - `GET  /api/inbox/summary/{key}` — leest `.cache/_summary_{key}.md` als die bestaat
-- `POST /api/inbox/go` — bouwt de bundle (`build-zotero-bundle.py`) + `olw ingest` voor `key` (asynchroon); vereist `title` in body
-- `POST /api/inbox/nogo` — verwijdert `key` direct uit Zotero `_inbox` (synchroon)
+- `POST /api/inbox/go` — /research-pariteit: voor `videoRecording`/`podcast`/YouTube-items (gate op `type`, met `url` in body) eerst `attach-transcript.py` (web-modus), dan `build-zotero-bundle.py` + `olw ingest` (asynchroon); vereist `title` in body. Removal na succes via de web-API (de lokale API :23119 is read-only). Faalt de transcript-stap → job `error`, item blijft in `_inbox`
+- `POST /api/inbox/nogo` — verwijdert `key` direct uit Zotero `_inbox` (synchroon, web-API)
 - `POST /api/inbox/summarize` — start `summarize_item.py` voor `key` (asynchroon)
 
 **Scores en labels:** 🟢 ≥50 · 🟡 40–49 · 🔴 <40 (Bayesiaanse scores met prior π=0.70; drempels worden bijgesteld via feedreader-learn.py). Items met score ≥70 worden auto-gestefd in FreshRSS/NNW.
@@ -303,6 +303,8 @@ Voor losse stappen of speciale gevallen (transcripten, snapshots): gebruik `.cla
 ```bash
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/fetch-fulltext.py ITEMKEY .cache/bestand.txt
 ```
+
+**Snapshot-schoonmaak:** bij HTML-snapshots (linked_file én storage) haalt `fetch-fulltext.py` alleen de hoofd-artikeltekst eruit via **trafilatura** (`extract_article_text()`) — nav/ads/comments/boilerplate worden weggelaten (volledige-pagina-snapshots van bijv. Tweakers gingen zo van ~170KB naar ~5KB, wat een trage/afgekapte `olw ingest` voorkomt en de concept-extractie schoon houdt). Bij ontbrekende trafilatura of lege extractie valt het terug op de oude naïeve tag-strip. `trafilatura` moet in de zotero-mcp-venv staan (`bin/python3 -m pip install trafilatura`); pin het t.z.t. in de uv-tool-spec zodat een venv-rebuild het niet verliest.
 
 Daarna verwerken via lokale LLM:
 ```bash

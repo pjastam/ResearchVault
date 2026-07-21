@@ -24,6 +24,7 @@ import os
 import queue
 import re
 import subprocess
+import sys
 import threading
 import urllib.parse
 from datetime import datetime, timezone
@@ -37,11 +38,30 @@ PORT       = int(os.environ.get("FEEDREADER_PORT", "8765"))   # override voor te
 # Zotero keys zijn altijd 8 hoofdletters/cijfers
 _KEY_RE = re.compile(r'^[A-Z0-9]{8}$')
 
+# YouTube-URL-detectie (zelfde regex als attach-transcript.extract_video_id) —
+# gebruikt om te bepalen of een Go-item de transcript-voorstap nodig heeft.
+_YOUTUBE_RE = re.compile(r'(?:v=|youtu\.be/)([A-Za-z0-9_-]{11})')
+
+
+def _is_youtube(url: str) -> bool:
+    return bool(url) and bool(_YOUTUBE_RE.search(url))
+
 VAULT_ROOT = Path(__file__).resolve().parent.parent
 VAULT_DIR  = VAULT_ROOT / "vault"     # symlink → ResearchVault/vault/
 PYTHON     = Path("/Users/pietstam/.local/share/uv/tools/zotero-mcp-server/bin/python3")
 INBOX_DIR  = VAULT_ROOT / "vault" / ".cache"   # temp-input (fase-2 previews e.d.); gitignored
 OLW        = Path("/Users/pietstam/.local/bin/olw")   # Fase C: Go → build-bundle → olw ingest
+
+
+def _zotero_env(mode: str) -> dict:
+    """Env voor Zotero-subprocessen. De lokale API (:23119) is READ-ONLY → writes
+    (attach-transcript, removal) moeten via `web`. Reads/build via `auto` (+ZOTERO_LOCAL
+    zodat fetch-fulltext de lokale API kiest ondanks een geladen web-key)."""
+    env = {k: v for k, v in os.environ.items() if k != "ZOTERO_LOCAL"}
+    env["ZOTERO_ACCESS"] = mode
+    if mode in ("auto", "local"):
+        env["ZOTERO_LOCAL"] = "true"
+    return env
 
 # Achtergrond job-queue voor build-zotero-bundle.py (+olw ingest) en summarize_item.py
 _job_queue  = queue.Queue()
@@ -58,12 +78,50 @@ def _inbox_worker():
         with _job_lock:
             _job_status[key] = {"status": "running", "path": None, "error": None}
         try:
+            # ── AV-voorstap: transcript aanhaken (alleen video/podcast) ──────────
+            # /research-pariteit: video/podcast krijgen vóór de bundle hun transcript
+            # (YouTube: cache/API → abstract; podcast: whisper). Eigen try/except +
+            # ruime timeout (whisper duurt minuten). Faalt dit, dan stopt de job hier:
+            # geen bundle/ingest/removal → item blijft in _inbox (zichtbaar +
+            # herverwerkbaar). attach-transcript print alleen JSON-status op stdout
+            # (privacy-grens); de rest gaat naar de server-log.
+            transcript_url = job.get("transcript_url")
+            if transcript_url:
+                tr_item_key = job.get("item_key")
+                try:
+                    tr = subprocess.run(
+                        [str(PYTHON), str(SCRIPT_DIR / "attach-transcript.py"),
+                         "--item-key", tr_item_key, "--url", transcript_url],
+                        capture_output=True, text=True, timeout=1800,
+                        cwd=str(VAULT_DIR),
+                        env=_zotero_env("web"),   # writes → web (lokale API is read-only)
+                    )
+                    tr_out = tr.stdout.strip()
+                    tr_data = json.loads(tr_out) if tr_out else {}
+                    if tr.returncode != 0 or tr_data.get("status") != "ok":
+                        msg = tr_data.get("message") or tr.stderr.strip()[-300:] or "onbekend"
+                        print(f"[worker] attach-transcript faalde voor {tr_item_key}: {msg}",
+                              file=sys.stderr)
+                        with _job_lock:
+                            _job_status[key] = {"status": "error", "path": None,
+                                                "error": "attach-transcript faalde: " + msg}
+                        continue   # geen bundle bouwen; item blijft in _inbox
+                except subprocess.TimeoutExpired:
+                    print(f"[worker] attach-transcript timeout voor {tr_item_key}", file=sys.stderr)
+                    with _job_lock:
+                        _job_status[key] = {"status": "error", "path": None,
+                                            "error": "attach-transcript timeout na 1800s"}
+                    continue
+
+            # AV-items (transcript_url gezet): build via WEB zodat build-bundle de zojuist
+            # via web aangemaakte transcript-bijlage in de cloud ziet; fetch-fulltext leest
+            # daarna het lokale .txt-bestand via het linked_file-pad. Non-AV: auto+local
+            # (leest PDF-fulltext uit de lokale Zotero-storage).
+            build_env = _zotero_env("web") if transcript_url else _zotero_env("auto")
             result = subprocess.run(
                 cmd, capture_output=True, text=True, timeout=300,
                 cwd=str(VAULT_DIR),
-                # ZOTERO_LOCAL=true forceert lokale Zotero API in fetch-fulltext.py,
-                # die anders de Web API kiest zodra ZOTERO_API_KEY uit vault/.env geladen is.
-                env={**os.environ, "ZOTERO_ACCESS": "auto", "ZOTERO_LOCAL": "true"},
+                env=build_env,
             )
             out = result.stdout.strip()
             data = json.loads(out) if out else {}
@@ -91,14 +149,30 @@ def _inbox_worker():
                     _job_status[key] = {"status": "done", "path": bundle_path, "error": None}
                 # Verwijder item uit Zotero _inbox na succes — alleen go-jobs met een echte
                 # item-key; summarize heeft er geen → item blijft in _inbox voor de beslissing.
+                # Eigen try/except (CR-1): een removal-fout/timeout mag de reeds behaalde
+                # `done` niet terugzetten naar `error`; mislukking wordt zichtbaar via een
+                # apart removal_error-veld i.p.v. stil. Env `web`: de lokale API (:23119) is
+                # read-only en geeft 501 op de collectie-PATCH — removal moet via de web-API.
                 item_key = job.get("item_key")
                 if item_key:
-                    subprocess.run(
-                        [str(PYTHON), str(SCRIPT_DIR / "zotero-remove-from-inbox.py"), "--", item_key],
-                        capture_output=True, text=True, timeout=30,
-                        cwd=str(VAULT_DIR),
-                        env={**os.environ, "ZOTERO_ACCESS": "web"},
-                    )
+                    try:
+                        rm = subprocess.run(
+                            [str(PYTHON), str(SCRIPT_DIR / "zotero-remove-from-inbox.py"), "--", item_key],
+                            capture_output=True, text=True, timeout=30,
+                            cwd=str(VAULT_DIR),
+                            env=_zotero_env("web"),
+                        )
+                        if rm.returncode != 0:
+                            rm_err = rm.stderr.strip()[-300:] or "onbekend"
+                            print(f"[worker] removal faalde voor {item_key}: {rm_err}", file=sys.stderr)
+                            with _job_lock:
+                                if key in _job_status:
+                                    _job_status[key]["removal_error"] = rm_err
+                    except Exception as rexc:
+                        print(f"[worker] removal-exceptie voor {item_key}: {rexc}", file=sys.stderr)
+                        with _job_lock:
+                            if key in _job_status:
+                                _job_status[key]["removal_error"] = str(rexc)
             else:
                 err = data.get("message") or result.stderr.strip() or "onbekende fout"
                 with _job_lock:
@@ -302,12 +376,29 @@ class FeedreaderHandler(http.server.SimpleHTTPRequestHandler):
             self._respond_json(200, {"queued": False, "reason": "al in wachtrij"})
             return
 
+        # /research-pariteit: video/podcast krijgen een transcript-voorstap. Gate op
+        # itemType (niet op "heeft een URL"!) — anders zou attach-transcript een gewoon
+        # paper-met-URL als podcast behandelen en whisper/yt-dlp starten. attach-transcript
+        # routeert zelf: YouTube-URL → YouTube-pad, elke andere niet-lege URL → podcast.
+        item_type = (data.get("type") or "").strip()
+        url       = (data.get("url") or "").strip()
+        needs_transcript = item_type in ("videoRecording", "podcast") or _is_youtube(url)
+        if needs_transcript and not url:
+            # Zonder URL kan geen transcript worden opgehaald → niet stil een
+            # transcriptloze bundle bouwen; item blijft in _inbox (faalbeleid).
+            self._respond_json(400, {"error": "AV-item zonder URL — transcript niet mogelijk"})
+            return
+
         # build-zotero-bundle.py haalt zelf alle metadata uit Zotero → alleen --item-key nodig.
         cmd = [str(PYTHON), str(SCRIPT_DIR / "build-zotero-bundle.py"), "--item-key", key]
 
+        job = {"key": key, "item_key": key, "cmd": cmd, "ingest": True}
+        if needs_transcript:
+            job["transcript_url"] = url
+
         with _job_lock:
             _job_status[key] = {"status": "pending", "path": None, "error": None}
-        _job_queue.put({"key": key, "item_key": key, "cmd": cmd, "ingest": True})
+        _job_queue.put(job)
         self._respond_json(200, {"queued": True})
 
     def _handle_nogo(self, data: dict):
@@ -321,7 +412,7 @@ class FeedreaderHandler(http.server.SimpleHTTPRequestHandler):
                 [str(PYTHON), str(SCRIPT_DIR / "zotero-remove-from-inbox.py"), "--", key],
                 capture_output=True, text=True, timeout=30,
                 cwd=str(VAULT_DIR),
-                env={**os.environ, "ZOTERO_ACCESS": "web"},
+                env=_zotero_env("web"),   # lokale API is read-only → removal via web
             )
             if result.returncode == 0:
                 self._respond_json(200, {"removed": True})

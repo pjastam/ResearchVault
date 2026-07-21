@@ -434,6 +434,8 @@ async function doGo() {
     authors:   item.author,
     year:      item.year ? String(item.year) : "",
     tags:      item.tags,
+    type:      item.type,          // /research-pariteit: server bepaalt transcript-voorstap
+    url:       item.url || "",     // nodig voor attach-transcript bij video/podcast
   };
 
   try {

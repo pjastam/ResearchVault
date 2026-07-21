@@ -86,6 +86,8 @@ Fetches the full text of a Zotero attachment and saves it to a local file. Only 
 # Output: Saved: inbox/bron.txt (12,345 chars, type: application/pdf)
 ```
 
+For HTML snapshots the script extracts only the main article text via **trafilatura** (`extract_article_text()`), stripping navigation/ads/comments so full-page snapshots (e.g. Tweakers) don't bloat the bundle or slow `olw ingest`; it falls back to a naive tag-strip if trafilatura is unavailable or returns nothing. `trafilatura` must be installed in the zotero-mcp venv.
+
 ### `ollama-generate.py` — generate text via local LLM (Ollama or MLX)
 
 Calls a local LLM REST API directly (no CLI, no ANSI codes). Supports two backends:

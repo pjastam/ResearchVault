@@ -24,6 +24,33 @@ if not os.environ.get("ZOTERO_API_KEY"):
         load_dotenv(env_file)
 
 
+def _naive_html_to_text(raw_html: str) -> str:
+    """Strip álle tags → tekst (oud gedrag). Fallback als trafilatura niets vindt."""
+    text = re.sub(r"<[^>]+>", " ", raw_html)
+    return re.sub(r"\s+", " ", html_module.unescape(text)).strip()
+
+
+def extract_article_text(raw_html: str, url: str = "") -> str:
+    """Haal de hoofd-artikeltekst uit snapshot-HTML — nav/ads/comments/boilerplate eruit.
+
+    Volledige-pagina-snapshots (vooral van sites als Tweakers.net) bevatten enorm veel
+    boilerplate; de oude naïeve tag-strip zette dat allemaal in de bundle → trage ingest +
+    vervuilde concept-extractie. trafilatura vindt de hoofd-content; bij twijfel/leeg valt
+    het terug op de naïeve strip zodat we nooit naar 'leeg' regresseren.
+    """
+    try:
+        import trafilatura
+        extracted = trafilatura.extract(
+            raw_html, include_comments=False, include_tables=True,
+            url=url or None,
+        )
+        if extracted and extracted.strip():
+            return extracted.strip()
+    except Exception as exc:  # trafilatura ontbreekt of faalt → fallback
+        print(f"  trafilatura niet gebruikt ({exc}) — val terug op naïeve strip", file=sys.stderr)
+    return _naive_html_to_text(raw_html)
+
+
 def main():
     if len(sys.argv) != 3:
         print("Gebruik: fetch-fulltext.py ITEMKEY doelbestand.txt", file=sys.stderr)
@@ -135,9 +162,9 @@ def main():
         linked = Path(attachment_path)
         if linked.exists():
             raw_html = linked.read_text(encoding="utf-8", errors="replace")
-            text = re.sub(r"<[^>]+>", " ", raw_html)
-            content = re.sub(r"\s+", " ", html_module.unescape(text)).strip()
-            print(f"  Linked snapshot gelezen: {linked.name} ({len(content):,} tekens)", file=sys.stderr)
+            content = extract_article_text(raw_html)
+            print(f"  Linked snapshot gelezen: {linked.name} ({len(content):,} tekens, schoongemaakt)",
+                  file=sys.stderr)
 
     # Fallback voor linked_file text/plain (transcripten): lees direct van het opgegeven pad.
     if not content and attachment_type == "text/plain" and attachment_link_mode == "linked_file" and attachment_path:
@@ -152,9 +179,8 @@ def main():
         html_files = sorted(storage_dir.glob("*.html")) if storage_dir.exists() else []
         if html_files:
             raw_html = html_files[0].read_text(encoding="utf-8", errors="replace")
-            text = re.sub(r"<[^>]+>", " ", raw_html)
-            content = re.sub(r"\s+", " ", html_module.unescape(text)).strip()
-            print(f"  Snapshot gelezen uit storage: {html_files[0].name} ({len(content):,} tekens)",
+            content = extract_article_text(raw_html)
+            print(f"  Snapshot uit storage: {html_files[0].name} ({len(content):,} tekens, schoongemaakt)",
                   file=sys.stderr)
 
     # Fallback voor PDF: pyzotero gebruikt het web-gebruiker-ID ook in lokale modus,
