@@ -239,6 +239,28 @@ Na ≥30 positieven verschijnt een drempeladvies; pas dan `THRESHOLD_GREEN` en `
 - Academische artikelen die interessant zijn: voeg ze toe aan Zotero via de browser-extensie of iOS-app → komen in `_inbox` terecht
 - Niet-academische artikelen: voeg toe via Zotero Connector of de iOS share sheet — alle bronnen komen via de Zotero `_inbox` de vault in
 
+## Back-catalog scout (`backfill-scout.py`)
+
+De feedreader is een **flow**-instrument (`MAX_AGE_DAYS_DEFAULT = 30`; YouTube-RSS cap ~15) — de **back-catalog (stock)** van een bron is onzichtbaar. `.claude/backfill-scout.py` vult die blinde vlek: het enumereert de historie van **één bron** en scoort elk item **met dezelfde methode als de feedreader** tegen het gewogen Zotero-profiel. Conceptueel de tweeling van `/roadmap-scout`. Aanroepbaar via `/backfill`.
+
+**Single-source (geen batch):** elke run verwerkt precies één bron. Rationale: houdt YouTube-transcript-fetches per run onder de ~30/IP-grens (met verse VPN per run → nooit `IpBlocked`), geeft controle over IP-rotatie, en is uniform over de drie brontypes.
+
+```bash
+PY=~/.local/share/uv/tools/zotero-mcp-server/bin/python3
+$PY .claude/backfill-scout.py --source youtube --target "McElreath" --enrich-top-n 25
+$PY .claude/backfill-scout.py --source podcast --target "In Our Time" --max-items 150
+$PY .claude/backfill-scout.py --source scholar --target "van de Ven"
+```
+`--target` = naam-substring (tegen `feedreader-list.txt`, hyphen/spatie-ongevoelig) of directe id/url.
+
+- **youtube** — `yt-dlp --flat-playlist` enumereert; **twee-traps**: trap 1 titel-only (gratis), trap 2 transcript[:3000] voor de top-N (`--enrich-top-n`, throttled, block-aware — cache wordt niet vervuild bij IpBlocked). ⚠️-bucket = titel-only (skewt te hoog, niet-vergelijkbare schaal). yt-dlp hangt op sommige VPN-datacenter-exits → andere exit-node proberen.
+- **podcast** — `feedparser` op de RSS; score = titel + show notes[:1000] (géén transcript; whisper blijft post-Go). Dunne show notes (<200) → ⚠️-bucket. Verhoog `--max-items` om voorbij de flow-dekking te komen.
+- **scholar** — `feedparser` + `fetch_pure_metadata`; score = titel + abstract[:1000]. PURE-feed toont ~50 recente pubs (geen diepere historie) → **geconsolideerde per-auteur ranking**, géén dedupe.
+- **Hergebruik:** laadt `feedreader-score.py` via `importlib` (hyphen → niet importeerbaar) en erft functies (`fetch_and_cache_transcript`-equivalent, `get_embeddings_for_keys`, `fetch_pure_metadata`, `strip_html`), profiel-opbouw én paden-constanten (deelt de transcript-cache). youtube/podcast deduppen tegen `score_log.jsonl`.
+- **Output:** rapport per bron naar `vault/.cache/backfill-<source>-<slug>-<datum>.md` (🟢 ≥50 / 🟡 40–49 / 🔴 rest / ⚠️). State in `.claude/backfill_state.json` (per `source:target`).
+- **Privacy:** stdout = alleen een JSON-statusobject; bron-/transcripttekst wordt nooit geprint. Embeddings via lokale `sentence_transformers`, geen Anthropic-API.
+- **Uitrol-plan/lessen:** `~/.claude/plans/backfill-scout-rollout.md` (o.a. de ~30/IP transcript-limiet en de two-stage-rationale).
+
 ## Vertrouwelijke compartimenten (Fase G)
 
 Naast de persoonlijke vault kan vertrouwelijk materiaal (bijv. per organisatie/commissie/klant/scope) in **gescheiden compartimenten** worden verwerkt, volgens een **need-to-know lattice** (Bell–LaPadula "no write-down"):

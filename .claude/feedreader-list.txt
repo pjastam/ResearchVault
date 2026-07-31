@@ -135,17 +135,27 @@ https://podcast.npo.nl/feed/ovt.xml  # OVT (NPO Radio 1)
 
 # ── AI ────────────────────────────────────────────────────────────────────────
 https://www.youtube.com/feeds/videos.xml?channel_id=UCrDwWp7EBBv4NwvScIpBDOA  # Anthropic
-https://www.youtube.com/feeds/videos.xml?channel_id=UC5-pBdfdA3KUo-vq72l-umA  # Mistral AI
+https://www.youtube.com/feeds/videos.xml?channel_id=UC5-pBdfdA3KUo-vq72l-umA  # Mistral
+https://www.youtube.com/feeds/videos.xml?channel_id=UCdrYxpEy-e8uVDWYzFK3dCA  # Albert Olgaard
+https://www.youtube.com/feeds/videos.xml?channel_id=UCJAewjoWDcyNBvBzMZUxHeQ  # Edward Donner
+https://www.youtube.com/feeds/videos.xml?channel_id=UCSFUFfVEFHQxUaGS768rB9w  # Kiraa
+https://www.youtube.com/feeds/videos.xml?channel_id=UCfJT_eYDTmDE-ovKaxVE1ig  # Kevin Stratvert
 
 # ── Econometrics ──────────────────────────────────────────────────────────────
 https://www.youtube.com/feeds/videos.xml?channel_id=UCNJK6_DZvcMqNSzQdEkzvzA  # Richard McElreath
 
 # ── Academia & AI ─────────────────────────────────────────────────────────────
 https://www.youtube.com/feeds/videos.xml?channel_id=UCFqXmQ56-Gp1rIKa-GoAJvQ  # Andy Stapleton
+https://www.youtube.com/feeds/videos.xml?channel_id=UChP5v-RPeEQP27rzIHnHu7w  # Prof. David Stuckler
+
+# ── Privacy ───────────────────────────────────────────────────────────────────
+https://www.youtube.com/feeds/videos.xml?channel_id=UCVThyXNYXDC9UhDbI8LtghQ  # Proton Guides & Updates
 
 # ── Productivity & PKM ────────────────────────────────────────────────────────
 https://www.youtube.com/feeds/videos.xml?channel_id=UC68KSmHePPePCjW4v57VPQg  # Python Programmer
 https://www.youtube.com/feeds/videos.xml?channel_id=UC85D7ERwhke7wVqskV_DZUA  # Linking Your Thinking with Nick Milo
+https://www.youtube.com/feeds/videos.xml?channel_id=UCmvYCRYPDlzSHVNCI_ViJDQ  # Tiago Forte
+https://www.youtube.com/feeds/videos.xml?channel_id=UCnNA2EuEVybpo3WGEace4HQ  # AI Impact
 
 # ── Society, Philosophy & Politics ────────────────────────────────────────────
 https://www.youtube.com/feeds/videos.xml?channel_id=UC2m77KGMIKZCD0Kw35-4shQ  # Yuval Noah Harari

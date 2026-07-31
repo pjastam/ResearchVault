@@ -23,6 +23,12 @@
 # PURE cache — gedeelde directory, niet in git
 .claude/pure_cache/
 
+# Back-catalog scout — runtime state (per-machine, niet deelbaar)
+.claude/backfill_state.json
+
+# olw werkmap (runtime/experimenten, niet deelbaar)
+.olw/
+
 # Eenmalige hulpscripts — lokaal bewaren tot niet meer nodig, dan verwijderen
 .claude/pure-backlog.py
 
