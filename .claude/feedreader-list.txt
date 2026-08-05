@@ -19,16 +19,16 @@ http://feeds.hbr.org/harvardbusiness/
 
 # ── 1-R ───────────────────────────────────────────────────────────────────────
 https://www.pietstam.nl/posts-r.xml
-https://posit.co/feed
+https://posit.co/blog/rss
 https://rweekly.org/feed.xml
 https://feeds.feedburner.com/RBloggers
 https://journal.r-project.org/articles.xml
 
 # ── 1-Tech news ───────────────────────────────────────────────────────────────
-https://www.aireport.email/feed
+https://api.substack.com/feed/podcast/2351791.rss
 https://www.hcc.nl/?destination=node%2F1971%23comment-form&format=feed&type=rss
 https://feeds.nos.nl/nosnieuwstech
-https://openai.com/blog/rss/
+https://openai.com/news/rss.xml
 https://causalinf.substack.com/feed
 https://www.tweakers.net/feeds/nieuws.xml
 
@@ -36,23 +36,17 @@ https://www.tweakers.net/feeds/nieuws.xml
 https://www.bof.nl/feed/
 https://www.eff.org/rss/updates.xml
 https://www.theguardian.com/technology/hacking/rss
-https://piratenpartij.nl/feed/
 
 # ── 3-Health news international ───────────────────────────────────────────────
-https://www.ajmc.com/rss
-http://www.allhealth.org/rss.asp
+https://allhealthpolicy.org/feed/
 https://www.rand.org/pubs/new.xml
-http://feeds.commonwealthfund.org/thecommonwealthfundpublications&x=1
-https://feeds.feedburner.com/who/euro/rss/en
 
 # ── 3-Health news NL ──────────────────────────────────────────────────────────
 https://www.zorgvisie.nl/feed/?post_type=blog
 https://equalis.nl/feed/atom/
-https://feeds.nza.nl/nieuws.rss
-https://feeds.rijksoverheid.nl/onderwerpen/zorgverzekering/documenten.rss
-https://feeds.rijksoverheid.nl/ministeries/ministerie-van-volksgezondheid-welzijn-en-sport/kamerstukken.rss
+https://www.nza.nl/api/rss?query=%7B%22filters%22%3A%5B%7B%22field%22%3A%22content_type%22%2C%22values%22%3A%5B%22pro%3AnewsDocument%22%5D%2C%22type%22%3A%22all%22%7D%5D%2C%22resultSearchTerm%22%3A%22%22%7D
 https://www.skipr.nl/feed/
-https://feeds.zorginstituutnederland.nl/nieuws.rss
+https://www.zorginstituutnederland.nl/api/rss?query=%7B%22filters%22%3A%5B%7B%22field%22%3A%22content_type%22%2C%22values%22%3A%5B%22pro%3AnewsDocument%22%5D%2C%22type%22%3A%22all%22%7D%5D%2C%22resultSearchTerm%22%3A%22%22%7D
 https://www.zorgvisie.nl/feed/
 
 # ── 4-Scholars ────────────────────────────────────────────────────────────────
@@ -74,15 +68,14 @@ https://research.vu.nl/en/persons/yvonne-alkemade-krabbe/publications/?format=rs
 # ── 4-Science international pubs ─────────────────────────────────────────────
 https://pubs.aeaweb.org/rss/etoc/aer
 https://www.healthaffairs.org/action/showFeed?type=etoc&feed=rss&jc=hlthaff
-https://healtheconomicsreview.biomedcentral.com/articles/most-recent/rss.xml
+https://link.springer.com/search.rss?facet-journal-id=13561&channel-name=Health+Economics+Review
 https://pubs.aeaweb.org/rss/etoc/jel
 https://pubs.aeaweb.org/rss/etoc/jep
 https://link.springer.com/search.rss?facet-content-type=Article&facet-journal-id=10198&channel-name=The+European+Journal+of+Health+Economics
 https://link.springer.com/search.rss?facet-content-type=Article&facet-journal-id=10389&channel-name=Journal+of+Public+Health
 https://link.springer.com/search.rss?facet-content-type=Article&facet-journal-id=10754&sortOrder=newestFirst
 https://link.springer.com/search.rss?facet-content-type=Article&facet-journal-id=40273&channel-name=PharmacoEconomics
-http://journals.lww.com/lww-medicalcare/_layouts/OAKS.Journals/feed.aspx?FeedType=CurrentIssue
-https://www.rand.org/topics/health-and-health-care.xml
+https://pubmed.ncbi.nlm.nih.gov/rss/search/1VCF4_1oOVazbJoli5IZNQujrUQMxHsnQskPIE_UxXHtfOUEAc/?limit=20
 https://rss.sciencedirect.com/publication/science/01688510
 https://rss.sciencedirect.com/publication/science/03044076
 https://rss.sciencedirect.com/publication/science/01676296
