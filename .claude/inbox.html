@@ -62,6 +62,19 @@
   .sr-title { font-size: 14px; color: #f8fafc; }
   .sr-meta  { font-size: 12px; color: #94a3b8; display: flex; gap: 8px; align-items: center; }
 
+  /* Bulk-actie: alle ✅ → Go */
+  #bulk-bar { display: flex; }
+  #btn-go-all {
+    width: 100%; padding: 9px 12px;
+    border: none; border-radius: 8px;
+    background: var(--green); color: #fff;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+  #btn-go-all:active { transform: scale(0.99); opacity: 0.85; }
+  #btn-go-all:disabled { opacity: 0.5; cursor: default; }
+
   /* Status bar */
   #statusbar {
     background: #0f172a; color: #94a3b8;
@@ -228,6 +241,9 @@
            oninput="onSearch(this.value)" onfocus="onSearch(this.value)" inputmode="search">
     <div id="search-results" style="display:none"></div>
   </div>
+  <div id="bulk-bar" style="display:none">
+    <button id="btn-go-all" onclick="goAllChecked()">✅ Alle ✅-items → Go</button>
+  </div>
 </header>
 
 <div id="statusbar"></div>
@@ -275,6 +291,7 @@ async function boot() {
 // ── Rendering ─────────────────────────────────────────────────────────────────
 
 function renderCurrent() {
+  updateBulkBar();
   if (!items.length) { showEmpty(); return; }
 
   // Sla beslist + overgeslagen items over (behalve als alles beslist is)
@@ -424,10 +441,10 @@ function advance() {
 
 // ── Acties ────────────────────────────────────────────────────────────────────
 
-async function doGo() {
-  const item = items[current];
-  setBtnsDisabled(true);
-
+// Queue één item op de Go-pijplijn. Geeft {ok, error} terug; markeert NIET zelf
+// als 'decided' — dat doet de aanroeper (zo blijft de helper herbruikbaar voor
+// zowel de losse Go-knop als de bulk-actie).
+async function submitGo(item) {
   const payload = {
     key:       item.key,
     title:     item.title,
@@ -437,21 +454,61 @@ async function doGo() {
     type:      item.type,          // /research-pariteit: server bepaalt transcript-voorstap
     url:       item.url || "",     // nodig voor attach-transcript bij video/podcast
   };
-
   try {
-    const res = await fetch(`${BASE}/api/inbox/go`, {
+    const res  = await fetch(`${BASE}/api/inbox/go`, {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify(payload),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, error: data.error || `HTTP ${res.status}` };
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+async function doGo() {
+  const item = items[current];
+  setBtnsDisabled(true);
+
+  const { ok, error } = await submitGo(item);
+  if (ok) {
     decided.add(item.key);
     showToast("✅ Go — wordt verwerkt op de achtergrond");
     advance();
-  } catch (e) {
-    showToast("Fout: " + e.message, true);
+  } else {
+    showToast("Fout: " + error, true);
     setBtnsDisabled(false);
   }
+}
+
+// Bulk: geef alle openstaande ✅-getagde items in één keer een Go.
+async function goAllChecked() {
+  const targets = items.filter(it => (it.tags || []).includes("✅") && !decided.has(it.key));
+  if (!targets.length) { showToast("Geen ✅-items te verwerken"); return; }
+
+  const btn = document.getElementById("btn-go-all");
+  if (btn) { btn.disabled = true; btn.textContent = `⏳ Bezig… (0/${targets.length})`; }
+
+  // Sequentieel + doorgaan-bij-fout: de backend-worker serialiseert de jobs toch,
+  // dus een burst levert niets op; sequentieel laat mislukkingen netjes tellen en
+  // houdt de knoptekst als voortgangsteller bruikbaar. Een mislukt item (bv. een
+  // AV-item zonder URL → 400) blijft in de inbox staan, niet stil in 'decided'.
+  let done = 0, failed = 0;
+  for (const item of targets) {
+    const { ok } = await submitGo(item);
+    if (ok) { decided.add(item.key); done++; }
+    else { failed++; }
+    if (btn) btn.textContent = `⏳ Bezig… (${done + failed}/${targets.length})`;
+  }
+
+  showToast(failed
+    ? `✅ ${done} op Go gezet · ⚠️ ${failed} mislukt`
+    : `✅ ${done} op Go gezet — worden verwerkt op de achtergrond`,
+    failed > 0);
+
+  renderCurrent();   // ververst kaartenstroom + counter; roept updateBulkBar() aan
 }
 
 async function doNogo() {
@@ -630,6 +687,20 @@ function renderStatusBar(counts) {
 }
 
 // ── Counter & progress ────────────────────────────────────────────────────────
+
+function updateBulkBar() {
+  const bar = document.getElementById("bulk-bar");
+  const btn = document.getElementById("btn-go-all");
+  if (!bar || !btn) return;
+  const n = items.filter(it => (it.tags || []).includes("✅") && !decided.has(it.key)).length;
+  if (n > 0) {
+    bar.style.display = "";
+    btn.disabled = false;
+    btn.textContent = `✅ Alle ✅-items → Go (${n})`;
+  } else {
+    bar.style.display = "none";
+  }
+}
 
 function updateCounter() {
   const total   = items.length;

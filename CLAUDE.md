@@ -198,7 +198,7 @@ De feedreader scoort RSS/YouTube/podcast-feeds automatisch op relevantie en prod
 - `http://localhost:8765/filtered-podcast.xml` — Atom-feed podcasts voor NetNewsWire
 - `http://localhost:8765/article/{video_id}` — gegenereerd leesartikel voor een YouTube-video (structuur: Inleiding · Kernpunten · Conclusie; taal = originele videotaal)
 - `http://localhost:8765/article/podcast/{episode_id}` — gegenereerd leesartikel voor een podcast-aflevering op basis van show notes (zelfde structuur; alleen voor afleveringen met show notes ≥ 200 tekens)
-- `http://localhost:8765/inbox` — inbox-review pagina (iPad-vriendelijk): toont Zotero `_inbox`-items gesorteerd op score met Go/No-go knoppen; Go → `build-zotero-bundle.py` → `raw/` + `olw ingest` + verwijder uit `_inbox`; No-go → verwijder direct uit `_inbox`
+- `http://localhost:8765/inbox` — inbox-review pagina (iPad-vriendelijk): toont Zotero `_inbox`-items gesorteerd op score met Go/No-go knoppen; Go → `build-zotero-bundle.py` → `raw/` + `olw ingest` + verwijder uit `_inbox`; No-go → verwijder direct uit `_inbox`. Bevat tevens een bulk-knop in de header (**✅ Alle ✅-items → Go (N)**) die alle openstaande `✅`-getagde items in één keer via het bestaande per-item `/api/inbox/go`-endpoint queuet (sequentieel, doorgaan-bij-fout; verschijnt alleen bij N>0)
 
 **Inbox-review REST API (POST vereist `Content-Type: application/json`):**
 - `GET  /api/inbox/items` — gecombineerde score + Zotero metadata per `_inbox`-item (JSON)
