@@ -11,11 +11,11 @@ Deze skill maakt Claude Code tot een actieve, vragenderwijs werkende research-as
 
 - **Fase 1 — Breed vangen:** items stromen via drie bronnen in Zotero `_inbox`: (1) de **feedreader** (`feedreader-score.py`) scoort dagelijks alle RSS/YouTube/podcast-feeds automatisch en schrijft drie gefilterde Atom-feeds naar `~/.local/share/feedreader-serve/`; **FreshRSS** (HA Community Add-on, poort 7077) abonneert op die feeds en synchroniseert leesstatus; **NetNewsWire** op Mac Mini, iPad en iPhone verbindt met FreshRSS voor cross-device sync; de gebruiker besluit welke items worden doorgestuurd via de NNW share sheet; (2) de **iOS share sheet** — items die de gebruiker al heeft gelezen/bekeken/beluisterd en bewust deelt vanuit YouTube, Overcast of Safari; (3) **desktop/e-mail/notities** — handmatige toevoeging. De feedreader-scorelogica is gedeeld via `feedreader_core.py` en draait automatisch via launchd (login-getriggerde ochtendbatch + overdagtaken).
 - **Fase 2 — Filteren:** Claude Code genereert een samenvatting of beoordeling; de gebruiker geeft Go of No-go. Alleen goedgekeurde items gaan verder.
-- **Fase 3 — Verwerken & opslaan:** het goedgekeurde item wordt via `build-zotero-bundle.py` als canonieke bundle naar `raw/` geschreven; **olw** (obsidian-llm-wiki) ingest die bundle en compileert er onderling gelinkte wiki-pagina's uit, die de gebruiker via **`olw review`** goedkeurt naar `wiki/`.
+- **Fase 3 — Verwerken & opslaan:** het goedgekeurde item wordt via `build-zotero-bundle.py` als canonieke bundle naar `raw/` geschreven; de geconfigureerde **wiki-backend** ingest die bundle en compileert er onderling gelinkte wiki-pagina's uit, die de gebruiker via **`olw review`** goedkeurt naar `wiki/`.
 
-In plaats van af te wachten wat de gebruiker precies vraagt, stelt Claude Code gerichte vragen om de onderliggende onderzoeksbehoefte te begrijpen. Claude Code leidt de gebruiker door de workflow: van vaag zoekidee naar canonieke bronbundles (`raw/`) en olw-gegenereerde wiki-pagina's en syntheses (`wiki/`), of naar transcriptverwerking.
+In plaats van af te wachten wat de gebruiker precies vraagt, stelt Claude Code gerichte vragen om de onderliggende onderzoeksbehoefte te begrijpen. Claude Code leidt de gebruiker door de workflow: van vaag zoekidee naar canonieke bronbundles (`raw/`) en de daaruit gecompileerde wiki-pagina's en syntheses (`wiki/`), of naar transcriptverwerking.
 
-> **Architectuur-kern:** olw *compileert bestaande kennis* — het genereert geen nieuwe kennis. De pijplijn draait lokaal op `mistral-small:22b`; alleen JSON-status en tellingen bereiken Claude Code. Claude Code is de **orkestrator** (fasebewaking, intake, de review-gate coördineren) — niet de generatiemotor. Draai olw-uitvoer altijd naar een log en lees alleen exit-code/tellingen, nooit draft-/conceptinhoud.
+> **Architectuur-kern:** ResearchVault levert canonieke bundles in `raw/`. Wat daarna gebeurt is een **vervangbare wiki-backend**, geconfigureerd in `wiki-backend.toml` per vault en aangestuurd via `.claude/wiki_backend.py`. De backend *compileert bestaande kennis* — hij genereert geen nieuwe. Welke backend draait en of hij lokaal is, staat in de config; ga er nooit vanuit dat het olw is. Claude Code is de **orkestrator** (fasebewaking, intake, de review-gate coördineren) — niet de generatiemotor. Draai backend-uitvoer altijd naar een log en lees alleen de statusdict, nooit draft- of conceptinhoud.
 
 ---
 
@@ -42,8 +42,8 @@ Tijdens de hele sessie geldt: **toon tussenresultaten en vraag om bevestiging** 
 
 Concrete gedragsregels:
 - Toon zoekresultaten uit Zotero (titels + auteurs) en vraag: "Zijn dit de papers die je bedoelt, of zoek je iets specifieker?"
-- Na het bouwen van een bundle: "Zal ik deze meteen door olw laten ingesten, of wil je eerst nog een bron toevoegen?"
-- Na een `olw compile`: "De drafts staan in `wiki/.drafts/`. Beoordeel ze in je eigen terminal met `olw review` — zal ik het commando klaarzetten?"
+- Na het bouwen van een bundle: "Zal ik deze meteen laten ingesten, of wil je eerst nog een bron toevoegen?"
+- Na een compile: "De drafts staan in `wiki/.drafts/`. Beoordeel ze in je eigen terminal met `olw review` — zal ik het commando klaarzetten?"
 - Als een zoekresultaat mager is: "Ik vind weinig over dit thema in Zotero. Wil je dat ik ook semantisch zoek op verwante begrippen, of heb je misschien papers onder een andere naam opgeslagen?"
 
 ---
@@ -62,7 +62,7 @@ Gebruik deze context om de zoekopdracht en de uitvoer beter af te stemmen. Stel 
 
 ### 4. Houd de vault coherent
 
-De structuur, cross-links en syntheses van de wiki zijn **olw's domein** (aangestuurd via `wiki.toml`, aangelegd tijdens `olw compile`). Claude Code schrijft geen wiki-pagina's met de hand. Na elke sessie:
+De structuur, cross-links en syntheses van de wiki zijn **het domein van de backend** (aangestuurd via zijn eigen config, voor olw `wiki.toml`, aangelegd tijdens `olw compile`). Claude Code schrijft geen wiki-pagina's met de hand. Na elke sessie:
 
 - Zorg dat goedgekeurde bronnen daadwerkelijk ge-ingest en gecompileerd zijn (`olw status` toont wat nog "pending" staat)
 - Stel voor om `olw compile` te draaien als er nieuwe bronnen zijn ingest maar nog geen drafts gemaakt; herinner aan de `olw review`-gate voor openstaande drafts
@@ -77,7 +77,7 @@ De structuur, cross-links en syntheses van de wiki zijn **olw's domein** (aanges
 Elke actie die Claude Code uitvoert, kondigt het kort aan vóór uitvoering:
 - "Ik zoek nu in Zotero op [zoekterm]..."
 - "Ik bouw de canonieke bundle voor [titel] naar `raw/`..."
-- "Ik laat olw de bundle ingesten en compileren (uitvoer naar een log)..."
+- "Ik laat de backend de bundle ingesten en compileren (uitvoer naar een log)..."
 
 Na elke stap: bevestig het resultaat (pad/tellingen uit het JSON-statusobject) en vraag of de gebruiker verder wil of iets wil aanpassen. **Toon nooit bron- of draftinhoud** — alleen paden, tellingen en status.
 
@@ -85,9 +85,9 @@ Na elke stap: bevestig het resultaat (pad/tellingen uit het JSON-statusobject) e
 
 ### 6. Maximale kwaliteitsmodus — alleen op expliciete aanvraag
 
-Standaard verloopt de volledige workflow lokaal. De concept-extractie en synthese lopen via **olw op `mistral-small:22b`**; de fase-2-previews (`summarize_item.py`) en losse verwerkingsstappen (`ollama-generate.py`) via een lokaal model (default Qwen3.5:9b, of MLX via `LLM_BACKEND=mlx`). Geen data verlaat de Mac mini voor redeneer- of schrijftaken.
+Standaard verloopt de volledige workflow lokaal. De concept-extractie en synthese lopen via **de backend (nu olw op `mistral-small:22b`)**; de fase-2-previews (`summarize_item.py`) en losse verwerkingsstappen (`ollama-generate.py`) via een lokaal model (default Qwen3.5:9b, of MLX via `LLM_BACKEND=mlx`). Geen data verlaat de Mac mini voor redeneer- of schrijftaken.
 
-**Uitzondering — `--hd`:** als de gebruiker expliciet om maximale kwaliteit vraagt, schakelen de **preview/helper-scripts** (`summarize_item.py`, `ollama-generate.py`) over naar Claude Sonnet 4.6 (Anthropic API) voor die specifieke taak. Dit betekent dat de prompt én de meegestuurde tekst (transcriptinhoud, paperinhoud) naar de Anthropic API gaan. **olw draait altijd lokaal** — `--hd` verandert daar niets aan; de wiki-synthese blijft op `mistral-small:22b`.
+**Uitzondering — `--hd`:** als de gebruiker expliciet om maximale kwaliteit vraagt, schakelen de **preview/helper-scripts** (`summarize_item.py`, `ollama-generate.py`) over naar Claude Sonnet 4.6 (Anthropic API) voor die specifieke taak. Dit betekent dat de prompt én de meegestuurde tekst (transcriptinhoud, paperinhoud) naar de Anthropic API gaan. **De backend draait lokaal zolang `locality = "local"` in `wiki-backend.toml` staat** — `--hd` verandert daar niets aan; de wiki-synthese blijft op de geconfigureerde backend (nu `mistral-small:22b`).
 
 **Hoe de gebruiker dit activeert:**
 
@@ -104,6 +104,7 @@ Standaard verloopt de volledige workflow lokaal. De concept-extractie en synthes
 3. Gebruik Claude Sonnet 4.6 dan als directe generatiemotor voor die helper-stap.
 4. Na afronding: bevestig welk model is gebruikt in de statusmelding, bijv. "Samenvatting aangemaakt via Claude Sonnet 4.6."
 5. **Nooit** automatisch terugvallen op Sonnet als het lokale model niet beschikbaar is — meld dat Ollama niet bereikbaar is en vraag of de gebruiker expliciet wil overschakelen.
+6. **Nooit op een vertrouwelijke vault.** Bevat de vault een `.confidential`-marker of staat `confidential = true` in `wiki-backend.toml`, dan is de maximale-kwaliteitsmodus verboden — ongeacht wat de gebruiker vraagt. Dit is een conventie, geen mechanisch slot: de dispatcher ziet dit pad niet, dus de regel moet hier gehandhaafd worden. Meld het en bied het lokale alternatief aan.
 
 ---
 
@@ -133,12 +134,12 @@ Wat wil je vandaag doen?
 [0] Zotero _inbox beoordelen — Go/No-go per paper
 
 ── FASE 3 · VERWERKEN ─────────────────────────────────────
-[1] Nieuwe papers uit Zotero verwerken (raw → olw → wiki)
+[1] Nieuwe papers uit Zotero verwerken (raw → backend → wiki)
 [2] Semantisch zoeken op een thema of onderzoeksvraag
 [3] Een YouTube-transcript ophalen en verwerken
 [4] Een podcast ophalen en verwerken
 [5] RSS-items verwerken naar de vault
-[6] Een synthese maken over een thema (via olw)
+[6] Een synthese maken over een thema (via de backend)
 [7] Bestaande wiki doorbladeren en verbanden bewaken
 [8] Inbox opruimen en verwerken
 [9] Iets anders — vertel het me
@@ -239,13 +240,13 @@ Na ontvangst van `{"status": "ok", "path": ".cache/_summary_ITEMKEY.md"}`:
 5. Per item, afhankelijk van tag én score (zie taglogica + scorelogica hierboven):
    - `📖`: roep `summarize_item.py` aan, toon pad, wacht op besluit
    - Overige items: genereer indien nodig samenvatting via `summarize_item.py`; vraag Go/No-go
-6. **Go-items:** bouw de canonieke bundle en laat olw hem ingesten (geen bron-inhoud bereikt Claude Code):
+6. **Go-items:** bouw de canonieke bundle en laat de backend hem ingesten (geen bron-inhoud bereikt Claude Code):
    ```bash
    ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/build-zotero-bundle.py --item-key ITEMKEY
    # → {"status": "ok", "path": "vault/raw/{citekey}__{itemKey}.md"}
-   olw ingest vault/raw/{citekey}__{itemKey}.md --vault vault --fast-model mistral-small:22b
+   python3 .claude/wiki_backend.py ingest vault --file vault/raw/{citekey}__{itemKey}.md
    ```
-   > De feedreader-Go (`/api/inbox/go`) doet stap 6 (bundle bouwen + `olw ingest`) al **automatisch** voor items die via de inbox-review pagina worden goedgekeurd. Bij handmatige verwerking draai je bovenstaande zelf.
+   > De feedreader-Go (`/api/inbox/go`) doet stap 6 (bundle bouwen + backend-ingest) al **automatisch** voor items die via de inbox-review pagina worden goedgekeurd. Bij handmatige verwerking draai je bovenstaande zelf.
    - Verwijder het item daarna uit `_inbox` (zie stap 7 van type 1) als dat nog niet gebeurd is.
 7. **No-go-items:** vraag altijd om bevestiging vóór verwijdering, verwijder daarna uit `_inbox`. Een no-go betekent altijd: geen bundle bouwen én verwijderen uit `_inbox` — er is geen tussenoptie.
 8. **Compile + review (gebatcht):** na een reeks Go's:
@@ -323,7 +324,7 @@ Na ontvangst van `{"status": "ok", "path": ".cache/_summary_ITEMKEY.md"}`:
    ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/zotero-remove-from-inbox.py ITEMKEY
    ```
 
-> **Fallback (losse stap):** ontbreekt de bijlage-route, dan kan het transcript via `fetch-fulltext.py ITEMKEY .cache/{video_id}.txt` naar `.cache/` en desgewenst lokaal verwerkt worden met `ollama-generate.py` (`--backend ollama|mlx`, of `--hd` voor Sonnet na bevestiging) — nooit `cat`/`print` op de volledige inhoud.
+> **Fallback (losse stap):** ontbreekt de bijlage-route, dan kan het transcript via `fetch-fulltext.py ITEMKEY .cache/{video_id}.txt` naar `.cache/` en desgewenst lokaal verwerkt worden met `ollama-generate.py` (`--backend ollama|mlx`; voor maximale kwaliteit vraag je Claude Code er expliciet om — er is géén `--hd`-vlag op dit script) — nooit `cat`/`print` op de volledige inhoud.
 
 ### Type 4: Podcast ophalen en verwerken
 
@@ -435,9 +436,9 @@ Navigatie, zoeken en link-management lopen via **hyalo** (geen LLM). De cross-li
 | "podcast [URL]" | Start type 4: transcribeer via whisper.cpp → bijlage → raw → olw; slaat Zotero `_inbox` over |
 | "inbox [URL]" | Haal artikel op en sla op als Markdown in `.cache/`, zonder Zotero |
 | "rss [URL of item]" | Start type 5 voor het opgegeven item |
-| "synthese over [thema]" | Start type 6 (via olw compile/review) |
+| "synthese over [thema]" | Start type 6 (via de compile/review-stap van de backend) |
 | "wat staat er in de wiki" | Start type 7, geef overzicht via hyalo |
-| "compile" of "olw compile" | Draai `olw compile --vault vault` (uitvoer naar log); daarna `olw review` |
+| "compile" | Draai `python3 .claude/wiki_backend.py compile vault` (uitvoer naar log); daarna de reviewstap van de geconfigureerde backend |
 | "review drafts" | Herinner de gebruiker aan de `olw review --vault vault`-gate in de eigen terminal |
 | "ruim inbox op" | Start type 8 |
 | "update database" | Voer `zotero-mcp update-db --fulltext` uit |
