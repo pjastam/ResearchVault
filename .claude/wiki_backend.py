@@ -15,8 +15,13 @@ Privacy: geen subprocess-inhoud in enige returnwaarde. Alleen returncode + logbe
 
 from __future__ import annotations
 
+import argparse
+import json
+import os
 import re
 import shlex
+import subprocess
+import sys
 import tomllib
 from pathlib import Path
 
@@ -200,3 +205,67 @@ def render(verb: str, vault, **args) -> dict:
 
     log_path = Path(vpath) / LOG_DIR_NAME / f"{verb}.log"
     return {"status": "ok", "command": command, "timeout": timeout, "log": str(log_path)}
+
+
+def run(verb: str, vault, **args) -> dict:
+    """render() plus subprocess, logging en timeout."""
+    plan = render(verb, vault, **args)
+    if plan["status"] != "ok":
+        return plan
+
+    log_path = Path(plan["log"])
+    try:
+        log_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        os.chmod(log_path.parent, 0o700)
+    except OSError as exc:
+        return _err(f"kon logmap niet aanmaken: {exc}")
+
+    try:
+        with open(log_path, "w", encoding="utf-8") as lf:
+            os.chmod(log_path, 0o600)
+            proc = subprocess.run(
+                plan["command"], stdout=lf, stderr=lf,
+                timeout=plan["timeout"], cwd=plan_cwd(vault),
+            )
+    except subprocess.TimeoutExpired:
+        return _err(f"{verb} timeout na {plan['timeout']}s, zie {log_path.name}",
+                    returncode=None, log=str(log_path))
+    except OSError as exc:
+        return _err(f"{verb} kon niet starten: {exc}", log=str(log_path))
+
+    if proc.returncode != 0:
+        # Log-inhoud NOOIT teruggeven — alleen de code en de bestandsnaam.
+        return _err(f"{verb} faalde (exit {proc.returncode}), zie {log_path.name}",
+                    returncode=proc.returncode, log=str(log_path))
+    return {"status": "ok", "returncode": 0, "log": str(log_path)}
+
+
+def plan_cwd(vault) -> str:
+    return str(normalize_vault(vault))
+
+
+def main() -> None:
+    """Dun CLI-omhulsel: vertaalt status naar exit-code. De enige plek met sys.exit()."""
+    ap = argparse.ArgumentParser(description="Dispatch naar de geconfigureerde wiki-backend.")
+    ap.add_argument("verb", choices=VERBS + ("load",))
+    ap.add_argument("vault")
+    ap.add_argument("--file")
+    ap.add_argument("--draft")
+    ap.add_argument("--feedback")
+    ap.add_argument("--render-only", action="store_true")
+    a = ap.parse_args()
+
+    if a.verb == "load":
+        res = load(a.vault)
+    else:
+        kwargs = {k: v for k, v in
+                  (("file", a.file), ("draft", a.draft), ("feedback", a.feedback))
+                  if v is not None}
+        res = (render if a.render_only else run)(a.verb, a.vault, **kwargs)
+
+    print(json.dumps(res, ensure_ascii=False))
+    sys.exit(0 if res["status"] in ("ok", "skipped") else 1)
+
+
+if __name__ == "__main__":
+    main()

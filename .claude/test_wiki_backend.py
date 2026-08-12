@@ -376,5 +376,91 @@ class TestGuardrail(unittest.TestCase):
             self.assertEqual(res["status"], "unsupported")
 
 
+FAILING_BLOCK = """
+[backends.olw]
+invocation = "cli"
+locality   = "local"
+bin        = "/usr/bin/false"
+state_dir  = ".olw"
+timeout    = 30
+compile = "{bin} compile --vault {vault}"
+"""
+
+LEAKY_BLOCK = """
+[backends.olw]
+invocation = "cli"
+locality   = "local"
+bin        = "/bin/sh"
+state_dir  = ".olw"
+timeout    = 30
+compile = "{bin} -c echo_geheim_op_stdout_en_exit_1"
+"""
+
+
+class TestRun(unittest.TestCase):
+    def test_success_returns_ok_and_log_path(self):
+        with tempfile.TemporaryDirectory() as t:
+            v = make_vault(t)
+            res = wiki_backend.run("compile", v)
+            self.assertEqual(res["status"], "ok")
+            self.assertEqual(res["returncode"], 0)
+            self.assertTrue(Path(res["log"]).is_file())
+
+    def test_log_lives_inside_vault_with_tight_permissions(self):
+        with tempfile.TemporaryDirectory() as t:
+            v = make_vault(t)
+            res = wiki_backend.run("compile", v)
+            log = Path(res["log"])
+            self.assertEqual(log.parent, Path(t).resolve() / ".wiki-backend")
+            self.assertEqual(log.parent.stat().st_mode & 0o777, 0o700)
+            self.assertEqual(log.stat().st_mode & 0o777, 0o600)
+
+    def test_failure_reports_returncode_and_log_but_no_output(self):
+        with tempfile.TemporaryDirectory() as t:
+            v = Path(t)
+            (v / "wiki-backend.toml").write_text(
+                'confidential = false\nbackend = "olw"\n' + FAILING_BLOCK, encoding="utf-8")
+            res = wiki_backend.run("compile", v)
+            self.assertEqual(res["status"], "error")
+            self.assertEqual(res["returncode"], 1)
+            self.assertIn("compile.log", res["log"])
+
+    def test_no_subprocess_output_leaks_into_result(self):
+        """De kernbelofte uit spec §5: nooit loginhoud in de returnwaarde."""
+        with tempfile.TemporaryDirectory() as t:
+            v = Path(t)
+            (v / "wiki-backend.toml").write_text(
+                'confidential = false\nbackend = "olw"\n' + LEAKY_BLOCK, encoding="utf-8")
+            res = wiki_backend.run("compile", v)
+            self.assertEqual(res["status"], "error")
+            blob = repr(res)
+            self.assertNotIn("echo_geheim_op_stdout_en_exit_1", blob)
+
+    def test_skipped_passes_through_without_subprocess(self):
+        with tempfile.TemporaryDirectory() as t:
+            v = Path(t)
+            (v / "wiki-backend.toml").write_text(
+                'confidential = false\nbackend = "none"\n\n'
+                '[backends.none]\ninvocation = "cli"\nlocality = "local"\n',
+                encoding="utf-8")
+            res = wiki_backend.run("ingest", v, file="/a.md")
+            self.assertEqual(res["status"], "skipped")
+            self.assertFalse((Path(t) / ".wiki-backend").exists())
+
+    def test_no_public_function_ever_raises_systemexit(self):
+        with tempfile.TemporaryDirectory() as t:
+            broken = Path(t) / "broken"
+            broken.mkdir()
+            for call in (
+                lambda: wiki_backend.load(broken),
+                lambda: wiki_backend.render("ingest", broken, file="/a.md"),
+                lambda: wiki_backend.run("ingest", broken, file="/a.md"),
+            ):
+                try:
+                    call()
+                except SystemExit:
+                    self.fail("geen enkele publieke functie mag sys.exit() aanroepen")
+
+
 if __name__ == "__main__":
     unittest.main()
