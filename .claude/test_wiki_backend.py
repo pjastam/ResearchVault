@@ -142,6 +142,26 @@ class TestLoad(unittest.TestCase):
             self.assertEqual(res["status"], "error")
             self.assertIn("force_args", res["error"])
 
+    def test_confidential_vault_without_verbs_does_not_require_state_dir_or_force_args(self):
+        """Test dat state_dir/force_args alleen verplicht zijn als backend verbs declareert.
+        Dit test de has_verbs-voorwaarde (regel 264) die volledige bitterness zou veroorzaken."""
+        with tempfile.TemporaryDirectory() as t:
+            v = Path(t)
+            # Backend zonder enkel verb; state_dir en force_args ontbreken.
+            no_verb_block = """
+[backends.static]
+invocation = "none"
+locality   = "local"
+"""
+            (v / "wiki-backend.toml").write_text(
+                'confidential = true\nbackend = "static"\n' + no_verb_block, encoding="utf-8")
+            (v / ".confidential").write_text("", encoding="utf-8")
+            res = wiki_backend.load(v)
+            # Status moet "ok" zijn omdat has_verbs=False (geen ingest/compile/approve/reject).
+            self.assertEqual(res["status"], "ok")
+            self.assertTrue(res["confidential"])
+            self.assertEqual(res["backend"], "static")
+
     def test_load_never_raises_systemexit(self):
         with tempfile.TemporaryDirectory() as t:
             v = make_vault(t, config=False)
