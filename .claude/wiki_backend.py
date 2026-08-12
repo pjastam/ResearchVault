@@ -6,9 +6,11 @@ ResearchVault levert canonieke bundles in raw/; wat daarna gebeurt is een vervan
 backend (olw, claude-obsidian, none). Deze module leest wiki-backend.toml per vault,
 controleert de guardrail en draait het subprocess.
 
-Library-first: elke functie geeft een dict terug en roept NOOIT sys.exit(). Drie
-aanroepers importeren deze module in-process, waaronder een launchd-daemon met een
-`except Exception`-worker — SystemExit erft daar niet van en zou de thread doden.
+Library-first: elke functie geeft een dict terug en roept NOOIT sys.exit(). Zeven
+aanroepers importeren deze module in-process (promote-to-raw.py, declassify-to-personal.py,
+feedreader-server.py, compartment-serve.py, sync-personal-context.py, new-compartment.py
+en migrate-wiki-backend.py), waaronder een launchd-daemon met een `except Exception`-worker
+— SystemExit erft daar niet van en zou de thread doden.
 
 Privacy: geen subprocess-inhoud in enige returnwaarde. Alleen returncode + logbestandsnaam.
 """

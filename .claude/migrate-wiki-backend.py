@@ -37,12 +37,27 @@ def plan_for(vault: Path, confidential: bool) -> dict:
 
 
 def apply_to(vault: Path, confidential: bool) -> dict:
-    """Schrijven zit in wiki_backend.write_config — één plek kent het formaat."""
+    """Schrijven zit in wiki_backend.write_config — één plek kent het formaat.
+
+    Rapporteert wat er WERKELIJK is gebeurd. write_config is idempotent, dus alleen
+    zijn `created`-lijst onderscheidt een verse migratie van een no-op; de toestand
+    ná het schrijven doet dat niet — die is in beide gevallen "bestaat al", waardoor
+    een verse migratie zichzelf als "reeds gemigreerd" rapporteerde."""
     guard = plan_for(vault, confidential)
     if "error" in guard:
         return guard
-    wiki_backend.write_config(vault, confidential)
-    return plan_for(vault, confidential)
+    created = wiki_backend.write_config(vault, confidential)["created"]
+    made = {Path(p).name for p in created}
+
+    actions = [f"config: {wiki_backend.CONFIG_NAME} aangemaakt"
+               if wiki_backend.CONFIG_NAME in made
+               else "config: reeds gemigreerd, ongemoeid gelaten"]
+    if confidential:
+        actions.append(f"marker: {wiki_backend.MARKER_NAME} aangemaakt (600)"
+                       if wiki_backend.MARKER_NAME in made
+                       else "marker: aanwezig, ongemoeid gelaten")
+    return {"vault": str(vault), "confidential": confidential,
+            "actions": actions, "created": created}
 
 
 def verify(vault: Path) -> dict:

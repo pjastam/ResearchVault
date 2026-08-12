@@ -216,7 +216,8 @@ def main():
 
     loaded = wiki_backend.load(target)
     if loaded["status"] != "ok":
-        print(json.dumps({"status": "error", "message": loaded["error"]}))
+        # Sleutel `error`, net als fail() hierboven — één foutvorm voor dit script.
+        print(json.dumps({"status": "error", "error": loaded["error"]}))
         sys.exit(1)
     state_dir = target / loaded["cfg"]["state_dir"]
     state_dir.mkdir(mode=0o700, exist_ok=True)
