@@ -300,6 +300,20 @@ force_args = "--offline"
 ingest = "{bin} ingest {file} --vault {vault}"
 """
 
+# Cloud-backend (triggert de guardrail) die het verb "approve" niet ondersteunt (leeg
+# template). Bewaakt de bindende volgorde-eis in render(): capability-check vóór guardrail.
+CLOUD_UNSUPPORTED_APPROVE_BLOCK = """
+[backends.cloudnoapprove]
+invocation = "cli"
+locality   = "cloud"
+bin        = "/usr/bin/true"
+state_dir  = ".cloud"
+timeout    = 600
+force_args = "--offline"
+ingest = "{bin} ingest {file} --vault {vault}"
+approve = ""
+"""
+
 
 def write_vault(tmp, backend, block, confidential):
     v = Path(tmp)
@@ -347,6 +361,19 @@ class TestGuardrail(unittest.TestCase):
             v = make_vault(t, confidential=False)
             self.assertNotIn("--provider",
                              wiki_backend.render("compile", v)["command"])
+
+    def test_unsupported_verb_on_confidential_vault_reports_unsupported_not_guardrail_error(self):
+        """Bewaakt de bindende volgorde in render(): de capability-check (verb bestaat en
+        heeft een niet-leeg template) moet vóór de guardrail-gate lopen. Deze vault is
+        vertrouwelijk mét een cloud-backend die de guardrail zou triggeren, maar 'approve'
+        heeft een leeg template. Verwacht 'unsupported' (configuratie-info), niet 'error'
+        (guardrail-weigering). Zet iemand de gate vóór de capabilitycheck, dan wordt dit
+        'error' en gaat deze test rood."""
+        with tempfile.TemporaryDirectory() as t:
+            v = write_vault(t, "cloudnoapprove", CLOUD_UNSUPPORTED_APPROVE_BLOCK,
+                             confidential=True)
+            res = wiki_backend.render("approve", v, draft="/d.md")
+            self.assertEqual(res["status"], "unsupported")
 
 
 if __name__ == "__main__":
