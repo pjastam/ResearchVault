@@ -44,3 +44,7 @@
 
 # Laat lege mappen zichtbaar via .gitkeep (zie per map)
 .env
+
+# Harness-scratch: git-worktrees en subagent-werkmappen (nooit committen)
+.claude/worktrees/
+.superpowers/
