@@ -62,10 +62,10 @@ Gebruik deze context om de zoekopdracht en de uitvoer beter af te stemmen. Stel 
 
 ### 4. Houd de vault coherent
 
-De structuur, cross-links en syntheses van de wiki zijn **het domein van de backend** (aangestuurd via zijn eigen config, voor olw `wiki.toml`, aangelegd tijdens `olw compile`). Claude Code schrijft geen wiki-pagina's met de hand. Na elke sessie:
+De structuur, cross-links en syntheses van de wiki zijn **het domein van de backend** (aangestuurd via zijn eigen config, voor olw `wiki.toml`, aangelegd tijdens de compile-stap). Claude Code schrijft geen wiki-pagina's met de hand. Na elke sessie:
 
-- Zorg dat goedgekeurde bronnen daadwerkelijk ge-ingest en gecompileerd zijn (`olw status` toont wat nog "pending" staat)
-- Stel voor om `olw compile` te draaien als er nieuwe bronnen zijn ingest maar nog geen drafts gemaakt; herinner aan de `olw review`-gate voor openstaande drafts
+- Zorg dat goedgekeurde bronnen daadwerkelijk ge-ingest en gecompileerd zijn (voor olw toont `olw status` wat nog "pending" staat)
+- Stel voor om `python3 .claude/wiki_backend.py compile vault` te draaien als er nieuwe bronnen zijn ingest maar nog geen drafts gemaakt; herinner aan de reviewgate van de backend voor openstaande drafts
 - `olw lint` / `olw maintain` bewaken de wiki-gezondheid (orphans, broken links, stubs) — stel voor die te draaien als de wiki gegroeid is
 - Vraag of `.cache/` opgeruimd moet worden (verwerkte transcripten/samenvattingen verwijderen)
 - Herinner aan database-update als er nieuwe papers zijn toegevoegd en de laatste update meer dan een week geleden was: "Je hebt recent nieuwe papers toegevoegd. Zal ik de Zotero-zoekdatabase bijwerken zodat semantisch zoeken ze ook vindt? (`update-zotero`)"
@@ -87,14 +87,14 @@ Na elke stap: bevestig het resultaat (pad/tellingen uit het JSON-statusobject) e
 
 Standaard verloopt de volledige workflow lokaal. De concept-extractie en synthese lopen via **de backend (nu olw op `mistral-small:22b`)**; de fase-2-previews (`summarize_item.py`) en losse verwerkingsstappen (`ollama-generate.py`) via een lokaal model (default Qwen3.5:9b, of MLX via `LLM_BACKEND=mlx`). Geen data verlaat de Mac mini voor redeneer- of schrijftaken.
 
-**Uitzondering — `--hd`:** als de gebruiker expliciet om maximale kwaliteit vraagt, schakelen de **preview/helper-scripts** (`summarize_item.py`, `ollama-generate.py`) over naar Claude Sonnet 4.6 (Anthropic API) voor die specifieke taak. Dit betekent dat de prompt én de meegestuurde tekst (transcriptinhoud, paperinhoud) naar de Anthropic API gaan. **De backend draait lokaal zolang `locality = "local"` in `wiki-backend.toml` staat** — `--hd` verandert daar niets aan; de wiki-synthese blijft op de geconfigureerde backend (nu `mistral-small:22b`).
+**Uitzondering — maximale kwaliteit (`--hd`):** `--hd` is géén echte vlag. Er is geen Anthropic-codepad in `summarize_item.py` of `ollama-generate.py`; die scripts praten uitsluitend met een lokaal model en accepteren `--hd` niet. Het is een **gedragsmodus van de assistent**: vraagt de gebruiker expliciet om maximale kwaliteit, dan slaat Claude Code het helper-script voor die ene stap over, leest de bron zélf en genereert het resultaat via de Anthropic API (Claude Sonnet 4.6). Dit betekent dat de prompt én de meegestuurde tekst (transcriptinhoud, paperinhoud) naar de Anthropic API gaan. **De backend draait lokaal zolang `locality = "local"` in `wiki-backend.toml` staat** — deze modus verandert daar niets aan; de wiki-synthese blijft op de geconfigureerde backend (nu `mistral-small:22b`).
 
-**Hoe de gebruiker dit activeert:**
+**Hoe de gebruiker dit activeert** — dit zijn formuleringen tégen Claude Code, geen argumenten die aan een script worden doorgegeven:
 
 | Formulering | Effect |
 |---|---|
-| `beoordeel inbox --hd` | Fase-2-samenvattingen via Claude Sonnet 4.6 i.p.v. het lokale model |
-| `transcript [URL] --hd` / `podcast [URL] --hd` | De losse `ollama-generate.py`-stap (indien gebruikt) via Claude Sonnet 4.6 |
+| `beoordeel inbox --hd` | Claude Code maakt de fase-2-samenvattingen zelf via Claude Sonnet 4.6, i.p.v. `summarize_item.py` op het lokale model |
+| `transcript [URL] --hd` / `podcast [URL] --hd` | Claude Code doet de losse verwerkingsstap zelf via Claude Sonnet 4.6, i.p.v. `ollama-generate.py` |
 | "gebruik maximale kwaliteit" / "gebruik Sonnet" | Idem — alternatieve formuleringen |
 
 **Gedragsregels bij `--hd`:**
@@ -251,9 +251,9 @@ Na ontvangst van `{"status": "ok", "path": ".cache/_summary_ITEMKEY.md"}`:
 7. **No-go-items:** vraag altijd om bevestiging vóór verwijdering, verwijder daarna uit `_inbox`. Een no-go betekent altijd: geen bundle bouwen én verwijderen uit `_inbox` — er is geen tussenoptie.
 8. **Compile + review (gebatcht):** na een reeks Go's:
    ```bash
-   olw compile --vault vault      # drafts → wiki/.drafts/ (uitvoer naar een log; kan traag zijn)
-   olw review --vault vault       # de gebruiker beoordeelt per draft in de eigen terminal
+   python3 .claude/wiki_backend.py compile vault   # drafts → draftsmap van de backend (uitvoer naar log; kan traag zijn)
    ```
+   Daarna volgt de reviewstap van de geconfigureerde backend; die doet de gebruiker per draft in de eigen terminal (voor olw: `olw review --vault vault`).
 9. Sluit af met een overzicht: "X items ge-ingest, Y items verwijderd — N drafts wachten op `olw review`."
 
 > **Let op:** Vraag nooit meer dan één Go/No-go tegelijk — geef de gebruiker de ruimte per item te beslissen. En: Claude Code leest geen draft-inhoud — de `olw review`-gate is van de gebruiker.
@@ -273,13 +273,10 @@ Na ontvangst van `{"status": "ok", "path": ".cache/_summary_ITEMKEY.md"}`:
    Geen bron-inhoud bereikt de Anthropic API — Claude Code ontvangt alleen het JSON-statusobject.
 5. Laat de backend de bundle ingesten en (gebatcht) compileren:
    ```bash
-   olw ingest vault/raw/{citekey}__{itemKey}.md --vault vault --fast-model mistral-small:22b
-   olw compile --vault vault      # drafts → wiki/.drafts/ (uitvoer naar een log)
+   python3 .claude/wiki_backend.py ingest vault --file vault/raw/{citekey}__{itemKey}.md
+   python3 .claude/wiki_backend.py compile vault   # drafts → draftsmap van de backend (uitvoer naar log)
    ```
-6. **Human review-gate:** de gebruiker beoordeelt de drafts in de eigen terminal:
-   ```bash
-   olw review --vault vault       # approve → wiki/; reject → draft weg + feedback voor de leerloop
-   ```
+6. **Human review-gate:** de gebruiker beoordeelt de drafts van de geconfigureerde backend in de eigen terminal (voor olw: `olw review --vault vault` — approve → `wiki/`; reject → draft weg + feedback voor de leerloop).
    Claude Code leest geen draftinhoud — het coördineert alleen.
 7. Verwijder het item uit de Zotero `_inbox` collectie:
    ```bash
@@ -315,10 +312,10 @@ Na ontvangst van `{"status": "ok", "path": ".cache/_summary_ITEMKEY.md"}`:
 4. Verwerk daarna als een gewone bron — het transcript komt mee in de bundle:
    ```bash
    ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/build-zotero-bundle.py --item-key ITEMKEY
-   olw ingest vault/raw/{...}.md --vault vault --fast-model mistral-small:22b
-   olw compile --vault vault      # daarna: olw review --vault vault
+   python3 .claude/wiki_backend.py ingest vault --file vault/raw/{...}.md
+   python3 .claude/wiki_backend.py compile vault   # daarna de reviewstap van de backend
    ```
-   olw genereert de wiki-pagina; timecodes/citaten worden niet als geverifieerde bron opgenomen. **Toon nooit de ruwe transcripttekst.**
+   De backend genereert de wiki-pagina; timecodes/citaten worden niet als geverifieerde bron opgenomen. **Toon nooit de ruwe transcripttekst.**
 5. Verwijder het item uit de Zotero `_inbox`:
    ```bash
    ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/zotero-remove-from-inbox.py ITEMKEY
@@ -344,8 +341,8 @@ Na ontvangst van `{"status": "ok", "path": ".cache/_summary_ITEMKEY.md"}`:
 4. Verwerk daarna als een gewone bron (transcript komt mee in de bundle):
    ```bash
    ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/build-zotero-bundle.py --item-key ITEMKEY
-   olw ingest vault/raw/{...}.md --vault vault --fast-model mistral-small:22b
-   olw compile --vault vault      # daarna: olw review --vault vault
+   python3 .claude/wiki_backend.py ingest vault --file vault/raw/{...}.md
+   python3 .claude/wiki_backend.py compile vault   # daarna de reviewstap van de backend
    ```
 5. Verwijder het item uit de Zotero `_inbox`:
    ```bash
@@ -360,26 +357,26 @@ Na ontvangst van `{"status": "ok", "path": ".cache/_summary_ITEMKEY.md"}`:
 > **Fase 3** (verwerken): via Zotero → `raw` → backend, of als los denkwerk via `promote-to-raw.py`.
 
 1. Vraag: wil je het item toevoegen aan Zotero (voor BibTeX, annotaties en opname in de semantische database), of gaat het om eigen denkwerk?
-2. **Via Zotero:** het item is al opgeslagen via de Zotero Connector of iOS-app; verwerk het naar de wiki zoals type 1 (build-zotero-bundle → olw ingest → compile → review)
+2. **Via Zotero:** het item is al opgeslagen via de Zotero Connector of iOS-app; verwerk het naar de wiki zoals type 1 (build-zotero-bundle → backend-ingest → compile → review)
 3. **Eigen denkwerk / losse notitie:** schrijf de notitie in `authoring/notes/` (of geef `inbox [URL]` om de inhoud lokaal op te halen als Markdown in `.cache/`), en promoveer die daarna naar de bronlaag:
    ```bash
    ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/promote-to-raw.py --note <pad>
-   # → schone snapshot naar vault/raw/notes/<slug>.md (source_type: personal) + olw ingest
+   # → schone snapshot naar vault/raw/notes/<slug>.md (source_type: personal) + backend-ingest
    ```
 4. Zotero-tags komen mee in de bundle-frontmatter; de backend (nu olw) beheert de wiki-pagina en cross-links.
 
 ### Type 6: Synthese maken (via de backend)
 
-Syntheses zijn **het domein van de backend**: de backend (nu olw) legt thematische syntheses (`wiki/syntheses/`) en cross-links aan tijdens `olw compile`, gestuurd door `wiki.toml`. Claude Code schrijft geen synthese met de hand.
+Syntheses zijn **het domein van de backend**: de backend (nu olw) legt thematische syntheses (`wiki/syntheses/`) en cross-links aan tijdens de compile-stap, gestuurd door zijn eigen config (voor olw `wiki.toml`). Claude Code schrijft geen synthese met de hand.
 
 1. Vraag naar het thema en het doel van de synthese
 2. Breng in kaart wat er al is: `hyalo find "[thema]"` over `vault/wiki/` (bestaande concepten + syntheses) en `vault/raw/*.md` (welke bronnen zijn al ge-ingest?)
 3. Toon een overzicht van gevonden materiaal — klopt dit? Ontbreken er bronnen die eerst ge-ingest moeten worden (zie type 1)?
 4. Draai de backend om (opnieuw) te compileren zodat de synthese en cross-links worden bijgewerkt (uitvoer naar een log):
    ```bash
-   olw compile --vault vault        # olw legt cross-links + syntheses aan
+   python3 .claude/wiki_backend.py compile vault   # de backend legt cross-links + syntheses aan
    ```
-   Voor een gerichte hercompilatie van specifieke concepten: `olw compile --vault vault --concept "[naam]"` (herhaalbaar).
+   Een gerichte hercompilatie van losse concepten is backend-eigen en loopt niet via de dispatcher; ondersteunt de backend het, dan draait de gebruiker dat commando zelf (voor olw: `olw compile --vault vault --concept "[naam]"`, herhaalbaar).
 5. **Human review-gate:** de gebruiker keurt de synthese-draft goed:
    ```bash
    olw review --vault vault
@@ -397,7 +394,7 @@ Navigatie, zoeken en link-management lopen via **hyalo** (geen LLM). De cross-li
    olw lint --vault vault           # orphans, broken links, stubs
    olw maintain --vault vault       # onderhoud op basis van de lint-bevindingen
    ```
-4. Stel voor om ontbrekende bronnen te ingesten of een `olw compile` te draaien als concepten stub blijven; de daadwerkelijke `[[links]]` legt olw aan tijdens compile — niet met de hand.
+4. Stel voor om ontbrekende bronnen te ingesten of `python3 .claude/wiki_backend.py compile vault` te draaien als concepten stub blijven; de daadwerkelijke `[[links]]` legt de backend aan tijdens compile — niet met de hand.
 
 ### Type 8: Inbox opruimen
 
