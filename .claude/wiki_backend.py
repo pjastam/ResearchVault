@@ -248,6 +248,56 @@ def plan_cwd(vault) -> str:
     return str(normalize_vault(vault))
 
 
+CONFIG_TEMPLATE = """\
+# Wiki-backend contract voor deze vault. ResearchVault levert raw/; wat daarna
+# gebeurt is een vervangbare backend. Zie ResearchVault/docs → "Wiki backends".
+
+confidential = {confidential}
+backend      = "olw"
+
+[backends.olw]
+invocation = "cli"
+locality   = "local"
+bin        = "~/.local/bin/olw"
+config     = "wiki.toml"          # backend-eigen config; niet van ResearchVault
+state_dir  = ".olw"
+drafts_dir = "wiki/.drafts"
+model      = "mistral-small:22b"
+timeout    = 1800
+timeout_approve = 120
+timeout_reject  = 120
+{force_line}ingest  = "{{bin}} ingest {{file}} --vault {{vault}} --fast-model {{model}}"
+compile = "{{bin}} compile --vault {{vault}}"
+approve = "{{bin}} approve {{draft}} --vault {{vault}}"
+reject  = "{{bin}} reject {{draft}} --vault {{vault}}[ --feedback {{feedback}}]"
+"""
+
+FORCE_LINE = ('force_args = "--provider ollama '
+              '--provider-url http://localhost:11434"\n')
+
+
+def write_config(vault, confidential: bool) -> dict:
+    """Schrijft wiki-backend.toml en (bij confidential) de marker. Idempotent:
+    bestaande bestanden blijven ongemoeid. Gedeeld door migrate-wiki-backend.py
+    en new-compartment.py, zodat één plek het configformaat kent."""
+    vpath = normalize_vault(vault)
+    created = []
+    cfg = vpath / CONFIG_NAME
+    if not cfg.exists():
+        cfg.write_text(CONFIG_TEMPLATE.format(
+            confidential="true" if confidential else "false",
+            force_line=FORCE_LINE if confidential else "",
+        ), encoding="utf-8")
+        os.chmod(cfg, 0o600 if confidential else 0o644)
+        created.append(str(cfg))
+    marker = vpath / MARKER_NAME
+    if confidential and not marker.exists():
+        marker.write_text("", encoding="utf-8")
+        os.chmod(marker, 0o600)
+        created.append(str(marker))
+    return {"status": "ok", "vault": str(vpath), "created": created}
+
+
 def main() -> None:
     """Dun CLI-omhulsel: vertaalt status naar exit-code. De enige plek met sys.exit()."""
     ap = argparse.ArgumentParser(description="Dispatch naar de geconfigureerde wiki-backend.")
