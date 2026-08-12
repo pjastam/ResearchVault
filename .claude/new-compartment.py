@@ -30,6 +30,9 @@ import stat
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import wiki_backend  # noqa: E402
+
 CONFIDENTIAL_ROOT = Path.home() / "Confidential"
 NAME_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 
@@ -207,13 +210,18 @@ def main():
     (obs_dir / "app.json").write_text(json.dumps(OBSIDIAN_APP, indent=2) + "\n", encoding="utf-8")
     created.append(str(obs_dir))
 
-    # .olw/ vooraf op mode 700 (G4-hardening) zodat olw de state-map niet bij de eerste ingest
-    # op 755 aanmaakt. olw schrijft state.db/chroma (afgeleide concepten) hierin; de 700-map
-    # schermt die af. olw tolereert een bestaande lege .olw/ (het forceert geen eigen init).
-    olw_dir = target / ".olw"
-    olw_dir.mkdir(mode=0o700)
-    chmod_700(olw_dir)
-    created.append(str(olw_dir))
+    # Contract eerst: wiki-backend.toml + .confidential, daarna pas de statemap —
+    # want de naam van die map komt uit de config (state_dir), niet uit een constante.
+    created += wiki_backend.write_config(target, confidential=True)["created"]
+
+    loaded = wiki_backend.load(target)
+    if loaded["status"] != "ok":
+        print(json.dumps({"status": "error", "message": loaded["error"]}))
+        sys.exit(1)
+    state_dir = target / loaded["cfg"]["state_dir"]
+    state_dir.mkdir(mode=0o700, exist_ok=True)
+    chmod_700(state_dir)
+    created.append(str(state_dir))
 
     # wiki.toml + guardrail-memo.
     toml_path = target / "wiki.toml"
@@ -228,8 +236,8 @@ def main():
         "status": "ok",
         "path": str(target),
         "created": created,
-        "next": "leg raw/-inhoud neer, daarna: olw ingest <bestand> --vault "
-                f"{target} --fast-model mistral-small:22b",
+        "next": f"leg raw/-inhoud neer, daarna: python3 .claude/wiki_backend.py "
+                f"ingest {target} --file <bestand>",
     }))
 
 
