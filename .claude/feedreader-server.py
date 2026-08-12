@@ -10,7 +10,7 @@ Biedt ook een REST API voor de inbox-review HTML-pagina (/inbox):
   GET  /api/inbox/items     → gecombineerde scores + Zotero metadata
   GET  /api/inbox/summary/{key} → samenvatting van één item (async)
   GET  /api/inbox/jobs      → status van achtergrond-jobs
-  POST /api/inbox/go        → bouw raw-bundle + olw ingest (achtergrond)
+  POST /api/inbox/go        → bouw raw-bundle + backend-ingest (achtergrond)
   POST /api/inbox/nogo      → verwijder uit _inbox (direct)
   POST /api/inbox/summarize → vraag samenvatting aan (achtergrond)
 
@@ -50,7 +50,9 @@ VAULT_ROOT = Path(__file__).resolve().parent.parent
 VAULT_DIR  = VAULT_ROOT / "vault"     # symlink → ResearchVault/vault/
 PYTHON     = Path("/Users/pietstam/.local/share/uv/tools/zotero-mcp-server/bin/python3")
 INBOX_DIR  = VAULT_ROOT / "vault" / ".cache"   # temp-input (fase-2 previews e.d.); gitignored
-OLW        = Path("/Users/pietstam/.local/bin/olw")   # Fase C: Go → build-bundle → olw ingest
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import wiki_backend  # noqa: E402
 
 
 def _zotero_env(mode: str) -> dict:
@@ -63,7 +65,7 @@ def _zotero_env(mode: str) -> dict:
         env["ZOTERO_LOCAL"] = "true"
     return env
 
-# Achtergrond job-queue voor build-zotero-bundle.py (+olw ingest) en summarize_item.py
+# Achtergrond job-queue voor build-zotero-bundle.py (+backend-ingest) en summarize_item.py
 _job_queue  = queue.Queue()
 _job_status = {}   # key → {"status": "pending"|"running"|"done"|"error", "path": ..., "error": ...}
 _job_lock   = threading.Lock()
@@ -99,12 +101,21 @@ def _inbox_worker():
                     tr_out = tr.stdout.strip()
                     tr_data = json.loads(tr_out) if tr_out else {}
                     if tr.returncode != 0 or tr_data.get("status") != "ok":
-                        msg = tr_data.get("message") or tr.stderr.strip()[-300:] or "onbekend"
-                        print(f"[worker] attach-transcript faalde voor {tr_item_key}: {msg}",
+                        # attach-transcript.py verwerkt transcripten, dus zijn stderr kan
+                        # transcriptfragmenten dragen — en deze jobstatus wordt via HTTP
+                        # uitgeleverd. Zeg dus dát het faalde en waar te kijken, niet wát
+                        # er stond (zelfde regel als de dispatcher). De volledige stderr
+                        # gaat alleen naar de server-log op deze machine.
+                        print(f"[worker] attach-transcript faalde voor {tr_item_key} "
+                              f"(exit {tr.returncode}) — status={tr_data.get('status')!r} "
+                              f"message={tr_data.get('message')!r}\nstderr:\n{tr.stderr}",
                               file=sys.stderr)
                         with _job_lock:
-                            _job_status[key] = {"status": "error", "path": None,
-                                                "error": "attach-transcript faalde: " + msg}
+                            _job_status[key] = {
+                                "status": "error", "path": None,
+                                "error": (f"attach-transcript faalde (exit {tr.returncode}); "
+                                          f"zie de feedreader-serverlog voor details"),
+                            }
                         continue   # geen bundle bouwen; item blijft in _inbox
                 except subprocess.TimeoutExpired:
                     print(f"[worker] attach-transcript timeout voor {tr_item_key}", file=sys.stderr)
@@ -127,24 +138,36 @@ def _inbox_worker():
             data = json.loads(out) if out else {}
             if result.returncode == 0 and data.get("status") == "ok":
                 bundle_path = data.get("path")
-                # Fase C: Go-jobs bouwen een raw-bundle → daarna olw ingest (concept-
-                # extractie, GEEN compile). Andere jobs (summarize) slaan dit over.
+                # Fase C: Go-jobs bouwen een raw-bundle → daarna de ingest-stap van de
+                # geconfigureerde backend (concept-extractie, GEEN compile). Andere jobs
+                # (summarize) slaan dit over.
                 if job.get("ingest") and bundle_path:
                     abs_bundle = str(VAULT_ROOT / bundle_path)
-                    ingest = subprocess.run(
-                        [str(OLW), "ingest", abs_bundle, "--vault", str(VAULT_DIR),
-                         "--fast-model", "mistral-small:22b"],
-                        capture_output=True, text=True, timeout=1800,
-                        cwd=str(VAULT_DIR), env={**os.environ},
-                    )
-                    if ingest.returncode != 0:
+                    ingest = wiki_backend.run("ingest", VAULT_DIR, file=abs_bundle)
+                    if ingest["status"] == "error":
                         with _job_lock:
                             _job_status[key] = {
                                 "status": "error", "path": bundle_path,
-                                "error": "olw ingest faalde: "
-                                         + (ingest.stderr.strip()[-300:] or "onbekend"),
+                                "error": ingest["error"],
                             }
                         continue   # niet uit _inbox halen als ingest faalde
+                    if ingest["status"] == "unsupported":
+                        # De backend kent geen ingest-subprocess (bijv. claude-obsidian,
+                        # waar wiki-ingest een sessie-skill is). De bundle staat er, maar
+                        # er is niets ge-ingest en de gebruiker moet nog een handmatige
+                        # stap doen — dus GEEN `done` en het item blijft in _inbox, anders
+                        # verdwijnt het stil uit de werklijst. `reason`/`hint` komen uit de
+                        # dispatcher resp. de vault-config; nooit subprocess-uitvoer.
+                        with _job_lock:
+                            _job_status[key] = {
+                                "status": "unsupported", "path": bundle_path,
+                                "error": None,
+                                "reason": ingest.get("reason", ""),
+                                "hint": ingest.get("hint", ""),
+                            }
+                        continue
+                    # `skipped` valt hierdoorheen: die backend doet bewust geen ingest
+                    # (bijv. `none`), de bundle is het eindproduct → job is afgehandeld.
                 with _job_lock:
                     _job_status[key] = {"status": "done", "path": bundle_path, "error": None}
                 # Verwijder item uit Zotero _inbox na succes — alleen go-jobs met een echte
@@ -356,10 +379,10 @@ class FeedreaderHandler(http.server.SimpleHTTPRequestHandler):
         self._respond_json(200, {"jobs": snapshot, "counts": counts})
 
     def _handle_go(self, data: dict):
-        """Fase C: bouwt via build-zotero-bundle.py een raw-bundle + olw ingest (geen compile).
+        """Fase C: bouwt via build-zotero-bundle.py een raw-bundle + backend-ingest (geen compile).
 
         Vervangt de oude process_item.py→literature/-tak (die tak is in Fase F verwijderd).
-        De wiki-draft ontstaat later via een batch-compile; `olw review` is de kwaliteitsgate.
+        De wiki-draft ontstaat later via een batch-compile; de reviewstap van de backend is de kwaliteitsgate.
         """
         key = data.get("key", "").strip()
         if not _KEY_RE.fullmatch(key):

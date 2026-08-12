@@ -37,10 +37,12 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import subprocess
 import sys
 from datetime import date
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import wiki_backend  # noqa: E402
 
 # ── Padconfiguratie ───────────────────────────────────────────────────────────
 
@@ -48,8 +50,6 @@ VAULT_ROOT        = Path(__file__).resolve().parent.parent
 VAULT_DIR         = VAULT_ROOT / "vault"
 RAW_NOTES_DIR     = VAULT_DIR / "raw" / "notes"
 CONFIDENTIAL_ROOT = Path.home() / "Confidential"
-OLW               = Path("/Users/pietstam/.local/bin/olw")
-OLW_LOG           = VAULT_DIR / ".olw-declassify.log"   # gitignored (.olw-*.log)
 EXPORTER_VERSION  = "1.0"
 
 
@@ -186,24 +186,13 @@ def main() -> None:
     RAW_NOTES_DIR.mkdir(parents=True, exist_ok=True)
     target.write_text("\n".join(lines), encoding="utf-8")
 
-    # olw ingest in de PERSOONLIJKE vault → persoonlijke draft → `olw review`-gate (2e checkpoint).
+    # Ingest in de PERSOONLIJKE vault → draft → review-gate (2e checkpoint).
     ingested = False
     if not args.no_ingest:
-        try:
-            with open(OLW_LOG, "w", encoding="utf-8") as lf:
-                proc = subprocess.run(
-                    [str(OLW), "ingest", str(target), "--vault", str(VAULT_DIR),
-                     "--fast-model", "mistral-small:22b"],
-                    stdout=lf, stderr=lf, timeout=1800, cwd=str(VAULT_DIR),
-                )
-            if proc.returncode != 0:
-                _error(f"snapshot geschreven; olw ingest faalde (exit {proc.returncode}), "
-                       f"zie {OLW_LOG.name}", path=rel)
-            ingested = True
-        except subprocess.TimeoutExpired:
-            _error("snapshot geschreven; olw ingest timeout (>1800s)", path=rel)
-        except Exception as exc:
-            _error(f"snapshot geschreven; olw ingest fout: {exc}", path=rel)
+        res = wiki_backend.run("ingest", VAULT_DIR, file=str(target))
+        if res["status"] == "error":
+            _error(f"snapshot geschreven; {res['error']}", path=rel)
+        ingested = res["status"] == "ok"
 
     print(json.dumps({"status": "ok", "path": rel, "ingested": ingested}))
 

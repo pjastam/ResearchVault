@@ -10,11 +10,11 @@ It is important to understand what runs locally in this workflow and what goes t
 | yt-dlp (fetching transcripts) | ✅ Local | Scraping on your Mac |
 | whisper.cpp (transcribing audio) | ✅ Local | M4 Metal GPU |
 | Semantic search (Zotero MCP) | ✅ Local | Local vector database |
-| **Reasoning, summarizing, writing syntheses** | ✅ **Local** | mistral-small:22b via Ollama (default, driven by olw); Anthropic API only when `--hd` is used |
+| **Reasoning, summarizing, writing syntheses** | ✅ **Local, with the default backend** | mistral-small:22b via Ollama (default, driven by olw); a cloud backend sends bundle content to that provider's API instead — see the [privacy overview](../reference/privacy.md) |
 
-In the default mode, all generative work — compiling bundles into wiki drafts, concept pages, Phase-2 previews — is handled locally by Ollama. The primary model is **mistral-small:22b**, run by olw (obsidian-llm-wiki) via `wiki.toml`; Qwen3.5:9b remains only as a fallback used by `summarize_item.py`. Claude Code orchestrates the workflow but does not send source content to the Anthropic API. No tokens, no data transfer.
+With the default `olw` backend, all generative work — compiling bundles into wiki drafts, concept pages, Phase-2 previews — is handled locally by Ollama. The primary model is **mistral-small:22b**, run by olw (obsidian-llm-wiki) via `wiki.toml`; Qwen3.5:9b remains only as a fallback used by `summarize_item.py`. Claude Code orchestrates the workflow but does not itself send source content to the Anthropic API — whether content leaves the machine after that depends on which backend the vault is configured with.
 
-**The honest trade-off:** local models are less capable than Claude Sonnet for complex or nuanced tasks. For simple summaries and previews the difference is small; for writing rich wiki pages or drawing subtle connections between sources, Claude Sonnet is noticeably better. Add `--hd` to any request to switch to Claude Sonnet 4.6 via the Anthropic API for that task — Claude Code always announces this and asks for confirmation before making the API call.
+**The honest trade-off:** local models are less capable than Claude Sonnet for complex or nuanced tasks. For simple summaries and previews the difference is small; for writing rich wiki pages or drawing subtle connections between sources, Claude Sonnet is noticeably better. For a single step, you can ask Claude Code for maximum quality ("use Sonnet") to switch to Claude Sonnet 4.6 via the Anthropic API for that task. This is a mode of the assistant, not a command-line flag — no script accepts `--hd`. Claude Code always announces this and asks for confirmation before making the API call, and never does so on a vault marked confidential.
 
 ---
 

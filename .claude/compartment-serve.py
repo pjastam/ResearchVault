@@ -33,8 +33,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import wiki_backend  # noqa: E402
+
 CONFIDENTIAL_ROOT = Path.home() / "Confidential"
-OLW = "/Users/pietstam/.local/bin/olw"
 DRAFT_NAME_RE = re.compile(r"^[A-Za-z0-9._-]+\.md$")   # whitelist draftnamen (XSS/injectie-hardening)
 
 COMPARTMENT: Path = Path()          # gezet in main()
@@ -200,17 +202,29 @@ class Handler(BaseHTTPRequestHandler):
         draft = COMPARTMENT / "wiki" / ".drafts" / fname
         if not draft.is_file():
             return self._json({"status": "error", "error": "draft niet gevonden"}, 404)
-        cmd = [OLW, "approve" if u.path == "/approve" else "reject", str(draft),
-               "--vault", str(COMPARTMENT)]
-        if u.path == "/reject" and data.get("feedback"):
-            cmd += ["--feedback", str(data["feedback"])]
-        try:
-            proc = subprocess.run(cmd, capture_output=True, timeout=120)   # inhoud NIET tonen
-            ok = proc.returncode == 0
-            return self._json({"status": "ok" if ok else "error",
-                               "action": u.path.strip("/"), "returncode": proc.returncode})
-        except Exception as exc:
-            return self._json({"status": "error", "error": str(exc)}, 500)
+        verb = "approve" if u.path == "/approve" else "reject"
+        kwargs = {"draft": str(draft)}
+        if verb == "reject" and data.get("feedback"):
+            kwargs["feedback"] = str(data["feedback"])
+        res = wiki_backend.run(verb, COMPARTMENT, **kwargs)
+        if res["status"] == "unsupported":
+            # Deze backend kent geen per-draft review; toon wat de gebruiker zelf moet doen.
+            return self._json({"status": "unsupported", "action": verb,
+                               "hint": res.get("hint", "")}, 501)
+        if res["status"] == "skipped":
+            return self._json({"status": "skipped", "action": verb,
+                               "reason": res.get("reason", "")}, 501)
+        if res["status"] == "ok":
+            return self._json({"status": "ok", "action": verb,
+                               "returncode": res.get("returncode")}, 200)
+        # Foutpad: geef de melding én de logbestandsnaam door. Alleen `returncode`
+        # volstaat niet — bij elke fout op render-niveau is die None, en juist die
+        # fouten zijn hier het waarschijnlijkst omdat deze server uitsluitend
+        # vertrouwelijke compartimenten bedient. Nooit loginhoud.
+        return self._json({"status": "error", "action": verb,
+                           "error": res.get("error", "onbekende fout"),
+                           "returncode": res.get("returncode"),
+                           "log": res.get("log", "")}, 500)
 
     # ── pagina's ──
     def _index(self):
@@ -255,7 +269,11 @@ class Handler(BaseHTTPRequestHandler):
               "fetch('/'+a,{method:'POST',headers:{'Content-Type':'application/json'},"
               "body:JSON.stringify({file:f,feedback:fb})}).then(r=>r.json()).then(function(j){"
               "div.style.opacity=j.status==='ok'?0.4:1;"
-              "if(j.status!=='ok')alert('Fout: '+(j.error||j.returncode));});});});</script>")
+              "if(j.status==='ok'){}"
+              "else if(j.status==='unsupported'||j.status==='skipped'){"
+              "alert(j.hint||j.reason||'Deze backend ondersteunt deze actie niet.');}"
+              "else{alert('Fout: '+(j.error||'onbekend')+(j.log?'\\nZie '+j.log:''));}"
+              "});});});</script>")
         body = "<p><a href='/'>← index</a></p><h1>Drafts</h1>" + ("".join(blocks)
                if blocks else "<p class='muted'>Geen drafts.</p>") + js
         self._send(page("Drafts", body))

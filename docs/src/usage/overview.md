@@ -8,9 +8,11 @@ The workflow has three phases. Phase 3 is handled by tooling; phases 1 and 2 inv
 |---|---|---|
 | **1 — Cast wide** | Items flow into Zotero `_inbox` from three sources | Forward items from the feedreader or share directly from iOS |
 | **2 — Filter** | Claude Code presents each `_inbox` item with a relevance score and summary; you decide | Go / No-go per item |
-| **3 — Process** | On Go, `build-zotero-bundle.py` writes a canonical bundle to `raw/`, then `olw` (ingest → compile → review) turns it into wiki pages | Sign off at the `olw review` gate before publication to `wiki/` |
+| **3 — Process** | On Go, `build-zotero-bundle.py` writes a canonical bundle to `raw/` | None — happens automatically once you approve the item in Phase 2 |
 
-In Phase 3, Claude Code only orchestrates — it invokes the local tools and reports status. All generative work runs locally through `olw` (obsidian-llm-wiki), which drives the primary local model `mistral-small:22b` via `wiki.toml`; source content never leaves the machine. Compiled drafts land in `wiki/.drafts/`, and `olw review` is the human quality gate before pages are published to `wiki/`.
+Turning bundles into a wiki is handled by whichever backend is configured for the vault — see [Choosing a backend](../backends/choosing.md).
+
+In Phase 3, Claude Code only orchestrates — it invokes the local tools and reports status; it does not generate wiki content itself. Whether the content that reaches your backend stays local depends on which backend is configured — see the [privacy overview](../reference/privacy.md) for exactly what leaves the machine under each one.
 
 ---
 

@@ -61,7 +61,10 @@ You do not need to know exactly what you are looking for — the skill is design
    This ranks all `_inbox` items by semantic similarity to your existing library (using the ChromaDB embeddings from zotero-mcp), so you know which items to focus on.
 
 5. Claude Code retrieves all items from your Zotero `_inbox` and presents each one with a short summary and relevance assessment — the Phase-2 preview summary is generated locally by `summarize_item.py` (fallback model qwen3.5:9b). You respond **Go** or **No-go** per item.
-6. For each **Go**: Claude Code builds a canonical bundle with `build-zotero-bundle.py` (writing `raw/{citekey}__{itemKey}.md`), then runs the olw pipeline — `olw ingest` → `olw compile` (drafts land in `wiki/.drafts/`) → `olw review`. The `olw review` step is the human quality gate; approved pages are published to `wiki/`. olw drives the local primary model (mistral-small:22b) via `wiki.toml`.
+6. For each **Go**: Claude Code builds a canonical bundle with `build-zotero-bundle.py` (writing `raw/{citekey}__{itemKey}.md`). That bundle is the intake artifact, and it is where Phase 3 ends.
+
+   Turning bundles into a wiki is handled by whichever backend is configured for the vault — see [Choosing a backend](../backends/choosing.md).
+
 7. For each **No-go**: Claude Code removes the item from `_inbox` (after your confirmation).
 8. At the end of the session, Claude Code shows a summary: X approved, Y removed. The Zotero semantic search database is updated automatically each day as part of the login-triggered morning batch job (`nl.pietstam.nachtelijke-taken` daemon) — no manual action needed before a session. If you process items later in the day and want the database to reflect them immediately, run:
 

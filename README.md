@@ -14,7 +14,9 @@ Every source — paper, podcast, video, RSS article — passes through three exp
 |---|---|---|
 | **1 — Cast wide** | Capture from three sources into Zotero `_inbox` | **Feedreader** — `feedreader-score.py` runs daily, scores RSS/YouTube/podcast items by semantic similarity to your library, and produces a filtered HTML reader and Atom feed at `http://localhost:8765/filtered.html`; interesting items go to `_inbox` via browser extension or iOS app · **Share sheet** — content you've already consumed in apps (browser, YouTube, podcasts) goes directly to `_inbox` via the iOS share sheet · **Other** — documents, emails, and notes added manually |
 | **2 — Filter** | You decide what enters the vault | `index-score.py` ranks inbox items by semantic similarity to your existing library; `summarize_item.py` generates a short preview per item; you give a **Go** or **No-go** |
-| **3 — Process** | Approved items become wiki knowledge | On **Go**, `build-zotero-bundle.py` writes a canonical bundle to `raw/`; **olw** then ingests it and compiles interlinked concept pages, which you approve through `olw review` — the human quality gate — before they publish to `wiki/` |
+| **3 — Process** | Approved items become a canonical bundle | On **Go**, `build-zotero-bundle.py` writes a canonical bundle to `raw/{citekey}__{itemKey}.md`. That bundle is the intake artifact, and it is where Phase 3 ends |
+
+Turning bundles into a wiki is handled by whichever backend is configured for the vault — see [Choosing a backend](https://pjastam.github.io/ResearchVault/backends/choosing.html).
 
 The explicit filter step between capture and processing keeps both your feed reader and your vault clean: only sources you have consciously approved end up in the vault, and your feed reader only shows items that are likely relevant.
 
@@ -39,9 +41,9 @@ The explicit filter step between capture and processing keeps both your feed rea
 | [youtube-transcript-api](https://github.com/jdepoix/youtube-transcript-api) | Fast transcript fetching for feedreader YouTube scoring (no video download) | Local |
 | [whisper.cpp](https://github.com/ggerganov/whisper.cpp) | Local speech-to-text transcription for podcasts | Local |
 | [NetNewsWire](https://netnewswire.com) | RSS reader subscribed to the feedreader filtered feed | Local |
-| [Claude Code](https://claude.ai/claude-code) | AI assistant that orchestrates the workflow (intake, the review gate, publishing); the synthesis itself runs locally via olw | Local (default) / Cloud API with `--hd` |
+| [Claude Code](https://claude.ai/claude-code) | AI assistant that orchestrates the workflow (intake, the review gate, publishing); synthesis itself runs through your configured backend | Depends on backend + assistant mode — see [Privacy](#privacy) |
 
-In standard mode, only orchestration instructions are sent to the Anthropic API; the actual synthesis is done locally by olw running `mistral-small:22b`. The default backend is Ollama; set `LLM_BACKEND=mlx` in `ResearchVault/.env` to use the MLX backend instead (Apple Silicon-native, no separate server binary). olw always runs locally; only the optional `--hd` flag on the preview/helper scripts sends a prompt and source content to the Anthropic API (Claude Sonnet 4.6), and only after you confirm. Reference data, notes, and transcriptions always stay local.
+With the default `olw` backend, only orchestration instructions are sent to the Anthropic API; synthesis is done locally by olw running `mistral-small:22b` (Ollama by default; set `LLM_BACKEND=mlx` in `ResearchVault/.env` for the Apple Silicon-native MLX backend instead). A vault can instead be configured with a cloud backend, in which case bundle content goes to that provider's API — see [Privacy](#privacy). Separately, for a single step you can ask Claude Code for maximum quality ("use Sonnet"); this is a mode of the assistant, not a command-line flag — none of the scripts accept `--hd`. Claude then reads the source itself and sends it to the Anthropic API (Claude Sonnet 4.6) only after you confirm, and never on a vault marked confidential. Reference data, notes, and transcriptions always stay local unless a cloud backend is configured.
 
 ---
 
@@ -133,9 +135,12 @@ The script auto-detects your home path and asks for your Zotero library ID (foun
 
 - Your Zotero library and Obsidian vault stay entirely on your own machine
 - The Zotero local API is only accessible via `localhost`
-- Transcription (whisper.cpp) and all synthesis (olw, running `mistral-small:22b` via Ollama or MLX) run fully offline
-- In standard mode, only orchestration instructions reach the Anthropic API; source content stays local
-- With `--hd` on the optional preview/helper scripts, the prompt and source content are sent to the Anthropic API (Claude Sonnet 4.6) — after confirmation
+- Transcription (whisper.cpp) always runs fully offline
+- ResearchVault itself never sends source content anywhere: `build-zotero-bundle.py` fetches text locally and writes a bundle to `raw/`; Claude Code receives only a status object
+- What happens to that content next depends on your configured backend: the default `olw` backend (running `mistral-small:22b` via Ollama or MLX) and the `none` backend both keep everything local; a cloud backend (e.g. claude-obsidian) sends bundle content to that provider's API
+- Separately, for a single step you can ask Claude Code for maximum quality — Claude then reads the source itself and sends it to the Anthropic API after your confirmation. This is an assistant mode, not a command-line flag (no script accepts `--hd`), and it never runs on a vault marked confidential
+- A vault can declare `confidential = true` with a `.confidential` marker; the dispatcher then refuses cloud backends, session backends, and any backend that doesn't pin its provider through `force_args`
+- For the full picture — both cloud paths, their guarantees, and their failure modes — see the [privacy overview](https://pjastam.github.io/ResearchVault/reference/privacy.html)
 - For a fully local orchestration alternative, see [Step 14: Future perspective — local orchestrator](https://pjastam.github.io/ResearchVault/extensions/future-orchestrator.html)
 
 ---
@@ -144,7 +149,7 @@ The script auto-detects your home path and asks for your Zotero library ID (foun
 
 1. Does content go to the cloud?
 
-In the default mode: no. Claude Code orchestrates the workflow, but all content-heavy work is delegated to local tools: `build-zotero-bundle.py` receives only a Zotero item key, fetches the full text locally, and writes a canonical bundle to `raw/`; **olw** then reads that bundle and compiles the wiki pages locally with `mistral-small:22b`. Claude Code receives only JSON status objects and counts — never the source or generated text. Nothing you research reaches Anthropic's servers. Only when you explicitly add `--hd` to a preview/helper script does source content go to the Anthropic API — and Claude Code asks for confirmation first.
+It depends on your backend. ResearchVault itself never sends source content anywhere: `build-zotero-bundle.py` receives only a Zotero item key, fetches the full text locally, and writes a canonical bundle to `raw/`; Claude Code receives only a JSON status object — never the source or generated text. What happens after that is up to the backend configured in `wiki-backend.toml`: with the default **olw** backend, the wiki pages are compiled locally with `mistral-small:22b`, and nothing you research reaches Anthropic's servers; a cloud backend instead sends bundle content to that provider's API. Separately, for a single step you can ask Claude Code for maximum quality — that's an assistant mode, not a script flag (`--hd` is not a real option; no script accepts it), and Claude asks for confirmation before sending anything, and never does so on a vault marked confidential.
 
 2. Do you need a paid Claude subscription?
 
@@ -152,7 +157,7 @@ Partially yes — Claude Code needs an Anthropic account (paid subscription or A
 
 3. "No data leaks" — is that accurate?
 
-Yes, substantially. In default mode no vault content, paper, transcript, or note leaves your local machine. The privacy claim holds up in this sense.
+It depends on your configuration. With the default `olw` (or `none`) backend, and without invoking maximum-quality mode, yes — no vault content, paper, transcript, or note leaves your local machine. Configure a cloud backend, or explicitly ask Claude Code for maximum quality on a step, and that no longer holds. See [Privacy](#privacy) and the [privacy overview](https://pjastam.github.io/ResearchVault/reference/privacy.html) for exactly what goes where under each configuration.
 
 ---
 
