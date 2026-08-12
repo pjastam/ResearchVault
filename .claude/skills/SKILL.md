@@ -271,7 +271,7 @@ Na ontvangst van `{"status": "ok", "path": ".cache/_summary_ITEMKEY.md"}`:
    # → {"status": "ok", "path": "vault/raw/{citekey}__{itemKey}.md"}
    ```
    Geen bron-inhoud bereikt de Anthropic API — Claude Code ontvangt alleen het JSON-statusobject.
-5. Laat olw de bundle ingesten en (gebatcht) compileren:
+5. Laat de backend de bundle ingesten en (gebatcht) compileren:
    ```bash
    olw ingest vault/raw/{citekey}__{itemKey}.md --vault vault --fast-model mistral-small:22b
    olw compile --vault vault      # drafts → wiki/.drafts/ (uitvoer naar een log)
@@ -375,7 +375,7 @@ Syntheses zijn **het domein van de backend**: de backend (nu olw) legt thematisc
 1. Vraag naar het thema en het doel van de synthese
 2. Breng in kaart wat er al is: `hyalo find "[thema]"` over `vault/wiki/` (bestaande concepten + syntheses) en `vault/raw/*.md` (welke bronnen zijn al ge-ingest?)
 3. Toon een overzicht van gevonden materiaal — klopt dit? Ontbreken er bronnen die eerst ge-ingest moeten worden (zie type 1)?
-4. Draai olw om (opnieuw) te compileren zodat de synthese en cross-links worden bijgewerkt (uitvoer naar een log):
+4. Draai de backend om (opnieuw) te compileren zodat de synthese en cross-links worden bijgewerkt (uitvoer naar een log):
    ```bash
    olw compile --vault vault        # olw legt cross-links + syntheses aan
    ```
@@ -384,7 +384,7 @@ Syntheses zijn **het domein van de backend**: de backend (nu olw) legt thematisc
    ```bash
    olw review --vault vault
    ```
-6. Voor eigen synthetiserend denkwerk dat geen bron ís: schrijf het in `authoring/notes/` en promoveer via `promote-to-raw.py` → `raw/notes/` → olw.
+6. Voor eigen synthetiserend denkwerk dat geen bron ís: schrijf het in `authoring/notes/` en promoveer via `promote-to-raw.py` → `raw/notes/` → backend.
 
 ### Type 7: Wiki doorbladeren en verbanden bewaken
 
