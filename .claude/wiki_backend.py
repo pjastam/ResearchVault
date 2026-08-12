@@ -15,6 +15,8 @@ Privacy: geen subprocess-inhoud in enige returnwaarde. Alleen returncode + logbe
 
 from __future__ import annotations
 
+import re
+import shlex
 import tomllib
 from pathlib import Path
 
@@ -94,3 +96,72 @@ def load(vault) -> dict:
         "backend": name,
         "cfg": cfg,
     }
+
+
+_OPTIONAL_RE = re.compile(r"\[([^\[\]]*)\]")
+_PLACEHOLDER_RE = re.compile(r"\{(\w+)\}")
+
+
+def _resolve_timeout(cfg: dict, verb: str):
+    """Per-verb override wint van de fallback. Ontbreken beide → None (fout)."""
+    value = cfg.get(f"timeout_{verb}", cfg.get("timeout"))
+    return int(value) if value is not None else None
+
+
+def _strip_optional_segments(template: str, values: dict) -> str:
+    """Een segment tussen blokhaken vervalt volledig wanneer een placeholder erbinnen
+    geen (niet-lege) waarde heeft. Nodig omdat compartment-serve.py --feedback alleen
+    meestuurt als de gebruiker een reden invulde (spec §4.1)."""
+    def repl(m: re.Match) -> str:
+        segment = m.group(1)
+        for key in _PLACEHOLDER_RE.findall(segment):
+            if not values.get(key):
+                return ""
+        return segment
+    return _OPTIONAL_RE.sub(repl, template)
+
+
+def render(verb: str, vault, **args) -> dict:
+    """Stappen 1-4: config, capability, guardrail, template. Voert niets uit."""
+    loaded = load(vault)
+    if loaded["status"] != "ok":
+        return loaded
+    cfg, vpath = loaded["cfg"], loaded["vault"]
+
+    if verb not in cfg:
+        return {"status": "skipped",
+                "reason": f"backend '{loaded['backend']}' heeft geen {verb}"}
+    template = cfg[verb]
+    if not template:
+        return {"status": "unsupported",
+                "reason": f"backend '{loaded['backend']}' ondersteunt {verb} niet",
+                "hint": cfg.get("session_hint", "")}
+
+    timeout = _resolve_timeout(cfg, verb)
+    if timeout is None:
+        return _err(f"geen timeout voor verb '{verb}' — zet timeout of timeout_{verb}")
+
+    values = {
+        "vault": vpath,
+        "bin": str(Path(cfg["bin"]).expanduser()) if cfg.get("bin") else "",
+        "root": str(Path(cfg["root"]).expanduser()) if cfg.get("root") else "",
+        "model": cfg.get("model", ""),
+    }
+    for key in ("file", "draft", "feedback"):
+        if args.get(key) is not None:
+            values[key] = str(args[key])
+
+    stripped = _strip_optional_segments(template, values)
+    command: list[str] = []
+    for token in shlex.split(stripped):
+        names = _PLACEHOLDER_RE.findall(token)
+        if not names:
+            command.append(token)
+            continue
+        for name in names:
+            if not values.get(name):
+                return _err(f"placeholder '{{{name}}}' heeft geen waarde voor verb '{verb}'")
+        command.append(_PLACEHOLDER_RE.sub(lambda m: values[m.group(1)], token))
+
+    log_path = Path(vpath) / LOG_DIR_NAME / f"{verb}.log"
+    return {"status": "ok", "command": command, "timeout": timeout, "log": str(log_path)}

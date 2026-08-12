@@ -171,5 +171,112 @@ locality   = "local"
                 self.fail("load() mag nooit sys.exit() aanroepen")
 
 
+class TestRender(unittest.TestCase):
+    def test_all_placeholders_filled(self):
+        with tempfile.TemporaryDirectory() as t:
+            v = make_vault(t)
+            res = wiki_backend.render("ingest", v, file="/tmp/a.md")
+            self.assertEqual(res["status"], "ok")
+            self.assertEqual(res["command"], [
+                "/usr/bin/true", "ingest", "/tmp/a.md",
+                "--vault", str(Path(t).resolve()), "--fast-model", "m:22b",
+            ])
+
+    def test_optional_segment_present_when_value_given(self):
+        with tempfile.TemporaryDirectory() as t:
+            v = make_vault(t)
+            res = wiki_backend.render("reject", v, draft="/tmp/d.md", feedback="te dun")
+            self.assertIn("--feedback", res["command"])
+            self.assertIn("te dun", res["command"])
+
+    def test_optional_segment_dropped_when_value_absent(self):
+        with tempfile.TemporaryDirectory() as t:
+            v = make_vault(t)
+            res = wiki_backend.render("reject", v, draft="/tmp/d.md")
+            self.assertEqual(res["status"], "ok")
+            self.assertNotIn("--feedback", res["command"])
+
+    def test_optional_segment_dropped_when_value_empty_string(self):
+        with tempfile.TemporaryDirectory() as t:
+            v = make_vault(t)
+            res = wiki_backend.render("reject", v, draft="/tmp/d.md", feedback="")
+            self.assertNotIn("--feedback", res["command"])
+
+    def test_unfillable_required_placeholder_is_error(self):
+        with tempfile.TemporaryDirectory() as t:
+            v = make_vault(t)
+            res = wiki_backend.render("ingest", v)   # geen file=
+            self.assertEqual(res["status"], "error")
+            self.assertIn("file", res["error"])
+
+    def test_values_with_spaces_stay_single_argv_entries(self):
+        with tempfile.TemporaryDirectory() as t:
+            v = make_vault(t)
+            res = wiki_backend.render("reject", v, draft="/tmp/d.md",
+                                      feedback='twee woorden "met quotes"')
+            self.assertIn('twee woorden "met quotes"', res["command"])
+
+    def test_vault_placeholder_uses_normalized_path(self):
+        with tempfile.TemporaryDirectory() as t:
+            real = Path(t) / "real"
+            real.mkdir()
+            make_vault(real)
+            link = Path(t) / "link"
+            link.symlink_to(real)
+            res = wiki_backend.render("compile", link)
+            self.assertIn(str(real.resolve()), res["command"])
+
+    def test_missing_timeout_for_declared_verb_is_error(self):
+        with tempfile.TemporaryDirectory() as t:
+            v = Path(t)
+            block = OLW_BLOCK.replace("timeout    = 1800\n", "")
+            block = block.replace("timeout_approve = 120\n", "")
+            (v / "wiki-backend.toml").write_text(
+                'confidential = false\nbackend = "olw"\n' + block, encoding="utf-8")
+            res = wiki_backend.render("ingest", v, file="/tmp/a.md")
+            self.assertEqual(res["status"], "error")
+            self.assertIn("timeout", res["error"])
+
+    def test_per_verb_timeout_overrides_fallback(self):
+        with tempfile.TemporaryDirectory() as t:
+            v = make_vault(t)
+            self.assertEqual(wiki_backend.render("approve", v, draft="/d.md")["timeout"], 120)
+            self.assertEqual(wiki_backend.render("compile", v)["timeout"], 1800)
+
+    def test_missing_verb_template_is_skipped_for_none_backend(self):
+        with tempfile.TemporaryDirectory() as t:
+            v = Path(t)
+            (v / "wiki-backend.toml").write_text(
+                'confidential = false\nbackend = "none"\n\n'
+                '[backends.none]\ninvocation = "cli"\nlocality = "local"\n',
+                encoding="utf-8")
+            res = wiki_backend.render("ingest", v, file="/tmp/a.md")
+            self.assertEqual(res["status"], "skipped")
+
+    def test_empty_verb_template_is_unsupported_with_hint(self):
+        with tempfile.TemporaryDirectory() as t:
+            v = Path(t)
+            (v / "wiki-backend.toml").write_text(
+                'confidential = false\nbackend = "co"\n\n'
+                '[backends.co]\ninvocation = "session"\nlocality = "cloud"\n'
+                'timeout = 600\ncapture = "/usr/bin/true capture {file}"\n'
+                'approve = ""\nsession_hint = "gebruik Claude Code"\n',
+                encoding="utf-8")
+            res = wiki_backend.render("approve", v, draft="/d.md")
+            self.assertEqual(res["status"], "unsupported")
+            self.assertEqual(res["hint"], "gebruik Claude Code")
+
+    def test_status_always_in_closed_vocabulary(self):
+        allowed = {"ok", "skipped", "unsupported", "error"}
+        with tempfile.TemporaryDirectory() as t:
+            v = make_vault(t)
+            for call in (
+                lambda: wiki_backend.render("ingest", v, file="/a.md"),
+                lambda: wiki_backend.render("ingest", v),
+                lambda: wiki_backend.load(v),
+            ):
+                self.assertIn(call()["status"], allowed)
+
+
 if __name__ == "__main__":
     unittest.main()
