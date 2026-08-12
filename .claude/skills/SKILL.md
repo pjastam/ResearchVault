@@ -302,7 +302,7 @@ Na ontvangst van `{"status": "ok", "path": ".cache/_summary_ITEMKEY.md"}`:
 
 > **Fase 1** (dump) is al gedaan: de URL staat in Zotero `_inbox`, opgeslagen via de iOS share sheet vanuit de YouTube-app. Bij een ✅ in de feedreader is het transcript vaak al eager opgehaald.
 > **Fase 2** (filter): vraag of de gebruiker de video al beoordeeld heeft, of genereer een beoordeling op basis van metadata.
-> **Fase 3** (verwerken): transcript als bijlage in het Zotero-item zetten, daarna via `raw` → olw verwerken.
+> **Fase 3** (verwerken): transcript als bijlage in het Zotero-item zetten, daarna via `raw` → backend verwerken.
 > **Let op:** `transcript [URL]` slaat de Zotero `_inbox` stap over — de video gaat direct naar verwerking. De gebruiker heeft de video al gefilterd door hem aan te reiken.
 
 1. Haal de URL op uit het `_inbox` item in Zotero, of vraag de gebruiker hem te plakken
@@ -330,7 +330,7 @@ Na ontvangst van `{"status": "ok", "path": ".cache/_summary_ITEMKEY.md"}`:
 
 > **Fase 1** (dump) is al gedaan: de URL staat in Zotero `_inbox`, opgeslagen via de iOS share sheet vanuit Overcast.
 > **Fase 2** (filter): de gebruiker heeft de eerste 5–10 minuten beluisterd, of vraagt Claude Code om shownotities op te halen als hulp bij de beslissing.
-> **Fase 3** (verwerken): audio downloaden, transcriberen via whisper.cpp (lokaal, Metal GPU), bijlage in Zotero, daarna via `raw` → olw.
+> **Fase 3** (verwerken): audio downloaden, transcriberen via whisper.cpp (lokaal, Metal GPU), bijlage in Zotero, daarna via `raw` → backend.
 > **Let op:** `podcast [URL]` slaat de Zotero `_inbox` stap over — de podcast gaat direct naar verwerking.
 
 1. Vraag naar de URL — of: "Wil je dat ik de shownotities ophaal zodat je kunt beslissen?" (via de feedreader-cache; anders `enrich-inbox.py`)
@@ -357,7 +357,7 @@ Na ontvangst van `{"status": "ok", "path": ".cache/_summary_ITEMKEY.md"}`:
 
 > **Fase 1** (breed vangen): de feedreader (`feedreader-score.py`) heeft de feeds gescoord en gesorteerd. NetNewsWire toont de gefilterde Atom-feeds via FreshRSS. De gebruiker heeft interessante items naar Zotero `_inbox` gestuurd via de actieknoppen in NNW of de iOS share sheet.
 > **Fase 2** (filter): de gebruiker heeft kopteksten gescand; alleen interessante items komen hier.
-> **Fase 3** (verwerken): via Zotero → `raw` → olw, of als los denkwerk via `promote-to-raw.py`.
+> **Fase 3** (verwerken): via Zotero → `raw` → backend, of als los denkwerk via `promote-to-raw.py`.
 
 1. Vraag: wil je het item toevoegen aan Zotero (voor BibTeX, annotaties en opname in de semantische database), of gaat het om eigen denkwerk?
 2. **Via Zotero:** het item is al opgeslagen via de Zotero Connector of iOS-app; verwerk het naar de wiki zoals type 1 (build-zotero-bundle → olw ingest → compile → review)
@@ -416,7 +416,7 @@ Navigatie, zoeken en link-management lopen via **hyalo** (geen LLM). De cross-li
 - Als iets onduidelijk is, gok dan niet: vraag het
 - Als een zoekopdracht weinig oplevert, zeg dat eerlijk en stel alternatieven voor
 - Denk proactief mee: signaleer als iets ontbreekt, verouderd is, of beter kan
-- **Privacy-grens:** toon nooit bron- of draftinhoud als tool-output; olw-uitvoer gaat naar een log, je leest alleen exit-code/tellingen/paden
+- **Privacy-grens:** toon nooit bron- of draftinhoud als tool-output; backend-uitvoer gaat naar een log, je leest alleen exit-code/tellingen/paden
 
 ---
 
@@ -431,9 +431,9 @@ Navigatie, zoeken en link-management lopen via **hyalo** (geen LLM). De cross-li
 | "beoordeel inbox --hd" | Start type 0 met Claude Sonnet 4.6 voor de samenvattingen (na bevestiging) |
 | "verwerk recente papers" | Start type 1 (raw → backend → wiki, lokaal via `mistral-small:22b`) |
 | "zoek op [thema]" | Start type 2 met opgegeven thema |
-| "transcript [URL]" | Start type 3 met de opgegeven URL; transcript-bijlage → raw → olw; slaat Zotero `_inbox` over |
+| "transcript [URL]" | Start type 3 met de opgegeven URL; transcript-bijlage → raw → backend; slaat Zotero `_inbox` over |
 | "transcript [URL] --hd" | Start type 3; de losse `ollama-generate.py`-fallback via Claude Sonnet 4.6 (na bevestiging) |
-| "podcast [URL]" | Start type 4: transcribeer via whisper.cpp → bijlage → raw → olw; slaat Zotero `_inbox` over |
+| "podcast [URL]" | Start type 4: transcribeer via whisper.cpp → bijlage → raw → backend; slaat Zotero `_inbox` over |
 | "inbox [URL]" | Haal artikel op en sla op als Markdown in `.cache/`, zonder Zotero |
 | "rss [URL of item]" | Start type 5 voor het opgegeven item |
 | "synthese over [thema]" | Start type 6 (via de compile/review-stap van de backend) |
