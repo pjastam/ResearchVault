@@ -40,3 +40,20 @@ force_args = "--provider ollama --provider-url http://localhost:11434"
 ## Workflow
 
 `olw review` is the human quality gate: drafts land in `wiki/.drafts/`, you approve or reject, and approved pages publish to `wiki/` with cross-links.
+
+## What a compiled draft contains
+
+For papers, `olw compile` produces a draft page with:
+- YAML frontmatter (title, authors, year, journal, citation key, tags, status)
+- Core question and main argument
+- Key findings (3–5 points)
+- Methodological notes
+- Relevant quotes (original language)
+- Links to related pages
+
+For video and podcast sources, the structure is the same except:
+- Frontmatter carries a Zotero deep link instead of journal metadata
+- A TLDR replaces the core question
+- There is no quotes section — timestamps are unreliable without a verifiable source
+
+Both variants get the same key findings, methodological notes, and links to related pages.

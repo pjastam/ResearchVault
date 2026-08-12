@@ -83,6 +83,8 @@ verwerk recente papers
 ```
 The item is already in `_inbox` with metadata from the Zotero Connector. Processed through the same `build-zotero-bundle.py` → `raw/` path as a standard paper.
 
+Tag the item `#web` or `#beleid` as appropriate — the tag travels with the item into the bundle's frontmatter.
+
 ---
 
 ## Personal thinking
