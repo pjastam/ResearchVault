@@ -499,6 +499,25 @@ compile = "{{bin}} compile --vault {{vault}}"
             self.assertEqual(res["status"], "skipped")
             self.assertFalse((Path(t) / ".wiki-backend").exists())
 
+    def test_unsupported_passes_through_without_subprocess(self):
+        """Spiegelt de `skipped`-test. Een leeg verb-template betekent: deze backend
+        heeft voor dit verb geen subprocess-pad (de claude-obsidian-configuratie uit
+        docs/src/backends/claude-obsidian.md). Er valt dus niets te draaien en niets
+        te loggen — de vroege return in render() moet vóór logmap en subprocess komen.
+        De hint moet meekomen, want die vertelt de gebruiker wat hij zelf moet doen."""
+        with tempfile.TemporaryDirectory() as t:
+            v = Path(t)
+            (v / "wiki-backend.toml").write_text(
+                'confidential = false\nbackend = "claude-obsidian"\n\n'
+                '[backends.claude-obsidian]\ninvocation = "session"\n'
+                'locality = "cloud"\ntimeout = 600\ningest = ""\n'
+                'session_hint = "open Claude Code in this vault and ask for wiki-ingest"\n',
+                encoding="utf-8")
+            res = wiki_backend.run("ingest", v, file="/a.md")
+            self.assertEqual(res["status"], "unsupported")
+            self.assertIn("wiki-ingest", res["hint"])
+            self.assertFalse((Path(t) / ".wiki-backend").exists())
+
     def test_no_public_function_ever_raises_systemexit(self):
         with tempfile.TemporaryDirectory() as t:
             broken = Path(t) / "broken"

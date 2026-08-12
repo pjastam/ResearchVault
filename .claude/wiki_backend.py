@@ -25,6 +25,7 @@ import shlex
 import subprocess
 import sys
 import tomllib
+from datetime import datetime
 from pathlib import Path
 
 CONFIG_NAME = "wiki-backend.toml"
@@ -223,8 +224,20 @@ def run(verb: str, vault, **args) -> dict:
         return _err(f"kon logmap niet aanmaken: {exc}")
 
     try:
-        with open(log_path, "w", encoding="utf-8") as lf:
+        # Append, geen truncate. Het logpad hangt aan het verb, niet aan de aanroeper,
+        # dus drie ingest-aanroepers (promote-to-raw.py, declassify-to-personal.py,
+        # feedreader-server.py) delen ingest.log. Met "w" kapte de tweede run het log
+        # van de eerste af en wees "zie ingest.log" naar andermans uitvoer. Een naam
+        # per aanroeper zou het contract verbreden voor een diagnostisch probleem —
+        # de dispatcher kent zijn aanroeper niet. De scheidingsregel hieronder is
+        # dispatcher-eigen tekst (verb + tijdstempel), geen subprocess-uitvoer, en
+        # houdt opeenvolgende runs uit elkaar. Flush vóór subprocess.run, anders
+        # belandt de header ná de uitvoer die het kind naar dezelfde fd schrijft.
+        with open(log_path, "a", encoding="utf-8") as lf:
             os.chmod(log_path, 0o600)
+            stamp = datetime.now().astimezone().isoformat(timespec="seconds")
+            lf.write(f"\n===== {verb} · {stamp} =====\n")
+            lf.flush()
             proc = subprocess.run(
                 plan["command"], stdout=lf, stderr=lf,
                 timeout=plan["timeout"], cwd=plan_cwd(vault),
