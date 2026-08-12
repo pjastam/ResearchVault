@@ -60,6 +60,18 @@ def verify(vault: Path) -> dict:
         state = Path(res["vault"]) / cfg["state_dir"]
         if state.is_dir() and (state.stat().st_mode & 0o777) != 0o700:
             problems.append(f"{cfg['state_dir']} staat niet op 700")
+        # Rechtendrift op de contractbestanden zelf: een restore via een cloud-remote
+        # (rclone) bewaart doorgaans geen unix-mode-bits, dus een teruggezet
+        # .confidential of wiki-backend.toml kan stilzwijgend te ruim komen te staan.
+        # De guardrail in wiki_backend.py kijkt alleen naar de AANWEZIGHEID van de
+        # marker, niet naar de rechten — dus dit is de enige plek in het systeem
+        # waar zo'n drift nog opvalt. Geldt alleen op een vertrouwelijke vault: op
+        # een gewone vault is 644 voor de config juist correct.
+        for name in (wiki_backend.CONFIG_NAME, wiki_backend.MARKER_NAME):
+            path = Path(res["vault"]) / name
+            if path.exists() and (path.stat().st_mode & 0o777) != 0o600:
+                mode = oct(path.stat().st_mode & 0o777)
+                problems.append(f"{name} staat niet op 600 (is {mode})")
     return {"vault": str(vault), "ok": not problems, "problem": "; ".join(problems) or None}
 
 
