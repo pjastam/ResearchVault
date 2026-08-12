@@ -14,7 +14,9 @@ Every source — paper, podcast, video, RSS article — passes through three exp
 |---|---|---|
 | **1 — Cast wide** | Capture from three sources into Zotero `_inbox` | **Feedreader** — `feedreader-score.py` runs daily, scores RSS/YouTube/podcast items by semantic similarity to your library, and produces a filtered HTML reader and Atom feed at `http://localhost:8765/filtered.html`; interesting items go to `_inbox` via browser extension or iOS app · **Share sheet** — content you've already consumed in apps (browser, YouTube, podcasts) goes directly to `_inbox` via the iOS share sheet · **Other** — documents, emails, and notes added manually |
 | **2 — Filter** | You decide what enters the vault | `index-score.py` ranks inbox items by semantic similarity to your existing library; `summarize_item.py` generates a short preview per item; you give a **Go** or **No-go** |
-| **3 — Process** | Approved items become wiki knowledge | On **Go**, `build-zotero-bundle.py` writes a canonical bundle to `raw/`; **olw** then ingests it and compiles interlinked concept pages, which you approve through `olw review` — the human quality gate — before they publish to `wiki/` |
+| **3 — Process** | Approved items become a canonical bundle | On **Go**, `build-zotero-bundle.py` writes a canonical bundle to `raw/{citekey}__{itemKey}.md`. That bundle is the intake artifact, and it is where Phase 3 ends |
+
+Turning bundles into a wiki is handled by whichever backend is configured for the vault — see [Choosing a backend](https://pjastam.github.io/ResearchVault/backends/choosing.html).
 
 The explicit filter step between capture and processing keeps both your feed reader and your vault clean: only sources you have consciously approved end up in the vault, and your feed reader only shows items that are likely relevant.
 

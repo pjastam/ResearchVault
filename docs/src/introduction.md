@@ -15,7 +15,9 @@ Every source — paper, podcast, video, RSS article — passes through three exp
 |---|---|---|
 | **1 — Cast wide** | Capture everything relevant | Items flow into Zotero `_inbox` from three sources: (1) the feedreader (`feedreader-score.py`) scores RSS/YouTube/podcast feeds daily and produces a sorted HTML reader and Atom feed; (2) items shared directly via the iOS share sheet; (3) manual additions from desktop/email/notes |
 | **2 — Filter** | You decide what enters the vault | `index-score.py` ranks inbox items by semantic similarity to your library; `summarize_item.py` (using the qwen3.5:9b fallback model) generates a Phase-2 preview for mid-range items; you give a **Go** or **No-go** |
-| **3 — Process** | Full processing of approved items | On **Go**, `build-zotero-bundle.py` assembles a canonical bundle at `raw/{citekey}__{itemKey}.md`; then `olw ingest` and `olw compile` (running mistral-small:22b locally) turn it into drafts in `wiki/.drafts/`; `olw review` is the human quality gate, and approved pages are published to `wiki/` — with key findings, methodology notes, relevant quotes, and `[[internal links]]` |
+| **3 — Process** | Approved items become a canonical bundle | On **Go**, `build-zotero-bundle.py` assembles a canonical bundle at `raw/{citekey}__{itemKey}.md` — verbatim metadata, notes, annotations, and full text. That bundle is the intake artifact, and it is where Phase 3 ends |
+
+Turning bundles into a wiki is handled by whichever backend is configured for the vault — see [Choosing a backend](backends/choosing.md).
 
 The separation between phases 1 and 3 keeps both your feed reader and your vault clean: only sources you have consciously approved end up in the vault.
 

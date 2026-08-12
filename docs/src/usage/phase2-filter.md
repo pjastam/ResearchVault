@@ -66,7 +66,9 @@ Claude Code asks for one Go/No-go decision at a time, giving you space to decide
 
 Claude Code moves the item to the appropriate Zotero collection and calls the local subagent `build-zotero-bundle.py` with the item key and metadata (title, authors, year, tags). The subagent fetches the full text locally, builds the YAML frontmatter, and writes a canonical bundle to `raw/{citekey}__{itemKey}.md`. Claude Code receives only a JSON status object — no source content.
 
-The bundle in `raw/` is the intake artifact. The generative work — `olw ingest`, `olw compile` (drafts land in `wiki/.drafts/`), and `olw review` (the human quality gate that publishes to `wiki/`) — happens in Phase 3.
+The bundle in `raw/` is the intake artifact, and writing it is where Phase 3 ends.
+
+Turning bundles into a wiki is handled by whichever backend is configured for the vault — see [Choosing a backend](../backends/choosing.md).
 
 The `status` field in the frontmatter is set based on the Zotero tag:
 - `status: read` — if the item had a `✅` tag (you had already read it)
