@@ -1,6 +1,8 @@
-# Phase 3: processing to the vault
+# Phase 3: building the canonical bundle
 
-Phase 3 converts approved items into published wiki pages. The pipeline builds a canonical bundle in `raw/`, then hands it to **olw** (obsidian-llm-wiki) to ingest, compile, and review before publishing to `wiki/`. All generation runs locally: olw drives the primary model **mistral-small:22b** (fast=heavy) configured in `wiki.toml` (Ollama or MLX backend — set `LLM_BACKEND=mlx` in `ResearchVault/.env` to use MLX). Add `--hd` to any command to use Claude Sonnet 4.6 instead (after explicit confirmation).
+Phase 3 converts approved items into a **canonical bundle** at `raw/{citekey}__{itemKey}.md` — one Markdown file per source, verbatim, engine-neutral. This is where ResearchVault's work ends: five different source types (PDF, YouTube transcript, podcast transcript, RSS article, personal note) converge on one documented format.
+
+What happens next — turning bundles into an interlinked wiki — is a **replaceable backend**. See [Choosing a backend](../backends/choosing.md).
 
 ---
 
@@ -17,20 +19,9 @@ Claude Code:
 2. Calls the local subagent `build-zotero-bundle.py` with only the item key and metadata:
    - `build-zotero-bundle.py` fetches the full text locally and assembles a canonical bundle at `raw/{citekey}__{itemKey}.md` (verbatim metadata, abstract, child notes, annotations, extracted text)
    - Claude Code receives only `{"status": "ok", "path": "raw/..."}` — no source content
-3. Runs `olw ingest` to index the new bundle, then `olw compile` — olw generates draft pages via the local primary model (mistral-small:22b) into `wiki/.drafts/`
-4. Removes the item from Zotero `_inbox`
+3. Removes the item from Zotero `_inbox`
 
-The compiled draft page contains:
-- YAML frontmatter (title, authors, year, journal, citation key, tags, status)
-- Core question and main argument
-- Key findings (3–5 points)
-- Methodological notes
-- Relevant quotes (original language)
-- Links to related pages
-
-`olw review` is the human quality gate: you inspect the draft in `wiki/.drafts/`, approve or reject it, and on approval olw publishes it to `wiki/` with cross-links to related pages. There is no separate `meta/candidates/` staging — `wiki/.drafts/` plus `olw review` *is* the gate.
-
-> **Privacy:** no paper content ever appears in Claude Code's context. `build-zotero-bundle.py` and olw are self-contained local tools — they fetch, generate, and write without returning any source text to the orchestration layer.
+> **Privacy:** no paper content ever appears in Claude Code's context. `build-zotero-bundle.py` is a self-contained local tool — it fetches and writes without returning any source text to the orchestration layer.
 
 ---
 
@@ -56,15 +47,7 @@ After a **Go** decision, process the item the same way as papers:
 verwerk recente papers
 ```
 
-Claude Code calls `build-zotero-bundle.py`, which reads the transcript attachment from Zotero locally via `fetch-fulltext.py` and writes the bundle to `raw/`. Then `olw ingest` + `olw compile` produce a draft in `wiki/.drafts/`, and `olw review` is your gate before publishing to `wiki/`. No transcript content reaches Claude Code.
-
-The compiled draft page contains:
-- YAML frontmatter (title, authors, year, tags, status, Zotero deep link)
-- TLDR
-- Key findings (3–5 points)
-- Methodological notes
-- *(No "Relevant quotes" section — timestamps are unreliable without a verifiable source)*
-- Links to related pages
+Claude Code calls `build-zotero-bundle.py`, which reads the transcript attachment from Zotero locally via `fetch-fulltext.py` and writes the bundle to `raw/`. No transcript content reaches Claude Code.
 
 ---
 
@@ -84,11 +67,9 @@ This script:
 4. If `abstractNote` is already filled (show notes set by `enrich-inbox.py`): moves it to a child note titled "Shownotes"
 5. Generates an abstract via the local LLM; sets `abstractNote`; stores transcript as `.txt` linked-file attachment; adds tag `_enriched-transcript`
 
-After a **Go** decision, process the item the same way as papers: `build-zotero-bundle.py` → `raw/` → `olw ingest` → `olw compile` → `olw review` → `wiki/`.
+After a **Go** decision, process the item the same way as papers: `build-zotero-bundle.py` → `raw/`.
 
 **If yt-dlp fails** with "Unsupported URL": add the feed to `feedreader-list.txt`. After the next `feedreader-score.py` run, the direct audio URL is cached and used automatically.
-
-Pages follow the same structure as YouTube: no "Relevant quotes" section (timestamps unreliable); all other sections as papers.
 
 ---
 
@@ -100,24 +81,17 @@ Non-academic articles from RSS feeds that you forward to `_inbox` can be process
 ```
 verwerk recente papers
 ```
-The item is already in `_inbox` with metadata from the Zotero Connector. Processed through the same `build-zotero-bundle.py` → `raw/` → olw path as a standard wiki page.
-
-Pages get `#web` or `#beleid` as appropriate.
+The item is already in `_inbox` with metadata from the Zotero Connector. Processed through the same `build-zotero-bundle.py` → `raw/` path as a standard paper.
 
 ---
 
 ## Personal thinking
 
-Your own notes and observations are not Zotero items. Promote them into the pipeline with `promote-to-raw.py`, which writes a bundle to `raw/notes/`. From there they are picked up by `olw ingest`/`olw compile` like any other bundle, and pass through `olw review` before landing in `wiki/`.
+Your own notes and observations are not Zotero items. Promote them into the pipeline with `promote-to-raw.py`, which writes a bundle to `raw/notes/`.
 
 ---
 
 ## After processing
-
-After each session, check whether:
-
-- New pages are linked to related existing pages (`[[double brackets]]`) — olw proposes cross-links during compilation, but confirm them during `olw review`
-- Relevant syntheses in `wiki/syntheses/` need updating; the synthesised knowledge now lives in olw concept pages under `wiki/concepts/`
 
 If new papers were added to Zotero, update the semantic search database:
 

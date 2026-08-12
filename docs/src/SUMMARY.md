@@ -7,9 +7,16 @@
 - [How the workflow fits together](usage/overview.md)
 - [Phase 1: sources into Zotero _inbox](usage/phase1-sources.md)
 - [Phase 2: Go/No-go in Claude Code](usage/phase2-filter.md)
-- [Phase 3: processing to the vault](usage/phase3-process.md)
+- [Phase 3: building the canonical bundle](usage/phase3-process.md)
 - [Activating the skill & daily workflow](reference/daily-workflow.md)
 - [Roadmap](usage/roadmap.md)
+
+# Wiki backends
+
+- [Choosing a backend](backends/choosing.md)
+- [Backend: olw (obsidian-llm-wiki)](backends/olw.md)
+- [Backend: claude-obsidian](backends/claude-obsidian.md)
+- [Backend: none — stopping at raw/](backends/none.md)
 
 # Installation
 
@@ -35,5 +42,6 @@
 
 # Reference
 
+- [The raw/ bundle format (v1)](reference/bundle-format.md)
 - [Troubleshooting](reference/troubleshooting.md)
 - [Privacy overview](reference/privacy.md)
