@@ -50,7 +50,9 @@ VAULT_ROOT = Path(__file__).resolve().parent.parent
 VAULT_DIR  = VAULT_ROOT / "vault"     # symlink → ResearchVault/vault/
 PYTHON     = Path("/Users/pietstam/.local/share/uv/tools/zotero-mcp-server/bin/python3")
 INBOX_DIR  = VAULT_ROOT / "vault" / ".cache"   # temp-input (fase-2 previews e.d.); gitignored
-OLW        = Path("/Users/pietstam/.local/bin/olw")   # Fase C: Go → build-bundle → olw ingest
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import wiki_backend  # noqa: E402
 
 
 def _zotero_env(mode: str) -> dict:
@@ -131,18 +133,12 @@ def _inbox_worker():
                 # extractie, GEEN compile). Andere jobs (summarize) slaan dit over.
                 if job.get("ingest") and bundle_path:
                     abs_bundle = str(VAULT_ROOT / bundle_path)
-                    ingest = subprocess.run(
-                        [str(OLW), "ingest", abs_bundle, "--vault", str(VAULT_DIR),
-                         "--fast-model", "mistral-small:22b"],
-                        capture_output=True, text=True, timeout=1800,
-                        cwd=str(VAULT_DIR), env={**os.environ},
-                    )
-                    if ingest.returncode != 0:
+                    ingest = wiki_backend.run("ingest", VAULT_DIR, file=abs_bundle)
+                    if ingest["status"] == "error":
                         with _job_lock:
                             _job_status[key] = {
                                 "status": "error", "path": bundle_path,
-                                "error": "olw ingest faalde: "
-                                         + (ingest.stderr.strip()[-300:] or "onbekend"),
+                                "error": ingest["error"],
                             }
                         continue   # niet uit _inbox halen als ingest faalde
                 with _job_lock:
