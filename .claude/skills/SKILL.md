@@ -260,7 +260,7 @@ Na ontvangst van `{"status": "ok", "path": ".cache/_summary_ITEMKEY.md"}`:
 
 ---
 
-### Type 1: Papers verwerken uit Zotero (raw → olw → wiki)
+### Type 1: Papers verwerken uit Zotero (raw → backend → wiki)
 
 1. Vraag: recent toegevoegd, of specifiek thema?
 2. Haal via Zotero MCP de meest recente items op, of zoek op thema
@@ -295,7 +295,7 @@ Na ontvangst van `{"status": "ok", "path": ".cache/_summary_ITEMKEY.md"}`:
 2. Vraag of er aanverwante begrippen zijn om mee te zoeken
 3. Voer `zotero_semantic_search` uit met de opgegeven termen; voor bestaande vault-inhoud: `hyalo find "[kernbegrip]"` over `vault/raw/*.md` en `vault/wiki/`
 4. Toon resultaten met similariteitsscores — vraag welke interessant zijn
-5. Bied aan om de interessante papers direct te verwerken (zie type 1: raw → olw → wiki)
+5. Bied aan om de interessante papers direct te verwerken (zie type 1: raw → backend → wiki)
 6. Als resultaten mager zijn: stel alternatieve zoektermen voor
 
 ### Type 3: YouTube-transcript ophalen en verwerken
@@ -368,7 +368,7 @@ Na ontvangst van `{"status": "ok", "path": ".cache/_summary_ITEMKEY.md"}`:
    ```
 4. Zotero-tags komen mee in de bundle-frontmatter; de backend (nu olw) beheert de wiki-pagina en cross-links.
 
-### Type 6: Synthese maken (via olw)
+### Type 6: Synthese maken (via de backend)
 
 Syntheses zijn **het domein van de backend**: de backend (nu olw) legt thematische syntheses (`wiki/syntheses/`) en cross-links aan tijdens `olw compile`, gestuurd door `wiki.toml`. Claude Code schrijft geen synthese met de hand.
 
@@ -429,7 +429,7 @@ Navigatie, zoeken en link-management lopen via **hyalo** (geen LLM). De cross-li
 | "drempeladvies" | Draai `feedreader-learn.py` en toon drempeladvies |
 | "beoordeel inbox" of "filter inbox" | Start type 0: haal `_inbox` op uit Zotero, geef per item een Go/No-go beoordeling (samenvatting via `summarize_item.py`, volledig lokaal) |
 | "beoordeel inbox --hd" | Start type 0 met Claude Sonnet 4.6 voor de samenvattingen (na bevestiging) |
-| "verwerk recente papers" | Start type 1 (raw → olw → wiki, lokaal via `mistral-small:22b`) |
+| "verwerk recente papers" | Start type 1 (raw → backend → wiki, lokaal via `mistral-small:22b`) |
 | "zoek op [thema]" | Start type 2 met opgegeven thema |
 | "transcript [URL]" | Start type 3 met de opgegeven URL; transcript-bijlage → raw → olw; slaat Zotero `_inbox` over |
 | "transcript [URL] --hd" | Start type 3; de losse `ollama-generate.py`-fallback via Claude Sonnet 4.6 (na bevestiging) |
