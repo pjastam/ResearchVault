@@ -278,5 +278,76 @@ class TestRender(unittest.TestCase):
                 self.assertIn(call()["status"], allowed)
 
 
+CLOUD_BLOCK = """
+[backends.cloud]
+invocation = "cli"
+locality   = "cloud"
+bin        = "/usr/bin/true"
+state_dir  = ".cloud"
+timeout    = 600
+force_args = "--offline"
+ingest = "{bin} ingest {file} --vault {vault}"
+"""
+
+SESSION_BLOCK = """
+[backends.sess]
+invocation = "session"
+locality   = "local"
+bin        = "/usr/bin/true"
+state_dir  = ".sess"
+timeout    = 600
+force_args = "--offline"
+ingest = "{bin} ingest {file} --vault {vault}"
+"""
+
+
+def write_vault(tmp, backend, block, confidential):
+    v = Path(tmp)
+    (v / "wiki-backend.toml").write_text(
+        f'confidential = {"true" if confidential else "false"}\n'
+        f'backend = "{backend}"\n' + block, encoding="utf-8")
+    if confidential:
+        (v / ".confidential").write_text("", encoding="utf-8")
+    return v
+
+
+class TestGuardrail(unittest.TestCase):
+    def test_cloud_backend_on_confidential_vault_is_refused(self):
+        with tempfile.TemporaryDirectory() as t:
+            v = write_vault(t, "cloud", CLOUD_BLOCK, confidential=True)
+            res = wiki_backend.render("ingest", v, file="/a.md")
+            self.assertEqual(res["status"], "error")
+            self.assertIn("cloud", res["error"])
+            self.assertIn(str(Path(t).resolve()), res["error"])
+
+    def test_session_backend_on_confidential_vault_is_refused_even_when_local(self):
+        with tempfile.TemporaryDirectory() as t:
+            v = write_vault(t, "sess", SESSION_BLOCK, confidential=True)
+            res = wiki_backend.render("ingest", v, file="/a.md")
+            self.assertEqual(res["status"], "error")
+            self.assertIn("session", res["error"])
+
+    def test_cloud_backend_on_normal_vault_is_allowed(self):
+        with tempfile.TemporaryDirectory() as t:
+            v = write_vault(t, "cloud", CLOUD_BLOCK, confidential=False)
+            res = wiki_backend.render("ingest", v, file="/a.md")
+            self.assertEqual(res["status"], "ok")
+
+    def test_force_args_appended_to_every_verb_on_confidential_vault(self):
+        with tempfile.TemporaryDirectory() as t:
+            v = make_vault(t, confidential=True)
+            for verb, kw in (("ingest", {"file": "/a.md"}), ("compile", {}),
+                             ("approve", {"draft": "/d.md"})):
+                cmd = wiki_backend.render(verb, v, **kw)["command"]
+                self.assertIn("--provider", cmd, f"{verb} mist force_args")
+                self.assertIn("http://localhost:11434", cmd)
+
+    def test_force_args_not_appended_on_normal_vault(self):
+        with tempfile.TemporaryDirectory() as t:
+            v = make_vault(t, confidential=False)
+            self.assertNotIn("--provider",
+                             wiki_backend.render("compile", v)["command"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -121,9 +121,36 @@ def _strip_optional_segments(template: str, values: dict) -> str:
     return _OPTIONAL_RE.sub(repl, template)
 
 
+def check_guardrail(loaded: dict) -> dict:
+    """Weigert hard op een vertrouwelijke vault. Geen fallback (spec §4.2).
+
+    Locality wordt niet geverifieerd maar afgedwongen: olw ondersteunt zelf
+    --provider groq|openai|azure en leest drie configlagen, dus `locality = "local"`
+    is een verklaring, geen feit. force_args (in render() toegevoegd) zet de provider
+    via de CLI zodat geen configlaag hem nog kan overrulen.
+    """
+    if not loaded["confidential"]:
+        return {"status": "ok"}
+    cfg, name, vpath = loaded["cfg"], loaded["backend"], loaded["vault"]
+
+    if cfg["locality"] != "local":
+        return _err(
+            f"backend '{name}' heeft locality='{cfg['locality']}' en mag niet draaien op "
+            f"de vertrouwelijke vault {vpath}"
+        )
+    if cfg["invocation"] != "cli":
+        return _err(
+            f"backend '{name}' heeft invocation='{cfg['invocation']}' en mag niet draaien "
+            f"op de vertrouwelijke vault {vpath} — de guardrail kan een sessie-stap niet zien"
+        )
+    return {"status": "ok"}
+
+
 def render(verb: str, vault, **args) -> dict:
-    """Leest config en bepaalt capability (verbcheck, template). Resolved timeout per verb.
-    Vult placeholders in template in en rendert naar argv-lijst. Voert niets uit."""
+    """Leest config en bepaalt capability (verbcheck, template). Controleert daarna de
+    guardrail (spec §4.2) — een vertrouwelijke vault mag alleen naar een lokale cli-backend.
+    Resolved timeout per verb. Vult placeholders in template in, voegt op een vertrouwelijke
+    vault force_args toe en rendert naar argv-lijst. Voert niets uit."""
     loaded = load(vault)
     if loaded["status"] != "ok":
         return loaded
@@ -137,6 +164,10 @@ def render(verb: str, vault, **args) -> dict:
         return {"status": "unsupported",
                 "reason": f"backend '{loaded['backend']}' ondersteunt {verb} niet",
                 "hint": cfg.get("session_hint", "")}
+
+    guard = check_guardrail(loaded)
+    if guard["status"] != "ok":
+        return guard
 
     timeout = _resolve_timeout(cfg, verb)
     if timeout is None:
@@ -163,6 +194,9 @@ def render(verb: str, vault, **args) -> dict:
             if not values.get(name):
                 return _err(f"placeholder '{{{name}}}' heeft geen waarde voor verb '{verb}'")
         command.append(_PLACEHOLDER_RE.sub(lambda m: values[m.group(1)], token))
+
+    if loaded["confidential"] and cfg.get("force_args"):
+        command += shlex.split(cfg["force_args"])
 
     log_path = Path(vpath) / LOG_DIR_NAME / f"{verb}.log"
     return {"status": "ok", "command": command, "timeout": timeout, "log": str(log_path)}
