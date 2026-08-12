@@ -57,3 +57,10 @@ For video and podcast sources, the structure is the same except:
 - There is no quotes section — timestamps are unreliable without a verifiable source
 
 Both variants get the same key findings, methodological notes, and links to related pages.
+
+## After a compile session
+
+After each session, check whether:
+
+- New pages are linked to related existing pages (`[[double brackets]]`) — olw proposes cross-links during compilation, but confirm them during `olw review`
+- Relevant syntheses in `wiki/syntheses/` need updating. This check exists because the two folders hold different things: `wiki/syntheses/` is where cross-cutting thematic synthesis lives, while the synthesised knowledge from any single newly compiled source now lives in olw's concept pages under `wiki/concepts/` — a synthesis page doesn't automatically pick up what just landed there, so it's worth a look whenever a new draft on that theme is published.
