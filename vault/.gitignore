@@ -31,3 +31,7 @@ authoring
 
 # transiënte olw run-logs (compile/ingest stdout) — kunnen broninhoud bevatten
 .olw-*.log
+
+# dispatcher-logs (wiki_backend.py) — zelfde reden als .olw-*.log hierboven:
+# subprocess-stdout van de backend, kan broninhoud bevatten. Deze repo is publiek.
+.wiki-backend/
