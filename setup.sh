@@ -11,17 +11,27 @@ echo "Checking dependencies..."
 
 # Backend uitlezen uit vault/wiki-backend.toml — olw-specifieke stappen zijn
 # alleen relevant wanneer olw ook daadwerkelijk de geconfigureerde backend is.
-BACKEND=$(python3 - <<'PY' 2>/dev/null || echo unknown
+# Sentinelnamen (__unset__/__unreadable__) gebruiken dubbele underscores zodat ze nooit
+# kunnen botsen met een echte backendnaam.
+BACKEND=$(python3 - <<'PY' 2>/dev/null || echo "__unreadable__"
 import tomllib, pathlib
 p = pathlib.Path("vault/wiki-backend.toml")
-print(tomllib.loads(p.read_text())["backend"] if p.is_file() else "unset")
+print(tomllib.loads(p.read_text())["backend"] if p.is_file() else "__unset__")
 PY
 )
 echo "Wiki backend: $BACKEND"
 
-if [ "$BACKEND" = "unset" ]; then
-  echo "  ⚠ vault/wiki-backend.toml ontbreekt — run: python3 .claude/migrate-wiki-backend.py vault --apply"
-elif [ "$BACKEND" = "olw" ] && ! command -v olw &>/dev/null; then
+if [ "$BACKEND" = "__unset__" ]; then
+  echo "  ⚠ vault/wiki-backend.toml missing — run: python3 .claude/migrate-wiki-backend.py vault --apply"
+elif [ "$BACKEND" = "__unreadable__" ]; then
+  # Config bestaat maar is onleesbaar (kapotte TOML, ontbrekende `backend`-sleutel).
+  # Nooit stil doorlopen: zonder deze tak zou het script "✓ olw" tonen en de gebruiker
+  # in de waan laten dat alles klopt, terwijl geen enkele backend-stap kan werken.
+  echo "  ✗ vault/wiki-backend.toml exists but could not be read — check its TOML syntax and 'backend' key"
+  DEP_MISSING=1
+elif [ "$BACKEND" != "olw" ]; then
+  echo "  ✓ backend '$BACKEND' configured — see docs → 'Wiki backends' for its requirements"
+elif ! command -v olw &>/dev/null; then
   echo "  ✗ olw (obsidian-llm-wiki) not found — install: uv tool install obsidian-llm-wiki"
   DEP_MISSING=1
 else
@@ -128,6 +138,8 @@ echo "Run the wiki pipeline:"
 if [ "$BACKEND" = "olw" ]; then
   echo "  (cd vault && olw ingest --all)   # process vault/raw/ → wiki/"
   echo "  (cd vault && olw review)         # approve/reject drafts"
+elif [ "$BACKEND" = "__unset__" ] || [ "$BACKEND" = "__unreadable__" ]; then
+  echo "  configure a wiki backend first — see docs → 'Wiki backends'"
 else
   echo "  see docs → 'Wiki backends' for the $BACKEND workflow"
 fi
