@@ -366,11 +366,11 @@ Na ontvangst van `{"status": "ok", "path": ".cache/_summary_ITEMKEY.md"}`:
    ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/promote-to-raw.py --note <pad>
    # → schone snapshot naar vault/raw/notes/<slug>.md (source_type: personal) + olw ingest
    ```
-4. Zotero-tags komen mee in de bundle-frontmatter; olw beheert de wiki-pagina en cross-links.
+4. Zotero-tags komen mee in de bundle-frontmatter; de backend (nu olw) beheert de wiki-pagina en cross-links.
 
 ### Type 6: Synthese maken (via olw)
 
-Syntheses zijn **olw's domein**: olw legt thematische syntheses (`wiki/syntheses/`) en cross-links aan tijdens `olw compile`, gestuurd door `wiki.toml`. Claude Code schrijft geen synthese met de hand.
+Syntheses zijn **het domein van de backend**: de backend (nu olw) legt thematische syntheses (`wiki/syntheses/`) en cross-links aan tijdens `olw compile`, gestuurd door `wiki.toml`. Claude Code schrijft geen synthese met de hand.
 
 1. Vraag naar het thema en het doel van de synthese
 2. Breng in kaart wat er al is: `hyalo find "[thema]"` over `vault/wiki/` (bestaande concepten + syntheses) en `vault/raw/*.md` (welke bronnen zijn al ge-ingest?)
@@ -388,11 +388,11 @@ Syntheses zijn **olw's domein**: olw legt thematische syntheses (`wiki/syntheses
 
 ### Type 7: Wiki doorbladeren en verbanden bewaken
 
-Navigatie, zoeken en link-management lopen via **hyalo** (geen LLM). De cross-links en structuur zelf zijn olw's domein.
+Navigatie, zoeken en link-management lopen via **hyalo** (geen LLM). De cross-links en structuur zelf zijn het domein van de backend (nu olw).
 
 1. Geef een overzicht van `wiki/` (concepten, `sources/`, `syntheses/`) en `raw/` via hyalo
 2. Vraag: wil je binnen een specifiek thema kijken, of breed over de hele wiki?
-3. Signaleer wiki-gezondheidsproblemen met olw's backstops:
+3. Signaleer wiki-gezondheidsproblemen met de backstops van de backend (nu `olw lint` / `olw maintain`):
    ```bash
    olw lint --vault vault           # orphans, broken links, stubs
    olw maintain --vault vault       # onderhoud op basis van de lint-bevindingen
@@ -446,4 +446,4 @@ Navigatie, zoeken en link-management lopen via **hyalo** (geen LLM). De cross-li
 
 ---
 
-*Skill versie 2.0 — juli 2026 — raw→olw-reconciliatie: `process_item.py`→`literature/` vervangen door `build-zotero-bundle.py`→`raw/`→olw ingest/compile/`olw review`→`wiki/`; model `mistral-small:22b` (olw), qwen alleen fallback; transcripten via `attach-transcript.py`→bundle; syntheses = olw's domein; flashcards/spaced-repetition verwijderd.*
+*Skill versie 2.0 — juli 2026 — raw→olw-reconciliatie: `process_item.py`→`literature/` vervangen door `build-zotero-bundle.py`→`raw/`→olw ingest/compile/`olw review`→`wiki/`; model `mistral-small:22b` (olw), qwen alleen fallback; transcripten via `attach-transcript.py`→bundle; syntheses = olw's domein; flashcards/spaced-repetition verwijderd. (Historische notitie — sinds de wiki-backend-contract-wijziging is de backend geconfigureerd via `wiki-backend.toml`/`.claude/wiki_backend.py`; lees "olw" hierboven als de toenmalige/huidige keuze, niet als vaste component.)*
