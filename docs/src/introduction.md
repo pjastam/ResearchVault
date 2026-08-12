@@ -32,9 +32,9 @@ The separation between phases 1 and 3 keeps both your feed reader and your vault
 | [yt-dlp](https://github.com/yt-dlp/yt-dlp) | Download YouTube transcripts and podcast audio | Local |
 | [whisper.cpp](https://github.com/ggerganov/whisper.cpp) | Local speech-to-text transcription for podcasts | Local |
 | [NetNewsWire](https://netnewswire.com) | RSS reader for academic and non-academic feeds | Local |
-| [Claude Code](https://claude.ai/claude-code) | AI assistant that orchestrates the workflow; generative work runs locally via mistral-small:22b (Ollama) | Local (default) / Cloud API with `--hd` |
+| [Claude Code](https://claude.ai/claude-code) | AI assistant that orchestrates the workflow; generative work runs through your configured backend | Depends on backend + assistant mode — see [Privacy overview](reference/privacy.md) |
 
-In standard mode, only orchestration instructions are sent to the Anthropic API; all generative work is handled locally by mistral-small:22b (with qwen3.5:9b as a fallback for Phase-2 previews). Only when `--hd` is explicitly requested do the prompt and source content go to the Anthropic API (Claude Sonnet 4.6). Reference data, notes, and transcriptions always stay local.
+With the default `olw` backend, only orchestration instructions are sent to the Anthropic API; all generative work is handled locally by mistral-small:22b (with qwen3.5:9b as a fallback for Phase-2 previews). A vault can instead be configured with a cloud backend, which sends bundle content to that provider's API — see the [privacy overview](reference/privacy.md). Separately, for a single step you can ask Claude Code for maximum quality; this is a mode of the assistant, not a command-line flag — none of the scripts accept `--hd`. Claude then reads the source itself and sends it to the Anthropic API (Claude Sonnet 4.6) only after you confirm, and never on a vault marked confidential. Reference data, notes, and transcriptions always stay local unless a cloud backend is configured.
 
 ---
 

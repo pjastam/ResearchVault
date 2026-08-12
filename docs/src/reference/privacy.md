@@ -15,7 +15,7 @@
 | ttyd | ✅ Fully | Browser terminal runs locally on Mac mini |
 | olw (obsidian-llm-wiki) | ✅ Fully | Ingest/compile/review run locally; compile uses local mistral-small:22b via `wiki.toml` |
 | Claude Code — orchestration | ⚠️ Partially | Workflow instructions and metadata go to the Anthropic API; **source content must not** |
-| Claude Code — `--hd` mode | ⚠️ Partially | Only on explicit `--hd` request: prompt and source content go to Anthropic API (Claude Sonnet 4.6) |
+| Claude Code — maximum-quality mode | ⚠️ Partially | Only on explicit request: Claude reads the source itself and sends prompt + source content to the Anthropic API (Claude Sonnet 4.6). This is an assistant mode, not a script flag — see below |
 
 ## The content privacy rule
 
@@ -54,4 +54,37 @@ What goes to the Anthropic API in this pipeline: only item keys and metadata (ti
 
 No stage ever prints source content to the terminal or to Claude Code's context. Claude Code only sees JSON status objects and the draft text you deliberately review.
 
-> **Conclusion:** in the default mode, no paper content, transcript, or wiki text leaves the Mac mini. Claude Code orchestrates the workflow (instructions go to Anthropic) and hosts the human `olw review` gate, but all generative work runs locally via mistral-small:22b. Only when you explicitly request `--hd` does source content go to the Anthropic API — Claude Code always asks for confirmation first.
+## What leaves your machine depends on your backend
+
+ResearchVault itself never sends source content anywhere: `build-zotero-bundle.py` fetches text locally and writes a bundle; Claude Code receives only a status object. What happens after `raw/` is up to the backend you configured.
+
+| Backend | Source content leaves the machine? |
+|---|---|
+| `olw` (local) | No. Synthesis runs on a local model through Ollama or MLX |
+| `none` | No. There is no synthesis step |
+| A cloud backend (e.g. claude-obsidian) | **Yes** — bundle content goes to that provider's API |
+
+`locality` and `invocation` are mandatory declarations in `wiki-backend.toml`. There is no default in either direction: a backend that fails to declare them is refused rather than guessed at.
+
+## Vaults holding confidential material
+
+A vault can declare `confidential = true` and carry a `.confidential` marker. Both must agree — a disagreement is a hard error, so neither can silently go missing. On such a vault the dispatcher refuses cloud backends, session backends, and any backend that does not pin its provider through `force_args`. There is no fallback path.
+
+## Two routes to the cloud, two different locks
+
+Being precise about this matters more than sounding safe:
+
+| Route | Lock | Nature |
+|---|---|---|
+| Cloud backend | `confidential` + marker + `force_args`, checked before every subprocess | Mechanical — verifiable and covered by tests |
+| Maximum-quality mode | An instruction the assistant follows: announce, confirm, never on a confidential vault | Convention — not enforceable by code |
+
+The second route exists because Claude Code can read a source itself rather than calling a local script. No subprocess is involved, so the dispatcher cannot see it. That asymmetry is exactly why the backend route got a mechanical lock: configuration can be checked, behaviour cannot.
+
+## What could still go wrong
+
+- If a vault is copied somewhere new without both its config and its marker, the copy is no longer recognisable as confidential. The dispatcher refuses to run there, but the content sits unprotected.
+- `force_args` assumes the backend lets command-line flags win over its own configuration files. True for olw; worth smoke-testing for any new backend.
+- Cloud sync typically does not preserve unix permission bits, so a restored `.confidential` may no longer be mode 600. The guardrail checks presence, not permissions, so this weakens defence in depth without breaking the guarantee.
+
+Run `python3 .claude/migrate-wiki-backend.py <vault> --verify` to check that config, marker, and permissions still line up.

@@ -82,15 +82,15 @@ Claude Code always asks for confirmation before deleting. After confirmation, th
 
 ---
 
-## High-definition mode
+## Maximum-quality mode
 
-For a higher-quality preview summary, add `--hd` to activate Claude Sonnet instead of the local fallback model:
+For a higher-quality preview summary, ask Claude Code for it explicitly instead of relying on the local fallback model:
 
 ```
-beoordeel inbox --hd
+beoordeel inbox, gebruik maximale kwaliteit
 ```
 
-Claude Code will ask for explicit confirmation before sending any content to the Anthropic API.
+This is a mode of the assistant, not a command-line flag — `--hd` is not a real option, and no script accepts it. When asked, Claude reads the source itself and generates the preview through the Anthropic API (Claude Sonnet 4.6) instead of calling `summarize_item.py`. Claude Code always asks for explicit confirmation first, and never does this on a vault marked confidential.
 
 ---
 
