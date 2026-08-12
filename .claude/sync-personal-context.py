@@ -32,6 +32,9 @@ import shutil
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import wiki_backend  # noqa: E402
+
 CONFIDENTIAL_ROOT = Path.home() / "Confidential"
 VAULT_ROOT = Path(__file__).resolve().parent.parent  # repo-root
 PERSONAL_WIKI = VAULT_ROOT / "vault" / "wiki"
@@ -76,6 +79,14 @@ def inject_marker(text):
         return "---\n" + MARKER_LINE + "\n" + text[4:]
     # Geen frontmatter → wikkel er een omheen.
     return "---\n" + MARKER_LINE + "\n---\n\n" + text
+
+
+def _next_command(compartment: Path, ctx_dir: Path) -> str:
+    """Het vervolgcommando komt uit de backendconfig, niet uit een hardgecodeerde string."""
+    res = wiki_backend.render("ingest", compartment, file=str(ctx_dir))
+    if res["status"] != "ok":
+        return f"(geen ingest-commando beschikbaar: {res.get('error', res['status'])})"
+    return " ".join(res["command"])
 
 
 def main():
@@ -123,7 +134,7 @@ def main():
         "path": str(ctx_dir),
         "synced": n_concepts + n_syntheses,
         "sources": {"concepts": n_concepts, "syntheses": n_syntheses},
-        "next": f"olw ingest {ctx_dir} --vault {compartment} --fast-model mistral-small:22b",
+        "next": _next_command(compartment, ctx_dir),
     }))
 
 
