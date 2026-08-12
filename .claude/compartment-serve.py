@@ -214,9 +214,17 @@ class Handler(BaseHTTPRequestHandler):
         if res["status"] == "skipped":
             return self._json({"status": "skipped", "action": verb,
                                "reason": res.get("reason", "")}, 501)
-        return self._json({"status": res["status"], "action": verb,
-                           "returncode": res.get("returncode")},
-                          200 if res["status"] == "ok" else 500)
+        if res["status"] == "ok":
+            return self._json({"status": "ok", "action": verb,
+                               "returncode": res.get("returncode")}, 200)
+        # Foutpad: geef de melding én de logbestandsnaam door. Alleen `returncode`
+        # volstaat niet — bij elke fout op render-niveau is die None, en juist die
+        # fouten zijn hier het waarschijnlijkst omdat deze server uitsluitend
+        # vertrouwelijke compartimenten bedient. Nooit loginhoud.
+        return self._json({"status": "error", "action": verb,
+                           "error": res.get("error", "onbekende fout"),
+                           "returncode": res.get("returncode"),
+                           "log": res.get("log", "")}, 500)
 
     # ── pagina's ──
     def _index(self):
@@ -261,7 +269,11 @@ class Handler(BaseHTTPRequestHandler):
               "fetch('/'+a,{method:'POST',headers:{'Content-Type':'application/json'},"
               "body:JSON.stringify({file:f,feedback:fb})}).then(r=>r.json()).then(function(j){"
               "div.style.opacity=j.status==='ok'?0.4:1;"
-              "if(j.status!=='ok')alert('Fout: '+(j.error||j.returncode));});});});</script>")
+              "if(j.status==='ok'){}"
+              "else if(j.status==='unsupported'||j.status==='skipped'){"
+              "alert(j.hint||j.reason||'Deze backend ondersteunt deze actie niet.');}"
+              "else{alert('Fout: '+(j.error||'onbekend')+(j.log?'\\nZie '+j.log:''));}"
+              "});});});</script>")
         body = "<p><a href='/'>← index</a></p><h1>Drafts</h1>" + ("".join(blocks)
                if blocks else "<p class='muted'>Geen drafts.</p>") + js
         self._send(page("Drafts", body))
