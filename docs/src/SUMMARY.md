@@ -8,6 +8,7 @@
 - [Phase 1: sources into Zotero _inbox](usage/phase1-sources.md)
 - [Phase 2: Go/No-go in Claude Code](usage/phase2-filter.md)
 - [Phase 3: building the canonical bundle](usage/phase3-process.md)
+- [The local stack](usage/local-stack.md)
 - [Activating the skill & daily workflow](reference/daily-workflow.md)
 - [Roadmap](usage/roadmap.md)
 

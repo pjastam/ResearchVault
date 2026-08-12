@@ -30,6 +30,7 @@
       .arr-inner { stroke: rgba(180,180,180,0.5); stroke-width: 1.2; fill: none; }
       .arr-phase { stroke: rgba(255,255,255,0.3); stroke-width: 1.5; fill: none; }
       .arr-dash { stroke: rgba(74,158,255,0.35); stroke-width: 1.5; fill: none; stroke-dasharray: 4 3; }
+      .backend-frame { fill: none; stroke: rgba(46,204,154,0.5); stroke-width: 1.3; stroke-dasharray: 4 3; }
       .lbl-1 { fill: #4a9eff; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; }
       .lbl-2 { fill: #e8a735; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; }
       .lbl-3 { fill: #e06c4a; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; }
@@ -61,7 +62,7 @@
   <!-- HEADER -->
   <rect x="290" y="12" width="240" height="22" rx="4" class="hdr-box"/>
   <text x="410" y="27" text-anchor="middle" class="hdr">LOCAL RESEARCH WORKFLOW v2.0</text>
-  <text x="410" y="50" text-anchor="middle" class="hdr-sub">Mac mini M4 · privacy-first · 3-phase model · compounding olw wiki</text>
+  <text x="410" y="50" text-anchor="middle" class="hdr-sub">Mac mini M4 · privacy-first · 3-phase model · compounding wiki · replaceable backend</text>
 
   <line x1="40" y1="68" x2="40" y2="888" class="spine"/>
 
@@ -140,7 +141,7 @@
 
   <line x1="432" y1="588" x2="432" y2="608" class="arr-phase" marker-end="url(#arrow)"/>
 
-  <!-- ═══ PHASE 3 — PROCESS &amp; STORE (raw → olw → wiki) ═══ -->
+  <!-- ═══ PHASE 3 — PROCESS &amp; STORE (raw → backend → wiki) ═══ -->
   <circle cx="40" cy="616" r="9" class="dot-3"/>
   <text x="40" y="620" text-anchor="middle" class="dot-num">3</text>
   <text x="58" y="620" class="lbl-3">PROCESS &amp; STORE</text>
@@ -148,7 +149,7 @@
 
   <rect x="64" y="630" width="736" height="110" rx="8" class="panel-3"/>
   <text x="76" y="646" class="t-sec">CLAUDE CODE · orchestrator — coordinates; only JSON status returns</text>
-  <text x="788" y="646" text-anchor="end" class="t-hd-sub">--hd → Sonnet 4.6 · optional · preview/helper · confirm first</text>
+  <text x="788" y="646" text-anchor="end" class="t-hd-sub">max-quality mode · assistant, not a flag · confirm first</text>
 
   <!-- Pipeline: 4 stages, w=168 gap=13, x: 76,257,438,619 -->
   <!-- Stage 1: Zotero item / fetch tools -->
@@ -163,15 +164,18 @@
   <text x="341" y="693" text-anchor="middle" dominant-baseline="central" class="t-amber">→  raw/  bundle</text>
   <text x="341" y="706" text-anchor="middle" dominant-baseline="central" class="t-mute">verbatim text+notes+annots</text>
 
-  <!-- Stage 3: olw ingest → compile -->
+  <!-- Backend group: dashed frame shows the backend is a replaceable unit (Task 15 contract) -->
+  <rect x="434" y="650" width="357" height="72" rx="10" class="backend-frame"/>
+
+  <!-- Stage 3: backend ingest → compile -->
   <rect x="438" y="654" width="168" height="66" rx="5" class="card-olw"/>
-  <text x="522" y="676" text-anchor="middle" dominant-baseline="central" class="t-head">olw  ingest → compile</text>
-  <text x="522" y="693" text-anchor="middle" dominant-baseline="central" class="t-olw">mistral-small:22b · local</text>
+  <text x="522" y="676" text-anchor="middle" dominant-baseline="central" class="t-head">backend  ingest → compile</text>
+  <text x="522" y="693" text-anchor="middle" dominant-baseline="central" class="t-olw">local model (backend config)</text>
   <text x="522" y="706" text-anchor="middle" dominant-baseline="central" class="t-mute">→  wiki/.drafts/</text>
 
-  <!-- Stage 4: olw review gate -->
+  <!-- Stage 4: backend review gate -->
   <rect x="619" y="654" width="168" height="66" rx="5" class="card-go"/>
-  <text x="703" y="676" text-anchor="middle" dominant-baseline="central" class="t-head">olw review</text>
+  <text x="703" y="676" text-anchor="middle" dominant-baseline="central" class="t-head">backend review gate</text>
   <text x="703" y="693" text-anchor="middle" dominant-baseline="central" class="t-go">human Go/No-go gate</text>
   <text x="703" y="706" text-anchor="middle" dominant-baseline="central" class="t-mute">approve → wiki/</text>
 
@@ -186,7 +190,7 @@
   <!-- wiki bucket -->
   <rect x="76" y="764" width="712" height="54" rx="8" class="card-wiki"/>
   <text x="432" y="785" text-anchor="middle" dominant-baseline="central" class="t-wiki">wiki/  —  compounding knowledge base</text>
-  <text x="432" y="804" text-anchor="middle" dominant-baseline="central" class="t-wiki-sub">concepts · sources/ · syntheses/  —  interlinked, olw-maintained, human-reviewed</text>
+  <text x="432" y="804" text-anchor="middle" dominant-baseline="central" class="t-wiki-sub">concepts · sources/ · syntheses/  —  interlinked, backend-maintained, human-reviewed</text>
 
   <!-- PRIVACY BAR -->
   <rect x="64" y="836" width="736" height="56" rx="8" class="panel-priv"/>
@@ -194,9 +198,9 @@
   <text x="76"  y="874" class="t-priv-ok">✅ Zotero+MCP</text>
   <text x="188" y="874" class="t-priv-ok">✅ Obsidian</text>
   <text x="280" y="874" class="t-priv-ok">✅ whisper.cpp</text>
-  <text x="392" y="874" class="t-priv-ok">✅ olw · mistral-small</text>
+  <text x="392" y="874" class="t-priv-ok">✅ wiki backend</text>
   <text x="560" y="874" class="t-priv-ok">✅ Claude Code</text>
-  <text x="668" y="874" class="t-priv-warn">⚠ --hd → Anthropic</text>
+  <text x="668" y="874" class="t-priv-warn">⚠ max-quality → Anthropic</text>
 
-  <text x="410" y="908" text-anchor="middle" class="t-foot">v2.0 · capture → filter → process · raw → olw → wiki · mistral-small:22b (olw) · Sonnet 4.6 with --hd</text>
+  <text x="410" y="908" text-anchor="middle" class="t-foot">v2.0 · capture → filter → process · raw → backend → wiki · local model (backend config) · max-quality mode (optional)</text>
 </svg>
