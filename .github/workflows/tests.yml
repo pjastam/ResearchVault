@@ -1,0 +1,22 @@
+name: tests
+
+on:
+  push:
+    paths:
+      - '.claude/wiki_backend.py'
+      - '.claude/test_wiki_backend.py'
+      - '.github/workflows/tests.yml'
+  pull_request:
+    paths:
+      - '.claude/wiki_backend.py'
+      - '.claude/test_wiki_backend.py'
+
+jobs:
+  unittest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python3 -m unittest discover -s .claude -p 'test_*.py' -v
