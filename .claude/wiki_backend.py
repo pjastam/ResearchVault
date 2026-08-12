@@ -122,7 +122,8 @@ def _strip_optional_segments(template: str, values: dict) -> str:
 
 
 def render(verb: str, vault, **args) -> dict:
-    """Stappen 1-4: config, capability, guardrail, template. Voert niets uit."""
+    """Leest config en bepaalt capability (verbcheck, template). Resolved timeout per verb.
+    Vult placeholders in template in en rendert naar argv-lijst. Voert niets uit."""
     loaded = load(vault)
     if loaded["status"] != "ok":
         return loaded
