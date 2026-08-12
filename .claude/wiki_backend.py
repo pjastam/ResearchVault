@@ -231,7 +231,11 @@ def run(verb: str, vault, **args) -> dict:
         return _err(f"{verb} timeout na {plan['timeout']}s, zie {log_path.name}",
                     returncode=None, log=str(log_path))
     except OSError as exc:
-        return _err(f"{verb} kon niet starten: {exc}", log=str(log_path))
+        # returncode is hier altijd aanwezig, ook al bestaat er geen exit-code: het
+        # proces is nooit gestart. None is eerlijker dan de sleutel weglaten — een
+        # aanroeper die res["returncode"] direct indexeert (geen .get()) mag hier niet
+        # op een KeyError stuiten, juist op het pad waar de foutmelding het hardst nodig is.
+        return _err(f"{verb} kon niet starten: {exc}", returncode=None, log=str(log_path))
 
     if proc.returncode != 0:
         # Log-inhoud NOOIT teruggeven — alleen de code en de bestandsnaam.

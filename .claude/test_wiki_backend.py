@@ -396,6 +396,19 @@ timeout    = 30
 compile = "{bin} -c echo_geheim_op_stdout_en_exit_1"
 """
 
+# Schrijft eerst een herkenbare marker naar stdout en gaat dan langer slapen dan de
+# timeout — zo bewijst de test dat de marker écht geschreven is (en dus iets is om
+# tegen te toetsen) én dat hij niet in de returnwaarde terechtkomt.
+TIMEOUT_BLOCK = """
+[backends.olw]
+invocation = "cli"
+locality   = "local"
+bin        = "/bin/sh"
+state_dir  = ".olw"
+timeout    = 1
+compile = "{bin} -c 'echo herkenbare_marker_voor_timeout_test; sleep 5'"
+"""
+
 
 class TestRun(unittest.TestCase):
     def test_success_returns_ok_and_log_path(self):
@@ -435,6 +448,45 @@ class TestRun(unittest.TestCase):
             self.assertEqual(res["status"], "error")
             blob = repr(res)
             self.assertNotIn("echo_geheim_op_stdout_en_exit_1", blob)
+
+    def test_timeout_reports_returncode_none_and_no_output(self):
+        """Het timeout-pad is ongetest gebleven bij de eerste implementatie — deze test
+        toont aan dat het privacycontract ook hier standhoudt: er bestaat geen exit-code
+        (proces liep nog), dus returncode moet aanwezig én None zijn, en de herkenbare
+        marker die het commando vóór het slapen naar stdout schreef mag niet in de
+        returnwaarde lekken."""
+        with tempfile.TemporaryDirectory() as t:
+            v = Path(t)
+            (v / "wiki-backend.toml").write_text(
+                'confidential = false\nbackend = "olw"\n' + TIMEOUT_BLOCK, encoding="utf-8")
+            res = wiki_backend.run("compile", v)
+            self.assertEqual(res["status"], "error")
+            self.assertIn("returncode", res)
+            self.assertIsNone(res["returncode"])
+            blob = repr(res)
+            self.assertNotIn("herkenbare_marker_voor_timeout_test", blob)
+
+    def test_exec_failure_reports_returncode_none_directly_indexable(self):
+        """Wanneer het subprocess niet eens kan starten (ontbrekende binary), moet
+        res["returncode"] uitleesbaar zijn met directe indexering — geen .get() nodig.
+        Dat was precies de eigenschap die kapot was vóór deze fix."""
+        with tempfile.TemporaryDirectory() as t:
+            v = Path(t)
+            missing_bin = str(Path(t) / "nonexistent-dir" / "no-such-binary")
+            block = f"""
+[backends.olw]
+invocation = "cli"
+locality   = "local"
+bin        = "{missing_bin}"
+state_dir  = ".olw"
+timeout    = 30
+compile = "{{bin}} compile --vault {{vault}}"
+"""
+            (v / "wiki-backend.toml").write_text(
+                'confidential = false\nbackend = "olw"\n' + block, encoding="utf-8")
+            res = wiki_backend.run("compile", v)
+            self.assertEqual(res["status"], "error")
+            self.assertIsNone(res["returncode"])
 
     def test_skipped_passes_through_without_subprocess(self):
         with tempfile.TemporaryDirectory() as t:
