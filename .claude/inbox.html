@@ -85,6 +85,7 @@
   .job-running { color: var(--yellow); }
   .job-done    { color: var(--green); }
   .job-error   { color: var(--red); }
+  .job-unsupported { color: var(--yellow); }
 
   /* Progress */
   #progress-bar {
@@ -671,18 +672,26 @@ function pollJobs() {
     try {
       const res  = await fetch(`${BASE}/api/inbox/jobs`);
       const data = await res.json();
-      renderStatusBar(data.counts || {});
+      renderStatusBar(data.counts || {}, data.jobs || {});
     } catch (_) {}
   }, 5000);
 }
 
-function renderStatusBar(counts) {
+function renderStatusBar(counts, jobs = {}) {
   const bar = document.getElementById("statusbar");
   const parts = [];
+  // session_hint uit wiki-backend.toml, doorgegeven door de dispatcher — vertelt wat
+  // de gebruiker zelf moet doen. Zonder deze regel bereikt de hint hem nooit.
+  const hint = Object.values(jobs).find(j => j.status === "unsupported" && j.hint)?.hint || "";
   if (counts.pending  > 0) parts.push(`<span>${counts.pending} wachtend</span>`);
   if (counts.running  > 0) parts.push(`<span class="job-running">⏳ ${counts.running} bezig</span>`);
   if (counts.done     > 0) parts.push(`<span class="job-done">✅ ${counts.done} klaar</span>`);
   if (counts.error    > 0) parts.push(`<span class="job-error">❌ ${counts.error} fout</span>`);
+  // De backend kent geen ingest-subprocess: bundle staat er, maar er is niets ge-ingest
+  // en het item blijft in _inbox tot de gebruiker de handmatige stap doet.
+  if (counts.unsupported > 0) parts.push(
+    `<span class="job-unsupported" title="${esc(hint)}">⚠️ ${counts.unsupported} handmatige ingest nodig`
+    + (hint ? ` — ${esc(hint)}` : "") + `</span>`);
   bar.innerHTML = parts.join("") || "";
 }
 
