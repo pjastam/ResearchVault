@@ -261,6 +261,34 @@ $PY .claude/backfill-scout.py --source scholar --target "van de Ven"
 - **Privacy:** stdout = alleen een JSON-statusobject; bron-/transcripttekst wordt nooit geprint. Embeddings via lokale `sentence_transformers`, geen Anthropic-API.
 - **Uitrol-plan/lessen:** `~/.claude/plans/backfill-scout-rollout.md` (o.a. de ~30/IP transcript-limiet en de two-stage-rationale).
 
+## Stock-intake (back-catalog) — de tweede intake-dimensie
+
+Naast de **flow** (nieuwe items via feedreader → 3 fasen) kent de vault een **stock**-as: de in
+de loop der jaren verzamelde bronnen. Twee kwadranten met verschillende bewerking:
+
+- **Curated stock — de eigen Zotero-back-catalog** (~9.4k items buiten `_inbox`): deze heeft
+  fase 2 (Filter) al gehad — bewaren = impliciete Go. Er is **géén nieuw scoringsscript** nodig;
+  hergebruik de bestaande Process-fase (`build-zotero-bundle.py` → `olw compile` → `olw review`),
+  gericht op library-items i.p.v. `_inbox`. Omdat het corpus ~50× het Karpathy-schaalplafond is
+  (~100–200 bronnen; index moet in context passen), gaat de intake **in golven, geprioriteerd op
+  de signaalgradiënt**: annotatie-rijkdom (277 geannoteerde items = Golf 0) → profiel-relevantie
+  (has-PDF wetenschappelijke laag ~2.311) → thema/collectie. De ~7.000 thin/web-items blijven
+  **archief** (doorzoekbaar via hyalo), geen wiki-materiaal. De feedreader-scoring wordt hier
+  hergebruikt als **rangschikker**, niet als Go/No-go-poort.
+  Driver: `.claude/backfill-annotated.py` — selecteert de geannoteerde items (gewicht >
+  `WEIGHT_DEFAULT`), slaat bestaande `raw/`-bundles over (idempotent) en sequencet
+  `build-zotero-bundle.py` per item. Geen scoring: curated stock is al gefilterd.
+  Draai eerst `--dry-run` (alleen tellen) of `--limit N` (bake-off).
+- **Uncurated stock — externe historie** (YouTube/scholar/journal): draait via
+  `backfill-scout.py` mét scoring + Go/No-go (zie de sectie hierboven). Dit is de stock-tweeling
+  van de flow-filter.
+
+**Leidend plan:** `plans/stock-intake.md` in de privé companion-repo (o.a. de meting, de golf-
+strategie, en de model-bake-off — de back-catalog-migratie is het moment om het olw-model te
+herzien: Mac mini M4/24 GB heeft ruimte boven `mistral-small:22b`; modelkeuze via bake-off op
+eigen geannoteerd materiaal, niet op benchmarks). De olw-model-regel in deze CLAUDE.md wijzigt
+pas na een expliciete bake-off-beslissing.
+
 ## Vertrouwelijke compartimenten (Fase G)
 
 Naast de persoonlijke vault kan vertrouwelijk materiaal (bijv. per organisatie/commissie/klant/scope) in **gescheiden compartimenten** worden verwerkt, volgens een **need-to-know lattice** (Bell–LaPadula "no write-down"):
