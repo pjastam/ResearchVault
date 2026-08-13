@@ -6,10 +6,12 @@ Phase 1 is the collection step. Items from three sources flow into Zotero `_inbo
 
 ## Source 1: the feedreader
 
-`feedreader-score.py` runs daily at 06:00 via launchd. It fetches all feeds from `feedreader-list.txt`, scores each item by semantic similarity to your Zotero library, and produces:
+`feedreader-score.py` runs daily via launchd. It fetches all feeds from `feedreader-list.txt`, scores each item by semantic similarity to your Zotero library, and produces:
 
 - **HTML reader** (Mac, iPhone, iPad): `http://localhost:8765/filtered.html`
 - **Atom feeds** (NetNewsWire): `http://[mac-ip]:8765/filtered-webpage.xml` · `filtered-youtube.xml` · `filtered-podcast.xml`
+
+Transient network errors are common enough to matter: a feed that cannot be fetched is retried once before being given up on. Feeds that stay unreachable are listed explicitly at the end of the fetch step, so a silently missing source shows up in the run output instead of looking like a feed that simply had nothing new.
 
 ### Reading the item list
 
