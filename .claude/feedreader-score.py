@@ -40,7 +40,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import chromadb
-import feedparser
+import feedparser  # niet lokaal gebruikt: backfill-scout.py benadert het via `fr.feedparser`
 import numpy as np
 import logging
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
@@ -49,6 +49,7 @@ logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
 logging.getLogger("sentence_transformers").setLevel(logging.ERROR)
 from sentence_transformers import SentenceTransformer
 
+from feedreader_fetch import FETCH_MISLUKT, fetch_feed
 from feedreader_core import (
     THRESHOLD_GREEN,
     THRESHOLD_YELLOW,
@@ -640,15 +641,21 @@ def main():
     existing_urls = load_existing_log(LOG_FILE)
     all_items = []
 
+    failed_feeds = []
+
     for feed_url in feed_urls:
-        try:
-            parsed = feedparser.parse(feed_url, request_headers={"User-Agent": "Mozilla/5.0"})
-            feed_name = parsed.feed.get("title", feed_url)
-            entries   = parsed.entries[:50]  # max 50 items per feed
-            print(f"     {feed_name}: {len(entries)} items")
-        except Exception as e:
-            print(f"     ⚠️  Fout bij ophalen {feed_url}: {e}")
+        result = fetch_feed(feed_url)
+        entries = result.entries
+
+        if result.status == FETCH_MISLUKT:
+            failed_feeds.append(feed_url)
+            reason = f" — {result.error}" if result.error else ""
+            print(f"     ⚠️  MISLUKT na {result.attempts} poging(en): {feed_url}{reason}")
             continue
+
+        feed_name = result.name
+        retried = "  (na herkansing)" if result.attempts > 1 else ""
+        print(f"     {feed_name}: {len(entries)} items{retried}")
 
         for entry in entries:
             url   = entry.get("link", "")
@@ -733,6 +740,11 @@ def main():
                 "transcript_snippet":  transcript_snippet,
                 "pure_meta":           pure_meta,
             })
+
+    if failed_feeds:
+        print(f"     ⚠️  {len(failed_feeds)} van {len(feed_urls)} feeds onbereikbaar na herkansing:")
+        for url in failed_feeds:
+            print(f"         {url}")
 
     if not all_items:
         print("⚠️  Geen items gevonden in de feeds.")

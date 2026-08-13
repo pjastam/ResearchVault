@@ -5,11 +5,15 @@ on:
     paths:
       - '.claude/wiki_backend.py'
       - '.claude/test_wiki_backend.py'
+      - '.claude/feedreader_fetch.py'
+      - '.claude/test_feedreader_fetch.py'
       - '.github/workflows/tests.yml'
   pull_request:
     paths:
       - '.claude/wiki_backend.py'
       - '.claude/test_wiki_backend.py'
+      - '.claude/feedreader_fetch.py'
+      - '.claude/test_feedreader_fetch.py'
 
 jobs:
   unittest:
