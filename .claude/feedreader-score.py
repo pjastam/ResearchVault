@@ -49,7 +49,7 @@ logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
 logging.getLogger("sentence_transformers").setLevel(logging.ERROR)
 from sentence_transformers import SentenceTransformer
 
-from feedreader_fetch import FETCH_MISLUKT, fetch_feed
+from feedreader_fetch import fetch_feed
 from feedreader_core import (
     THRESHOLD_GREEN,
     THRESHOLD_YELLOW,
@@ -644,13 +644,13 @@ def main():
     failed_feeds = []
 
     for feed_url in feed_urls:
-        result = fetch_feed(feed_url)
+        result = fetch_feed(feed_url, timeout=FEED_TIMEOUT)
         entries = result.entries
 
-        if result.status == FETCH_MISLUKT:
-            failed_feeds.append(feed_url)
+        if result.failed:
+            failed_feeds.append((feed_url, result.status))
             reason = f" — {result.error}" if result.error else ""
-            print(f"     ⚠️  MISLUKT na {result.attempts} poging(en): {feed_url}{reason}")
+            print(f"     ⚠️  {result.status.upper()} na {result.attempts} poging(en): {feed_url}{reason}")
             continue
 
         feed_name = result.name
@@ -743,8 +743,8 @@ def main():
 
     if failed_feeds:
         print(f"     ⚠️  {len(failed_feeds)} van {len(feed_urls)} feeds onbereikbaar na herkansing:")
-        for url in failed_feeds:
-            print(f"         {url}")
+        for url, status in failed_feeds:
+            print(f"         [{status}] {url}")
 
     if not all_items:
         print("⚠️  Geen items gevonden in de feeds.")

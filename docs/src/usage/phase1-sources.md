@@ -11,7 +11,7 @@ Phase 1 is the collection step. Items from three sources flow into Zotero `_inbo
 - **HTML reader** (Mac, iPhone, iPad): `http://localhost:8765/filtered.html`
 - **Atom feeds** (NetNewsWire): `http://[mac-ip]:8765/filtered-webpage.xml` · `filtered-youtube.xml` · `filtered-podcast.xml`
 
-Transient network errors are common enough to matter: a feed that cannot be fetched is retried once before being given up on. Feeds that stay unreachable are listed explicitly at the end of the fetch step, so a silently missing source shows up in the run output instead of looking like a feed that simply had nothing new.
+Transient network errors are common enough to matter: a feed that cannot be fetched is retried once, under a 15-second per-feed timeout so that one unresponsive server cannot stall the whole run. Feeds that stay unreachable are listed explicitly at the end of the fetch step, so a silently missing source shows up in the run output instead of looking like a feed that simply had nothing new.
 
 ### Reading the item list
 
