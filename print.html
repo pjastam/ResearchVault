@@ -267,7 +267,7 @@
 <li><strong>HTML reader</strong> (Mac, iPhone, iPad): <code>http://localhost:8765/filtered.html</code></li>
 <li><strong>Atom feeds</strong> (NetNewsWire): <code>http://[mac-ip]:8765/filtered-webpage.xml</code> · <code>filtered-youtube.xml</code> · <code>filtered-podcast.xml</code></li>
 </ul>
-<p>Transient network errors are common enough to matter: a feed that cannot be fetched is retried once before being given up on. Feeds that stay unreachable are listed explicitly at the end of the fetch step, so a silently missing source shows up in the run output instead of looking like a feed that simply had nothing new.</p>
+<p>Transient network errors are common enough to matter: a feed that cannot be fetched is retried once, under a 15-second per-feed timeout so that one unresponsive server cannot stall the whole run. Feeds that stay unreachable are listed explicitly at the end of the fetch step, so a silently missing source shows up in the run output instead of looking like a feed that simply had nothing new.</p>
 <h3 id="reading-the-item-list"><a class="header" href="#reading-the-item-list">Reading the item list</a></h3>
 <p>Each item shows:</p>
 <ul>
