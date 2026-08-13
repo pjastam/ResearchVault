@@ -262,11 +262,12 @@
 <p>Phase 1 is the collection step. Items from three sources flow into Zotero <code>_inbox</code>. The feedreader handles source 1 automatically; sources 2 and 3 are always manual.</p>
 <hr />
 <h2 id="source-1-the-feedreader"><a class="header" href="#source-1-the-feedreader">Source 1: the feedreader</a></h2>
-<p><code>feedreader-score.py</code> runs daily at 06:00 via launchd. It fetches all feeds from <code>feedreader-list.txt</code>, scores each item by semantic similarity to your Zotero library, and produces:</p>
+<p><code>feedreader-score.py</code> runs daily via launchd. It fetches all feeds from <code>feedreader-list.txt</code>, scores each item by semantic similarity to your Zotero library, and produces:</p>
 <ul>
 <li><strong>HTML reader</strong> (Mac, iPhone, iPad): <code>http://localhost:8765/filtered.html</code></li>
 <li><strong>Atom feeds</strong> (NetNewsWire): <code>http://[mac-ip]:8765/filtered-webpage.xml</code> · <code>filtered-youtube.xml</code> · <code>filtered-podcast.xml</code></li>
 </ul>
+<p>Transient network errors are common enough to matter: a feed that cannot be fetched is retried once before being given up on. Feeds that stay unreachable are listed explicitly at the end of the fetch step, so a silently missing source shows up in the run output instead of looking like a feed that simply had nothing new.</p>
 <h3 id="reading-the-item-list"><a class="header" href="#reading-the-item-list">Reading the item list</a></h3>
 <p>Each item shows:</p>
 <ul>
