@@ -87,6 +87,30 @@ Als de diff niet volstaat om te begrijpen wat er veranderd is, vraag dan één g
 
 ---
 
+## Stap 2b — Zichtbaarheidstoets (deze repo is **publiek**)
+
+Stap 3 doet `git add -A`. Loop daarom eerst `git status --short` na op **untracked** bestanden
+(`??`) en beantwoord er per stuk één vraag: is dit *systeem* of *instance*?
+
+| | **Systeem** — wél in git | **Instance** — niet in git |
+|---|---|---|
+| wat | code, tests, mapstructuur (`.gitkeep`), configuratiesjablonen, documentatie | broninhoud, gegenereerde wiki, persoonlijke domeinoordelen, runtime-state, logs |
+| voorbeeld | `.claude/wiki_backend.py`, `vault/wiki.toml` | `vault/raw/`, `vault/wiki/`, `vault/canon/`, `.olw/` |
+| backup | git | **eigen `rclone sync`-regel in `~/bin/proton-backup.sh`** |
+
+Vuistregel: het systeem is wat een ander zou klonen om deze vault na te bouwen; de instance
+is wat van Piet is. Bij twijfel → instance. Een publieke push is niet terug te draaien
+(forks, caches, archieven); een gitignore-regel wel.
+
+**Sluit de kring — dit is de valkuil.** Gitignore en backup zijn hier ontkoppeld:
+`proton-backup.sh` synct een lijst *expliciete paden*, niet "alles wat niet in git zit".
+Elke nieuwe gitignore-regel voor instance-data is dus een stil backup-gat totdat je er een
+rclone-regel bij zet. Voeg je iets toe aan een `.gitignore`, controleer dan meteen of het
+pad in `proton-backup.sh` staat; zo niet, meld dat en stel de regel voor. `~/bin` is een
+aparte repo — commit die wijziging dáár (zie Uitzonderingen).
+
+---
+
 ## Stap 3 — Commit + push
 
 Na afronding van alle doc-updates:

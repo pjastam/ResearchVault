@@ -27,10 +27,12 @@
 .claude/backfill_state.json
 
 # Model-bake-off — werk in uitvoering rond een nog niet genomen beslissing.
-# Zichtbaarheid heroverwegen zodra de bake-off is afgerond: bij de code houden
-# (testinfrastructuur) of naar de privé companion-repo (zichtbaarheidsregel).
-# LET OP: hiermee staat de map noch in git, noch in proton-backup.sh (die synct uit
-# .claude/ alleen *.jsonl + feedreader-list.txt). Time Machine is het enige vangnet.
+# De scripts, bundelselectie en resultaten zijn wegwerp en verdwijnen na afloop.
+# UITZONDERING BIJ HET OPRUIMEN: `equivalenties.toml` is géén testartefact maar
+# domeinkennis (selectie-taxonomie, NL↔EN-equivalenties, canon-beslissingen en nog uit
+# te voeren canon-correcties). Die verhuist naar een blijvende plek in plaats van mee de
+# prullenbak in. Zolang deze regel geldt zit de map in geen enkele backuplaag —
+# proton-backup.sh synct uit .claude/ alleen *.jsonl + feedreader-list.txt.
 .claude/bakeoff/
 
 # olw werkmap (runtime/experimenten, niet deelbaar)
