@@ -17,11 +17,10 @@ bin        = "~/.local/bin/olw"
 config     = "wiki.toml"
 state_dir  = ".olw"
 drafts_dir = "wiki/.drafts"
-model      = "mistral-small:22b"
 timeout    = 1800
 timeout_approve = 120
 timeout_reject  = 120
-ingest  = "{bin} ingest {file} --vault {vault} --fast-model {model}"
+ingest  = "{bin} ingest {file} --vault {vault}"
 compile = "{bin} compile --vault {vault}"
 approve = "{bin} approve {draft} --vault {vault}"
 reject  = "{bin} reject {draft} --vault {vault}[ --feedback {feedback}]"
@@ -36,6 +35,10 @@ force_args = "--provider ollama --provider-url http://localhost:11434"
 ## Backend-owned configuration
 
 `wiki.toml` in your vault root is **olw's own configuration file**, not ResearchVault's. Models, context window, and pipeline switches live there. `wiki-backend.toml` only points at it.
+
+This boundary is strict: the contract describes **how** the backend is invoked, never **what it is tuned with**. Until August 2026 `wiki-backend.toml` also carried a `model` key that was injected as `--fast-model` during ingest. It duplicated `wiki.toml`'s `fast` value and applied to ingest only — the compile template never referenced it — so a half-finished model change silently left the two stages on different models. A model name is also backend-specific: another backend may have no notion of a "fast model" at all. The key was removed; set the model in `wiki.toml` alone.
+
+Vaults created before this change may still carry `model` plus a `{model}` placeholder. Those keep working — the placeholder is still resolved — but new vaults no longer get one.
 
 ## Workflow
 

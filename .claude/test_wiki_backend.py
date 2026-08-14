@@ -533,5 +533,67 @@ compile = "{{bin}} compile --vault {{vault}}"
                     self.fail("geen enkele publieke functie mag sys.exit() aanroepen")
 
 
+class TestModelIsNotContractConcern(unittest.TestCase):
+    """Besluit A (14 aug 2026): `wiki.toml` is de enige bron voor de modelkeuze.
+
+    Het contract beschrijft *hoe* de backend wordt aangeroepen, niet *waarmee* hij is
+    afgesteld. Een `model`-sleutel in wiki-backend.toml dupliceerde `wiki.toml:fast` en
+    gold bovendien alleen tijdens ingest (het compile-template had geen {model}), zodat
+    een half doorgevoerde modelwissel ingest en compile stilzwijgend op verschillende
+    modellen zette. Een modelnaam is daarnaast backend-specifiek: een andere backend
+    kent misschien helemaal geen 'fast model'.
+    """
+
+    def test_new_config_carries_no_model_key_or_placeholder(self):
+        with tempfile.TemporaryDirectory() as t:
+            v = Path(t)
+            (v / "raw").mkdir()
+            wiki_backend.write_config(v, confidential=False)
+            body = (v / "wiki-backend.toml").read_text(encoding="utf-8")
+            self.assertNotIn("{model}", body)
+            self.assertNotIn("--fast-model", body)
+            for line in body.splitlines():
+                self.assertFalse(line.strip().startswith("model"),
+                                 f"contract mag geen model-sleutel dragen: {line!r}")
+
+    def test_new_config_renders_ingest_without_model_flag(self):
+        with tempfile.TemporaryDirectory() as t:
+            v = Path(t)
+            (v / "raw").mkdir()
+            wiki_backend.write_config(v, confidential=False)
+            res = wiki_backend.render("ingest", v, file="/a.md")
+            self.assertEqual(res["status"], "ok")
+            self.assertNotIn("--fast-model", res["command"])
+
+    def test_confidential_config_also_clean_and_keeps_force_args(self):
+        """De vertrouwelijke variant deelt het template; force_args moet blijven."""
+        with tempfile.TemporaryDirectory() as t:
+            v = Path(t)
+            (v / "raw").mkdir()
+            wiki_backend.write_config(v, confidential=True)
+            body = (v / "wiki-backend.toml").read_text(encoding="utf-8")
+            self.assertNotIn("{model}", body)
+            self.assertIn("force_args", body)
+            res = wiki_backend.render("ingest", v, file="/a.md")
+            self.assertEqual(res["status"], "ok")
+            self.assertNotIn("--fast-model", res["command"])
+            self.assertIn("--provider", res["command"])
+
+    def test_legacy_config_with_model_placeholder_keeps_working(self):
+        """Achterwaartse compatibiliteit — niet cosmetisch.
+
+        De vier bestaande compartiment-vaults (~/Confidential/*) dragen nog
+        `model = ...` plus `{model}` in hun ingest-template. Zouden we de
+        placeholder-waarde weghalen, dan faalt hun ingest op 'placeholder {model}
+        heeft geen waarde'. Oude configs moeten blijven renderen zoals ze deden.
+        """
+        with tempfile.TemporaryDirectory() as t:
+            v = make_vault(t)  # OLW_BLOCK draagt bewust nog de oude vorm
+            res = wiki_backend.render("ingest", v, file="/a.md")
+            self.assertEqual(res["status"], "ok")
+            self.assertIn("--fast-model", res["command"])
+            self.assertIn("m:22b", res["command"])
+
+
 if __name__ == "__main__":
     unittest.main()

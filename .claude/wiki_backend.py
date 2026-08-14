@@ -185,6 +185,10 @@ def render(verb: str, vault, **args) -> dict:
         "vault": vpath,
         "bin": str(Path(cfg["bin"]).expanduser()) if cfg.get("bin") else "",
         "root": str(Path(cfg["root"]).expanduser()) if cfg.get("root") else "",
+        # Verouderd (besluit A, 14 aug 2026): de modelkeuze hoort in de backend-eigen
+        # config, niet in het contract. Nieuwe vaults krijgen geen model-sleutel meer.
+        # Blijft staan voor vaults die nog een {model}-placeholder dragen — zonder deze
+        # regel zou hun ingest afbreken op een onvulbare placeholder.
         "model": cfg.get("model", ""),
     }
     for key in ("file", "draft", "feedback"):
@@ -266,6 +270,9 @@ def plan_cwd(vault) -> str:
 CONFIG_TEMPLATE = """\
 # Wiki-backend contract voor deze vault. ResearchVault levert raw/; wat daarna
 # gebeurt is een vervangbare backend. Zie ResearchVault/docs → "Wiki backends".
+#
+# Dit bestand beschrijft HOE de backend wordt aangeroepen, niet WAARMEE hij is
+# afgesteld. De modelkeuze staat in de backend-eigen config (voor olw: wiki.toml).
 
 confidential = {confidential}
 backend      = "olw"
@@ -277,11 +284,10 @@ bin        = "~/.local/bin/olw"
 config     = "wiki.toml"          # backend-eigen config; niet van ResearchVault
 state_dir  = ".olw"
 drafts_dir = "wiki/.drafts"
-model      = "mistral-small:22b"
 timeout    = 1800
 timeout_approve = 120
 timeout_reject  = 120
-{force_line}ingest  = "{{bin}} ingest {{file}} --vault {{vault}} --fast-model {{model}}"
+{force_line}ingest  = "{{bin}} ingest {{file}} --vault {{vault}}"
 compile = "{{bin}} compile --vault {{vault}}"
 approve = "{{bin}} approve {{draft}} --vault {{vault}}"
 reject  = "{{bin}} reject {{draft}} --vault {{vault}}[ --feedback {{feedback}}]"

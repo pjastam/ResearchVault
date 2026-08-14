@@ -93,10 +93,12 @@ Voor eigen denkwerk: `promote-to-raw.py --note <pad>` → `raw/notes/`. Geen bro
 
 **Stap 3 — Ingest + compile (olw)**
 ```bash
-olw ingest vault/raw/{...}.md --vault vault --fast-model mistral-small:22b   # concept-extractie
-olw compile --vault vault                                                    # drafts → wiki/.drafts/
+olw ingest vault/raw/{...}.md --vault vault   # concept-extractie
+olw compile --vault vault                     # drafts → wiki/.drafts/
 ```
 De feedreader-Go (`/api/inbox/go`) en `promote-to-raw.py` doen de ingest automatisch; `compile` draai je gebatcht (kan traag zijn — grote-context prefill).
+
+**Modelkeuze staat niet in het commando.** Beide stappen lezen het model uit `vault/wiki.toml` — de enige modelbron (besluit A, 14 aug 2026). Tot dan droeg `wiki-backend.toml` een eigen `model`-sleutel die alleen tijdens ingest gold, waardoor een half doorgevoerde wissel ingest en compile stil op verschillende modellen zette. Geef `--fast-model` dus niet mee: dat overschrijft alleen ingest en herintroduceert precies die scheefstand.
 
 **Stap 4 — Human review (de gate)**
 ```bash

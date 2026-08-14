@@ -2,9 +2,20 @@
 # Punt-2-besluit (ontwerpsessie 2026-07-10): één sterk lokaal model, geen frontier.
 
 [models]
+# DE ENIGE MODELBRON (besluit A, 14 aug 2026). wiki-backend.toml droeg tot dan een
+# eigen `model`-sleutel die alleen tijdens ingest gold (via --fast-model) terwijl compile
+# dit bestand las — een half doorgevoerde wissel zette beide fasen stil op verschillende
+# modellen. Die sleutel is verwijderd; wijzig het model uitsluitend hier.
 fast = "mistral-small:22b"
 heavy = "mistral-small:22b"
 # fast = heavy: één geladen model → geen swap-thrash (compile wisselt fast/heavy af).
+#
+# Waar elk model wordt gebruikt (olw 0.8.5):
+#   fast  → ingest: chunk-analyse/conceptextractie · compile: het plan + stub-pagina's
+#   heavy → compile: de eigenlijke artikelgeneratie
+#   embed → niet gezet; olw's default is "nomic-embed-text". Inactief: de aanroep zit
+#           achter `if rag is not None` en de RAG-extra is niet geïnstalleerd, terwijl
+#           compile `rag=None` hardgecodeerd meekrijgt. Zetten heeft nu geen effect.
 
 [ollama]
 url = "http://localhost:11434"
@@ -21,4 +32,12 @@ max_concepts_per_source = 8
 ingest_parallel = false           # true = parallelle chunks
 article_max_tokens = 16384        # zachte cap; auto-verlaagd om in context te passen
 graph_quality_checks = true
-# language = "en"  # unset = auto per artikel (NL-beleid NL, EN-papers EN); brugconcepten handmatig aliassen
+# language = "en"  # unset = auto per artikel (NL-beleid NL, EN-papers EN)
+#
+# LET OP (vastgesteld 14 aug 2026): handmatig aliassen toevoegen aan brugconcepten
+# repareert de graaf wél achteraf, maar voorkomt NIET dat een volgende ingest opnieuw een
+# losse pagina aanmaakt. `_normalize_concepts` dedupt tegen `db.list_all_concept_names()`
+# — alleen canonieke namen, nooit de aliastabel. Bewijs: "Doelmatigheid van zorg" droeg
+# 'efficiency of care' al als alias en één dag later ontstond "Efficiency" alsnog.
+# Cross-linguale convergentie hangt daarmee volledig aan het fast-model, dat de bestaande
+# conceptnamen in zijn prompt krijgt. Zie de bake-off (E1) voor de modelkeuze hierop.
