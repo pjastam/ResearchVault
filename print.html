@@ -665,11 +665,10 @@ bin        = "~/.local/bin/olw"
 config     = "wiki.toml"
 state_dir  = ".olw"
 drafts_dir = "wiki/.drafts"
-model      = "mistral-small:22b"
 timeout    = 1800
 timeout_approve = 120
 timeout_reject  = 120
-ingest  = "{bin} ingest {file} --vault {vault} --fast-model {model}"
+ingest  = "{bin} ingest {file} --vault {vault}"
 compile = "{bin} compile --vault {vault}"
 approve = "{bin} approve {draft} --vault {vault}"
 reject  = "{bin} reject {draft} --vault {vault}[ --feedback {feedback}]"
@@ -679,6 +678,8 @@ reject  = "{bin} reject {draft} --vault {vault}[ --feedback {feedback}]"
 </code></pre>
 <h2 id="backend-owned-configuration"><a class="header" href="#backend-owned-configuration">Backend-owned configuration</a></h2>
 <p><code>wiki.toml</code> in your vault root is <strong>olw's own configuration file</strong>, not ResearchVault's. Models, context window, and pipeline switches live there. <code>wiki-backend.toml</code> only points at it.</p>
+<p>This boundary is strict: the contract describes <strong>how</strong> the backend is invoked, never <strong>what it is tuned with</strong>. Until August 2026 <code>wiki-backend.toml</code> also carried a <code>model</code> key that was injected as <code>--fast-model</code> during ingest. It duplicated <code>wiki.toml</code>'s <code>fast</code> value and applied to ingest only — the compile template never referenced it — so a half-finished model change silently left the two stages on different models. A model name is also backend-specific: another backend may have no notion of a "fast model" at all. The key was removed; set the model in <code>wiki.toml</code> alone.</p>
+<p>Vaults created before this change may still carry <code>model</code> plus a <code>{model}</code> placeholder. Those keep working — the placeholder is still resolved — but new vaults no longer get one.</p>
 <h2 id="workflow"><a class="header" href="#workflow">Workflow</a></h2>
 <p><code>olw review</code> is the human quality gate: drafts land in <code>wiki/.drafts/</code>, you approve or reject, and approved pages publish to <code>wiki/</code> with cross-links.</p>
 <h2 id="what-a-compiled-draft-contains"><a class="header" href="#what-a-compiled-draft-contains">What a compiled draft contains</a></h2>
