@@ -87,9 +87,18 @@ Beoordeel of het item de vault waard is via `index-score.py` (semantische releva
 **Stap 2 — Bundle bouwen (Go)**
 ```bash
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/build-zotero-bundle.py --item-key ITEMKEY
-# → {"status": "ok", "path": "vault/raw/{citekey}__{itemKey}.md"}
+# → {"status": "ok",   "path": "vault/raw/{citekey}__{itemKey}.md", "woorden": 10686}
+# → {"status": "leeg", "path": "...", "woorden": 2, "hint": "..."}   ← NIET ingesten
 ```
 Voor eigen denkwerk: `promote-to-raw.py --note <pad>` → `raw/notes/`. Geen bron-inhoud bereikt Claude Code.
+
+**Status `leeg` (sinds 15 aug 2026).** Draagt de bundle minder dan 300 woorden body, dan is er
+geen bruikbare tekst en heeft ingesten geen zin — olw meldt dat niet zelf en levert dan nul of
+enkele loze concepten. Oorzaak is bijna altijd dat Zotero het PDF niet heeft geïndexeerd:
+`fetch-fulltext.py` haalt PDF-tekst uitsluitend uit Zotero's fulltext-index en kent geen
+OCR-fallback. Steekproef van 15 aug 2026: van de niet-geïndexeerde PDFs heeft **90% wél een
+tekstlaag** (herindexeren lost het op, Instellingen → Zoeken → index opnieuw opbouwen) en 10%
+niet (gescand, OCR nodig). Controleer bij `leeg` dus eerst de index vóór je naar OCR grijpt.
 
 **Stap 3 — Ingest + compile (olw)**
 ```bash

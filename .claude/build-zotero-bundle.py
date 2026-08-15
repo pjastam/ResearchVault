@@ -308,6 +308,22 @@ def build_bundle(item_key: str) -> Path:
     bundle_path.write_text("\n".join(lines), encoding="utf-8")
     return bundle_path
 
+
+# Onder deze grens draagt een bundle alleen frontmatter en hooguit een abstract: te weinig
+# voor concept-extractie. olw meldt dat niet — die ingest gewoon en levert nul of enkele
+# loze concepten op, wat pas opvalt als iemand de wiki naloopt.
+MIN_INHOUD_WOORDEN = 300
+
+
+def inhoudsomvang(pad: Path) -> int:
+    """Woorden in de body, dus zonder de YAML-frontmatter."""
+    tekst = pad.read_text(encoding="utf-8", errors="ignore")
+    if tekst.startswith("---"):
+        eind = tekst.find("\n---", 3)
+        if eind != -1:
+            tekst = tekst[eind + 4:]
+    return len(tekst.split())
+
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -334,7 +350,26 @@ def main() -> None:
     except ValueError:
         rel = bundle_path
 
-    print(json.dumps({"status": "ok", "path": str(rel)}))
+    # Stille-leegte-guard. Aanleiding (15 aug 2026): vier van negen gebouwde bundles bleken
+    # bij een steekproef vrijwel leeg — het Zotero-item had wél een PDF, maar zonder tekst
+    # in Zotero's fulltext-index. `fetch-fulltext.py` meldt dat op stderr, waarna hier tóch
+    # een bundle werd geschreven met status "ok". Die ging ongemerkt de ingest in.
+    # 90% van zulke gevallen is een indexeringsachterstand (herindexeren lost het op),
+    # 10% een gescande PDF zonder tekstlaag (OCR nodig) — de status maakt dat onderscheid
+    # niet, maar signaleert wél dat er iets te doen is voordat de bundle wordt ingest.
+    woorden = inhoudsomvang(bundle_path)
+    if woorden < MIN_INHOUD_WOORDEN:
+        print(json.dumps({
+            "status": "leeg",
+            "path": str(rel),
+            "woorden": woorden,
+            "hint": "Geen bruikbare tekst. Controleer of Zotero het PDF heeft geindexeerd "
+                    "(Instellingen > Zoeken > index opnieuw opbouwen); levert dat niets op, "
+                    "dan mist het PDF een tekstlaag en is OCR nodig. Niet ingesten.",
+        }))
+        return
+
+    print(json.dumps({"status": "ok", "path": str(rel), "woorden": woorden}))
 
 
 if __name__ == "__main__":
