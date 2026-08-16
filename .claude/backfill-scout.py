@@ -275,7 +275,10 @@ def score_youtube(fr, model, profile, videos, channel_name, existing, enrich_top
                   throttle, block_flag):
     items, skipped = [], 0
     for v in videos:
-        if v["url"] in existing:
+        # Canonieke URL, niet de ruwe: load_existing_log() geeft sinds 16 aug 2026
+        # identiteiten terug. yt-dlp levert geen RSS-guid, dus dit is de enige
+        # sleutelvorm die hier te berekenen valt — de set bevat hem ook.
+        if fr.canonical_url(v["url"]) in existing:
             skipped += 1
             continue
         cached, text = _read_tr_cache(fr, v["video_id"])
@@ -334,7 +337,9 @@ def enum_scholar(fr, feed_url, max_items, throttle):
 
 
 def score_simple(fr, model, profile, items, existing, limit, dedupe=True):
-    keep = [v for v in items if v["url"] not in existing] if dedupe else list(items)
+    # Canonieke URL: zie de toelichting in score_youtube().
+    keep = ([v for v in items if fr.canonical_url(v["url"]) not in existing]
+            if dedupe else list(items))
     skipped = len(items) - len(keep)
     _embed_and_score(fr, model, profile, keep, limit)
     keep.sort(key=lambda x: x["score"], reverse=True)

@@ -50,6 +50,7 @@ logging.getLogger("sentence_transformers").setLevel(logging.ERROR)
 from sentence_transformers import SentenceTransformer
 
 from feedreader_fetch import fetch_feed
+from feedreader_identity import canonical_url, item_identity, item_keys
 from feedreader_core import (
     THRESHOLD_GREEN,
     THRESHOLD_YELLOW,
@@ -386,17 +387,36 @@ def get_embeddings_for_keys(collection, keys: list[str]) -> dict[str, np.ndarray
 
 
 def load_existing_log(path: Path) -> set[str]:
-    """Geeft de set van URLs die al in het logboek staan."""
+    """Geeft de set van identiteiten die al in het logboek staan.
+
+    Let op — deze functie gaf tot 16 aug 2026 ruwe URLs terug. Dat brak de
+    dedup zodra een publisher parameters aan de link hing: PubMed plakt bij elke
+    fetch ``ff=<timestamp>`` aan de URL, waardoor hetzelfde artikel elke run als
+    nieuw gold en in NetNewsWire opnieuw verscheen.
+
+    Regels van vóór die datum dragen geen ``identity``-veld; die worden hier
+    alsnog gecanonicaliseerd, zodat de fix meteen op de bestaande historie werkt
+    zonder het logboek te herschrijven.
+
+    De set bevat per regel *beide* sleutelvormen: de opgeslagen identiteit én de
+    canonieke URL. Dat is nodig omdat de identiteitsruimte heterogeen is — de
+    YouTube-RSS geeft ``yt:video:iF5IWjOWcA4`` als guid terwijl de link
+    ``…/watch?v=iF5IWjOWcA4`` is. ``backfill-scout.py`` enumereert via yt-dlp en
+    heeft dus geen guid; die kan alleen de canonieke URL berekenen. Door beide
+    op te nemen hoeft niet elke aanroeper elke sleutelvorm na te bouwen, en vangt
+    de URL-vorm bovendien een feed op die ooit zijn guids hergenereert.
+    """
     seen = set()
     if not path.exists():
         return seen
     for line in path.read_text().splitlines():
         try:
             entry = json.loads(line)
-            if "url" in entry:
-                seen.add(entry["url"])
         except json.JSONDecodeError:
-            pass
+            continue
+        for sleutel in (entry.get("identity", ""), canonical_url(entry.get("url", ""))):
+            if sleutel:
+                seen.add(sleutel)
     return seen
 
 
@@ -554,7 +574,18 @@ def generate_atom(items: list[dict], generated_at: datetime, feed_title: str = "
         link      = atom_escape(item["url"])
         feed_name = atom_escape(item["feed_name"])
         summary   = atom_escape(make_item_summary(item, max_len=400))
-        entry_id  = atom_escape(item.get("url", str(uuid.uuid4())))
+        # <id> is identiteit, <link> is locatie — Atom staat toe dat ze verschillen.
+        # FreshRSS/NetNewsWire ontdubbelen op <id>, dus die moet stabiel zijn over
+        # runs heen; de <link> hierboven houdt de ruwe URL zodat doorklikken werkt.
+        # Laatste terugval is bewust deterministisch: een uuid4() zou elke run een
+        # nieuwe id geven en precies de bug reproduceren die we hier oplossen.
+        entry_id  = atom_escape(
+            item.get("identity")
+            or item.get("url")
+            or "urn:feedreader:" + hashlib.md5(
+                f"{item.get('feed_name','')}|{item.get('title','')}".encode()
+            ).hexdigest()
+        )
         updated   = score_to_fake_date(item["score"], generated_at)
         source_type = item.get("source_type", "web")
 
@@ -638,7 +669,7 @@ def main():
     # 3. Feeds ophalen en items verzamelen
     print("[3/5] Feeds ophalen...")
     model = SentenceTransformer("all-MiniLM-L6-v2")
-    existing_urls = load_existing_log(LOG_FILE)
+    existing_identities = load_existing_log(LOG_FILE)
     all_items = []
 
     failed_feeds = []
@@ -660,6 +691,10 @@ def main():
         for entry in entries:
             url   = entry.get("link", "")
             title = strip_html(entry.get("title", "(geen titel)"))
+            # RSS-<guid>: de identiteit die de publisher zélf bedoelt. Nodig omdat
+            # sommige feeds geen bruikbare per-item link geven — de Captivate-
+            # podcasts zetten bij élke aflevering de showpagina als link.
+            guid  = entry.get("id", "") or ""
 
             # Beschrijving: probeer zo veel mogelijk tekst te pakken
             description = ""
@@ -726,6 +761,8 @@ def main():
 
             all_items.append({
                 "url":            url,
+                "guid":           guid,
+                "identity":       item_identity(url, guid),
                 "title":          title,
                 "description":    description,
                 "feed_name":      feed_name,
@@ -779,13 +816,59 @@ def main():
         )
     ]
 
-    # Deduplicatiefilter: alleen items tonen die nog niet eerder zijn gezien
-    all_items = [i for i in all_items if i["url"] not in existing_urls]
+    # ── Ontdubbelen ───────────────────────────────────────────────────────────
+    # Welke links dragen eigenlijk identiteit? Komt dezelfde canonieke link
+    # binnen één feed meer dan één keer voor, dan onderscheidt hij niets en is
+    # alleen de guid bruikbaar. Sleutel is (feed, link) en niet de link alleen:
+    # dezelfde publicatie in de PURE-feeds van twee co-auteurs telt zo in elke
+    # feed als 1, zodat de URL-vorm bruikbaar blijft en de twee samenvallen.
+    link_telling: dict[tuple[str, str], int] = {}
+    for i in all_items:
+        sleutel = (i["feed_url"], canonical_url(i["url"]))
+        link_telling[sleutel] = link_telling.get(sleutel, 0) + 1
+
+    for i in all_items:
+        i["keys"] = item_keys(
+            i["url"], i["guid"],
+            link_is_shared=link_telling[(i["feed_url"], canonical_url(i["url"]))] > 1,
+        )
+
+    # Filter 1 — tegen eerdere runs. Vergelijkt op identiteit, niet op ruwe URL:
+    # PubMed's ff=<timestamp> maakte elke link uniek per fetch, waardoor dit
+    # filter niets meer tegenhield en NetNewsWire elk artikel dagelijks opnieuw
+    # toonde.
+    #
+    # Filter 2 — binnen deze run. Ontbrak volledig: een paper in de PURE-feeds
+    # van twee co-auteurs (Cattel én Van Kleef) kwam tweemaal in de output.
+    #
+    # all_items is hierboven op score gesorteerd, dus de eerste treffer is meteen
+    # de best scorende variant. Items zónder sleutel worden met rust gelaten —
+    # die mogen elkaar niet wegdedupen.
+    gezien_deze_run: set[str] = set()
+    uniek, n_eerder_gezien, n_dubbel_in_run = [], 0, 0
+    for i in all_items:
+        keys = i["keys"]
+        if keys and any(k in existing_identities for k in keys):
+            n_eerder_gezien += 1
+            continue
+        if keys and any(k in gezien_deze_run for k in keys):
+            n_dubbel_in_run += 1
+            continue
+        gezien_deze_run.update(keys)
+        uniek.append(i)
+    all_items = uniek
+
+    if n_eerder_gezien or n_dubbel_in_run:
+        print(f"     Ontdubbeld: {n_eerder_gezien} al eerder gezien, "
+              f"{n_dubbel_in_run} dubbel binnen deze run.")
 
     # Log alleen wat daadwerkelijk in de output terechtkomt (na leeftijds- en deduplicatiefilter)
     new_log_entries = [
         {
             "url":             item["url"],
+            # Sleutel waarop toekomstige runs ontdubbelen. De ruwe url blijft
+            # ernaast staan: die is de link om te openen, deze is de identiteit.
+            "identity":        item["identity"],
             "title":           item["title"],
             "score":           item["score"],
             "score_raw":       item["score_raw"],
