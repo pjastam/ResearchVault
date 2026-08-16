@@ -33,6 +33,7 @@ from freshrss_utils import (
     freshrss_read_urls,
 )
 from zotero_utils import make_sqlite_copy
+from feedreader_identity import canonical_url, dedupe_by_url
 
 # ── Configuratie ──────────────────────────────────────────────────────────────
 
@@ -49,17 +50,39 @@ MIN_POSITIVES    = 30  # minimum positieven voor drempeladvies
 # ── Hulpfuncties ──────────────────────────────────────────────────────────────
 
 def get_zotero_urls(conn: sqlite3.Connection) -> set[str]:
-    """Haalt alle bekende URLs op uit Zotero (bijlagen)."""
+    """Haalt alle bekende URLs op uit Zotero, als canonieke sleutels.
+
+    Vroeg tot 16 aug 2026 ``itemAttachments.path`` op met ``LIKE 'http%'``. Dat
+    veld bevat echter bestandspaden (``/Users/…``, ``storage:…``) en nooit een
+    URL — de URL van zowel een item als een link-bijlage staat in ``itemData``
+    onder het veld ``url``. De query gaf daardoor altijd een lege set terug en
+    positief signaal 2 uit de signaalhiërarchie heeft nooit gevuurd.
+
+    Dat bleef onzichtbaar doordat signaal 3 (titelmatching) het grotendeels
+    opving: een dood signaal en een rustige dag zien er in de uitvoer identiek
+    uit (``✅ via URL: 0 nieuw gelabeld``). Na de fix: 3.508 URLs en 161
+    treffers in het bestaande logboek, waarvan 60 regels die ten onrechte als
+    negatief gelabeld stonden.
+
+    De URLs worden gecanonicaliseerd teruggegeven omdat de andere kant van de
+    vergelijking dat ook wordt: Zotero bewaart de URL zoals de browser hem na
+    redirects zag, de feedreader die uit de RSS-link. Zonder normalisatie
+    verschillen die twee op trackingparameters en afsluitende slashes.
+    """
     cur = conn.execute("""
-        SELECT DISTINCT ia.path
-        FROM itemAttachments ia
-        WHERE ia.path LIKE 'http%'
-          AND ia.itemID NOT IN (SELECT itemID FROM deletedItems)
+        SELECT DISTINCT idv.value
+        FROM itemData idata
+        JOIN itemDataValues idv ON idv.valueID = idata.valueID
+        JOIN fields f           ON f.fieldID   = idata.fieldID
+        WHERE f.fieldName = 'url'
+          AND idv.value LIKE 'http%'
+          AND idata.itemID NOT IN (SELECT itemID FROM deletedItems)
     """)
     urls = set()
-    for (path,) in cur.fetchall():
-        if path:
-            urls.add(path.strip())
+    for (value,) in cur.fetchall():
+        key = canonical_url(value or "")
+        if key:
+            urls.add(key)
     return urls
 
 
@@ -140,10 +163,11 @@ def process_skip_queue(entries: list[dict]) -> int:
             fcntl.flock(f, fcntl.LOCK_UN)
     if not queue:
         return 0
-    skip_urls = {e["url"] for e in queue if "url" in e}
+    skip_urls = {canonical_url(e["url"]) for e in queue if e.get("url")}
+    skip_urls.discard("")
     count = 0
     for entry in entries:
-        if entry.get("url") in skip_urls and not entry.get("skipped"):
+        if canonical_url(entry.get("url", "")) in skip_urls and not entry.get("skipped"):
             entry["skipped"] = True
             count += 1
     return count
@@ -203,8 +227,14 @@ def main():
                     starred = freshrss_star_by_urls(fr_creds["url"], fr_auth, fr_post, queue_urls)
                     print(f"     ⭐ {starred}/{len(queue_urls)} item(s) gestefd via star-queue.")
                 STAR_QUEUE.unlink()
-            fr_starred = freshrss_starred_urls(fr_creds["url"], fr_auth)
-            fr_read    = freshrss_read_urls(fr_creds["url"], fr_auth)
+            # Canonicaliseren omdat de logkant dat ook wordt. FreshRSS levert de
+            # URL terug die in de Atom-<link> stond; dat is dezelfde ruwe URL als
+            # in het logboek, dus dit repareert geen bestaande breuk — het maakt
+            # de match ongevoelig voor toekomstige parameterruis.
+            fr_starred = {canonical_url(u) for u in freshrss_starred_urls(fr_creds["url"], fr_auth)}
+            fr_read    = {canonical_url(u) for u in freshrss_read_urls(fr_creds["url"], fr_auth)}
+            fr_starred.discard("")
+            fr_read.discard("")
             print(f"     ⭐ {len(fr_starred)} gestefd, 📖 {len(fr_read)} gelezen in FreshRSS.")
         else:
             print("     ⚠️  FreshRSS GReader auth mislukt; FreshRSS-signalen overgeslagen.")
@@ -222,12 +252,22 @@ def main():
     newly_true_starred = 0
     newly_false        = 0
     newly_false_nnw    = 0
+    relabeled_url      = 0
 
     for entry in entries:
-        if entry.get("added_to_zotero") is not None:
-            continue  # al gelabeld
+        url = canonical_url(entry.get("url", ""))
 
-        url = entry.get("url", "")
+        if entry.get("added_to_zotero") is not None:
+            # Herlabelpas — nodig omdat get_zotero_urls() tot 16 aug 2026 een
+            # lege set gaf: regels die daardoor via de timeout op False beland
+            # zijn, terwijl het item wél in Zotero staat. Bewust eenrichting
+            # (False → True) en alleen op hard bewijs, met een markering zodat
+            # achteraf te zien is wat deze pas heeft aangeraakt.
+            if entry.get("added_to_zotero") is False and url and url in zotero_urls:
+                entry["added_to_zotero"] = True
+                entry["relabeled_zotero_url"] = True
+                relabeled_url += 1
+            continue  # al gelabeld
 
         # Positief signaal 1: gestefd in FreshRSS/NNW
         if url in fr_starred:
@@ -269,20 +309,28 @@ def main():
     save_log(LOG_FILE, entries)
     print(f"     ⭐ via FreshRSS-ster: {newly_true_starred} nieuw gelabeld")
     print(f"     ✅ via URL:           {newly_true_url} nieuw gelabeld")
+    if relabeled_url:
+        print(f"     ♻️  herlabeld False→True op Zotero-URL: {relabeled_url}")
     print(f"     ✅ via titel:         {newly_true_title} nieuw gelabeld")
     print(f"     📖 NNW gelezen/geen Zotero (>{NNW_READ_LABEL_AFTER_DAYS}d): {newly_false_nnw} nieuw gelabeld")
     print(f"     ❌ genegeerd, timeout (>{LABEL_AFTER_DAYS}d): {newly_false} nieuw gelabeld")
 
     # Drempeladvies
     print("[4/4] Drempeladvies berekenen...")
-    positives        = [e["score"] for e in entries if e.get("added_to_zotero") is True]
-    skipped          = [e["score"] for e in entries if e.get("skipped") is True]
-    negatives_nnw    = [e["score"] for e in entries
-                        if e.get("added_to_zotero") is False and e.get("read_in_nnw")]
-    negatives_timeout = [e["score"] for e in entries
-                         if e.get("added_to_zotero") is False and not e.get("read_in_nnw")]
+    # Per artikel tellen, niet per logregel: churn heeft de dataset scheefgetrokken
+    # (147 overtollige positieven, 414 negatieven). Zie dedupe_by_url().
+    positives        = [e["score"] for e in dedupe_by_url(
+                        [e for e in entries if e.get("added_to_zotero") is True])]
+    skipped          = [e["score"] for e in dedupe_by_url(
+                        [e for e in entries if e.get("skipped") is True])]
+    negatives_nnw    = [e["score"] for e in dedupe_by_url(
+                        [e for e in entries
+                         if e.get("added_to_zotero") is False and e.get("read_in_nnw")])]
+    negatives_timeout = [e["score"] for e in dedupe_by_url(
+                        [e for e in entries
+                         if e.get("added_to_zotero") is False and not e.get("read_in_nnw")])]
     negatives        = negatives_timeout + negatives_nnw
-    unlabeled        = [e for e in entries if e.get("added_to_zotero") is None]
+    unlabeled        = dedupe_by_url([e for e in entries if e.get("added_to_zotero") is None])
 
     print(f"\n{'=' * 52}")
     print(f"Gelabelde dataset:")

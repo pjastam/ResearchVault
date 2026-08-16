@@ -109,6 +109,39 @@ def item_identity(link: str, guid: str | None = None) -> str:
     return canonical_url(link)
 
 
+def dedupe_by_url(rows: list[dict], url_key: str = "url") -> list[dict]:
+    """Houdt één rij per artikel over, op canonieke URL.
+
+    Gebruikt door ``feedreader-learn.py`` bij het opbouwen van de gelabelde
+    dataset. Tot 16 aug 2026 kreeg hetzelfde artikel bij elke run een nieuwe
+    logregel (PubMed's ``ff=<timestamp>``), waardoor één opgeslagen artikel 42×
+    als positief meetelde. Bij de bron verholpen, maar het bestaande logboek
+    draagt de scheefgroei nog: 147 overtollige positieven, 414 negatieven.
+
+    Sleutel is bewust de canonieke URL en niet het ``identity``-veld: dat veld
+    bestaat alleen op regels van ná die datum, dus op de guid sleutelen zou een
+    artikel in een oude en een nieuwe helft splitsen — precies de scheefgroei
+    die dit moet wegnemen.
+
+    Bekende beperking: podcastfeeds die bij elke aflevering dezelfde showpagina
+    als link geven (Captivate/RedCircle) vallen hier per show samen in plaats
+    van per aflevering. Dat raakt alleen deze statistiek, niet de labels zelf.
+
+    Rijen zonder bruikbare URL blijven allemaal staan — die mogen elkaar niet
+    wegdedupen.
+    """
+    gezien: set[str] = set()
+    uniek: list[dict] = []
+    for row in rows:
+        key = canonical_url(row.get(url_key, ""))
+        if key:
+            if key in gezien:
+                continue
+            gezien.add(key)
+        uniek.append(row)
+    return uniek
+
+
 def item_keys(link: str, guid: str | None = None,
               link_is_shared: bool = False) -> tuple[str, ...]:
     """Alle sleutelvormen waaronder dit item bekend kan zijn.

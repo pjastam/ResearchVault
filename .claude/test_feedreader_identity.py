@@ -10,6 +10,7 @@ import unittest
 from feedreader_identity import (
     TRACKING_PARAMS_PER_HOST,
     canonical_url,
+    dedupe_by_url,
     item_identity,
     item_keys,
 )
@@ -270,6 +271,36 @@ class TestItemKeys(unittest.TestCase):
         """Anders zouden alle URL-loze items elkaar wegdedupen."""
         self.assertEqual(item_keys("", None), ())
         self.assertEqual(item_keys("", "", link_is_shared=True), ())
+
+
+class TestDedupeByUrl(unittest.TestCase):
+    """Telt de gelabelde dataset per artikel in plaats van per logregel."""
+
+    def test_churn_valt_samen(self):
+        """43 logregels van hetzelfde erratum → één artikel."""
+        rows = [{"url": f"https://pubmed.ncbi.nlm.nih.gov/42461057/?ff={i}", "score": 71}
+                for i in range(43)]
+        self.assertEqual(len(dedupe_by_url(rows)), 1)
+
+    def test_eerste_rij_wint(self):
+        rows = [{"url": "https://a.nl/1?ff=1", "score": 90},
+                {"url": "https://a.nl/1?ff=2", "score": 10}]
+        self.assertEqual(dedupe_by_url(rows)[0]["score"], 90)
+
+    def test_verschillende_artikelen_blijven(self):
+        rows = [{"url": "https://a.nl/1"}, {"url": "https://a.nl/2"}]
+        self.assertEqual(len(dedupe_by_url(rows)), 2)
+
+    def test_rijen_zonder_url_dedupen_elkaar_niet(self):
+        rows = [{"url": ""}, {"url": ""}, {}, {"url": "https://a.nl/1"}]
+        self.assertEqual(len(dedupe_by_url(rows)), 4)
+
+    def test_lege_invoer(self):
+        self.assertEqual(dedupe_by_url([]), [])
+
+    def test_alternatieve_sleutelnaam(self):
+        rows = [{"link": "https://a.nl/1?ff=1"}, {"link": "https://a.nl/1?ff=2"}]
+        self.assertEqual(len(dedupe_by_url(rows, url_key="link")), 1)
 
 
 if __name__ == "__main__":

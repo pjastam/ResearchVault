@@ -44,6 +44,8 @@ The feedreader learns from your behaviour. Two types of signal matter:
 
 **Use 👎 liberally** on off-topic headlines. Unclicked items are ambiguous — they could mean "not seen" just as easily as "not interesting." Only 👎 signals are unambiguous rejections.
 
+"Added to Zotero" is detected two ways, by URL and by title. The URL half was silently broken until 16 August 2026: it queried the Zotero table that holds file paths rather than the one that holds URLs, so it always came back empty. Title matching covered for it, which is precisely why it went unnoticed — a dead signal propped up by its neighbour looks exactly like a quiet day. The counts are now compared on a normalised URL, so the link Zotero recorded after redirects still matches the one the feedreader read from the RSS. Threshold statistics count each article once rather than each log line, so an article that arrived repeatedly cannot outweigh the rest.
+
 `feedreader-learn.py` runs at 06:15 every morning and tracks signal quality. Run it manually for a progress report:
 
 ```bash
