@@ -386,3 +386,4 @@ Dit geldt ook voor snapshot-HTML, VTT-transcripten en podcast-transcripten: nooi
 ## Actieve skills
 - Lees en volg `.claude/skills/SKILL.md` bij elke research-sessie.
 - `.claude/skills/wrap-up/SKILL.md` — activeer bij "update github" of `/wrap-up`.
+- `.claude/skills/model-evaluatie/SKILL.md` — activeer bij "model bake-off", "welk model voor olw", "modellen vergelijken" of `/model-evaluatie`. Protocol in rondes met de metrieken en hun valkuilen; afgeleid uit de bake-off van 14–16 aug 2026 (ADR-0004). Het openstaande meetwerk staat in `ResearchVault-plans/plans/olw-config-optimalisatie.md`.

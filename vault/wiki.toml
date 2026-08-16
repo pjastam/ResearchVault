@@ -31,8 +31,26 @@ watch_debounce = 3.0
 max_concepts_per_source = 8
 ingest_parallel = false           # true = parallelle chunks
 article_max_tokens = 16384        # zachte cap; auto-verlaagd om in context te passen
+# Gezet 16 aug 2026. olw legt naast article_max_tokens een tweede, onafhankelijke cap op
+# concept-drafts van 2400 tokens (default). In ronde 3 van de bake-off sneuvelde daardoor
+# 18% van de pagina's volledig — o.a. `Doel van Risicoverevening` en `Doelmatigheid van
+# zorg`, met als enige spoor één ERROR-regel tussen honderden logregels. De foutmelding
+# wijst bovendien naar article_max_tokens en dus naar de verkeerde knop. Deze waarde
+# schakelt de extra begrenzing uit; artikelen worden nu begrensd door article_max_tokens.
+concept_draft_soft_cap = "article_max_tokens"
 graph_quality_checks = true
-# language = "en"  # unset = auto per artikel (NL-beleid NL, EN-papers EN)
+language = "nl"   # gezet 16 aug 2026 — zie hieronder
+#
+# WAT `language` WEL EN NIET DOET (vastgesteld 16 aug 2026 in de olw-broncode).
+# Het wordt uitsluitend gelezen in `pipeline/compile.py:103` en stuurt daarmee de taal van
+# de ARTIKELTEKST. `pipeline/ingest.py` raakt het niet aan, dus de CONCEPTNAMEN blijven de
+# taal van de bron volgen. De cross-linguale fragmentatie los je hier dus niet mee op.
+#
+# Waarom nu wél gezet: zonder deze regel kiest olw de taal per artikel op basis van de
+# brontaal-meerderheid. Bij een Nederlands concept met overwegend Engelstalige bronnen
+# levert dat een pagina met Nederlandse titel en Engelse tekst — in ronde 3 van de bake-off
+# opende `Risicoverevening.md` met "The main goal of risk equalization is...". Voor een
+# Nederlandstalige onderzoeksvault is dat onbruikbaar, ongeacht welk model je kiest.
 #
 # LET OP (vastgesteld 14 aug 2026): handmatig aliassen toevoegen aan brugconcepten
 # repareert de graaf wél achteraf, maar voorkomt NIET dat een volgende ingest opnieuw een
