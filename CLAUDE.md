@@ -245,12 +245,21 @@ De feedreader scoort RSS/YouTube/podcast-feeds automatisch op relevantie en prod
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/feedreader-learn.py
 ```
 
-**Leerloop — signaalhi­ërarchie (sterkste eerst):**
+**Leerloop — signaalhi­ërarchie (verwerkingsvolgorde in de labellus):**
 1. ⭐ NNW-ster (FreshRSS starred) → positief
 2. ✅ Zotero URL-match of titelmatching → positief
 3. 📖 NNW gelezen maar niet in Zotero na >1 dag → negatief
-4. ❌ Timeout >3 dagen zonder actie → negatief (sterkste)
-5. 👎 Skip-knop in NNW → sterk expliciet negatief (apart bijgehouden)
+4. ❌ Timeout >3 dagen zonder actie → negatief (zwakst onderbouwd)
+5. 👎 Skip-knop in NNW → expliciet negatief (apart bijgehouden)
+
+**Volgorde ≠ bewijskracht.** Dit is de volgorde waarin `feedreader-learn.py` toetst; elke treffer
+sluit af met `continue`, dus een eerder signaal verhindert de latere — precies waardoor signaal 1
+signaal 3 vrijwel volledig afdekt (194 van de 215 gelezen items zijn óók gesterd). Naar
+bewijskracht is de rangorde ongeveer omgekeerd: 👎 is de enige ondubbelzinnige afwijzing, terwijl
+de timeout alleen de *afwezigheid* van handeling vastlegt — "niet gezien" en "niet interessant"
+zijn daarin niet te onderscheiden (zo staat het ook in `docs/src/usage/phase1-sources.md`). Vandaag
+heeft dat verschil geen gevolg, want negatieven voeden het drempeladvies niet: dat komt uitsluitend
+uit de positieven. Zodra negatieven wél gewogen worden, is dit onderscheid het eerste wat telt.
 
 Na ≥30 positieven verschijnt een drempeladvies; pas dan `THRESHOLD_GREEN` en `THRESHOLD_YELLOW` aan.
 

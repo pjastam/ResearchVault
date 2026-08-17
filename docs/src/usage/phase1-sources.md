@@ -46,20 +46,20 @@ The feedreader learns from your behaviour. Two types of signal matter:
 
 "Added to Zotero" is detected two ways, by URL and by title. The URL half was silently broken until 16 August 2026: it queried the Zotero table that holds file paths rather than the one that holds URLs, so it always came back empty. Title matching covered for it, which is precisely why it went unnoticed — a dead signal propped up by its neighbour looks exactly like a quiet day. The counts are now compared on a normalised URL, so the link Zotero recorded after redirects still matches the one the feedreader read from the RSS. Threshold statistics count each article once rather than each log line, so an article that arrived repeatedly cannot outweigh the rest.
 
-`feedreader-learn.py` runs at 06:15 every morning and tracks signal quality. Run it manually for a progress report:
+`feedreader-learn.py` runs as the last step of the morning batch (triggered by your login) and again at 09:00, 12:00, 15:00, 18:00 and 21:00, and tracks signal quality. Run it manually for a progress report:
 
 ```bash
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/feedreader-learn.py
 ```
 
-After ≥30 positive signals, it prints an initial threshold recommendation. Apply it in `.claude/feedreader-score.py`:
+After ≥30 positive signals, it prints an initial threshold recommendation. The recommendation is computed from the **positive** signals alone — percentiles over their scores. The negative and 👎 counts are printed beside it for inspection, but nothing in the calculation reads them. That is also why the two negative classes are pooled without weighting: their difference in evidential strength does not yet have anywhere to act. Apply the recommendation in `.claude/feedreader-score.py`:
 
 ```python
 THRESHOLD_GREEN  = ...   # from the recommendation
 THRESHOLD_YELLOW = ...   # from the recommendation
 ```
 
-**Learning is continuous.** After the initial threshold is set, every 👎 signal and every Zotero addition continues to refine the scoring. Occasional browsing in NetNewsWire and sharing items to Zotero remains useful even in autonomous mode.
+**Learning is continuous.** After the initial threshold is set, every Zotero addition keeps reshaping the recommendation as the positives accumulate — and it also enters the preference profile the scorer builds from your library, so adding a paper changes how the next batch is scored. 👎 signals do neither yet: they are recorded in `skip_queue.jsonl`, labelled in the log and reported in the summary, but no calculation reads them. Keep giving them anyway — they are the only unambiguous rejections on record, and they are what negative weighting will be built on. Occasional browsing in NetNewsWire and sharing items to Zotero remains useful even in autonomous mode.
 
 ### Hiding read and skipped items
 

@@ -301,7 +301,10 @@ def main():
             newly_false_nnw += 1
             continue
 
-        # Negatief signaal 2 (sterkste, change F): timeout — genegeerd zonder enige actie
+        # Negatief signaal 2 (zwakst onderbouwd, change F): timeout — genegeerd zonder enige
+        # actie. Dit legt afwezigheid van handeling vast: "niet gezien" en "niet interessant"
+        # zijn er niet in te onderscheiden. Het staat laatst in de lus omdat het het breedste
+        # net is, niet omdat het het meeste bewijst.
         if ts < cutoff:
             entry["added_to_zotero"] = False
             newly_false += 1
@@ -329,13 +332,18 @@ def main():
     negatives_timeout = [e["score"] for e in dedupe_by_url(
                         [e for e in entries
                          if e.get("added_to_zotero") is False and not e.get("read_in_nnw")])]
+    # Bewust gewichtloze samenvoeging: de twee negatieve klassen verschillen sterk in
+    # bewijskracht (timeout = dubbelzinnig, NNW-gelezen = bewuste passering), maar dat doet
+    # hier niet ter zake — `negatives` voedt alleen de informatieve regel `neg_p75`. Het
+    # drempeladvies hieronder komt uitsluitend uit `positives`. Ga je negatieven wél wegen,
+    # begin dan hier en niet bij de labellus.
     negatives        = negatives_timeout + negatives_nnw
     unlabeled        = dedupe_by_url([e for e in entries if e.get("added_to_zotero") is None])
 
     print(f"\n{'=' * 52}")
     print(f"Gelabelde dataset:")
     print(f"  ✅ positieven (Zotero of NNW-ster):              {len(positives)}")
-    print(f"  ❌ sterkste negatief (timeout, genegeerd):       {len(negatives_timeout)}")
+    print(f"  ❌ zwakste negatief (timeout, dubbelzinnig):     {len(negatives_timeout)}")
     print(f"  📖 sterk negatief (NNW gelezen, niet Zotero):   {len(negatives_nnw)}")
     print(f"  👎 expliciet afgewezen (skip-knop):              {len(skipped)}")
     print(f"  ⏳ nog niet gelabeld:                            {len(unlabeled)}")
