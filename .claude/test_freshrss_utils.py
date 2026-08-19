@@ -18,6 +18,7 @@ from freshrss_utils import (
     STREAM_LEEG,
     STREAM_MISLUKT,
     STREAM_OK,
+    STREAM_AFGEKAPT,
     STREAM_TIMEOUT,
     freshrss_fetch_stream,
     freshrss_read_stream,
@@ -40,6 +41,41 @@ class FakeOpener:
         if isinstance(self.result, Exception):
             raise self.result
         return json.dumps(self.result).encode("utf-8")
+
+
+class FakePager:
+    """Geeft achtereenvolgens de meegegeven pagina's terug.
+
+    Elke pagina is een dict zoals GReader hem levert: {"items": [...],
+    "continuation": "<token>"} — zonder `continuation` is de stroom op.
+    Een Exception in de lijst wordt geworpen op die pagina.
+    """
+
+    def __init__(self, *pages):
+        self.pages = list(pages)
+        self.calls = []
+
+    def __call__(self, url, timeout):
+        self.calls.append(url)
+        page = self.pages[min(len(self.calls) - 1, len(self.pages) - 1)]
+        if isinstance(page, Exception):
+            raise page
+        return json.dumps(page).encode("utf-8")
+
+
+def pagina(start, aantal, continuation=None, gelezen=False):
+    """Bouwt een GReader-pagina met `aantal` items, genummerd vanaf `start`."""
+    cats = ["user/-/state/com.google/reading-list"]
+    if gelezen:
+        cats.append("user/-/state/com.google/read")
+    page = {"items": [
+        {"id": f"g{i}", "categories": list(cats),
+         "alternate": [{"href": f"https://a.test/{i}"}]}
+        for i in range(start, start + aantal)
+    ]}
+    if continuation:
+        page["continuation"] = continuation
+    return page
 
 
 class FetchStreamTest(unittest.TestCase):
@@ -142,6 +178,74 @@ class ReadStreamRouteTest(unittest.TestCase):
         body = {"items": [{"id": "g3", "alternate": [{"href": "https://a.test/x"}]}]}
         res = freshrss_read_stream(BASE, AUTH, opener=FakeOpener(body))
         self.assertEqual(res.items, {})
+
+
+class PagineringTest(unittest.TestCase):
+    """Een stream mag nooit stil bij de paginagrens ophouden.
+
+    `n=1000` gaf op 19 aug 2026 999 gesterde items terug terwijl er 1.797 waren,
+    997 van de 2.476 reading-list-items, en 57 van de 218 gelezen items. Een
+    verzoeklimiet die zich voordoet als een compleet antwoord — dezelfde
+    vermomming als "0 items" bij een mislukte fetch.
+    """
+
+    def test_leest_door_tot_de_stream_op_is(self):
+        opener = FakePager(
+            pagina(0, 3, continuation="tok1"),
+            pagina(3, 3, continuation="tok2"),
+            pagina(6, 2),  # geen continuation → klaar
+        )
+        res = freshrss_fetch_stream(BASE, AUTH, STREAM, page_size=3, opener=opener)
+        self.assertEqual(res.status, STREAM_OK)
+        self.assertEqual(len(res.items), 8)
+        self.assertEqual(len(opener.calls), 3)
+
+    def test_geeft_het_continuation_token_mee(self):
+        opener = FakePager(pagina(0, 2, continuation="tok1"), pagina(2, 1))
+        freshrss_fetch_stream(BASE, AUTH, STREAM, page_size=2, opener=opener)
+        self.assertNotIn("c=", opener.calls[0])
+        self.assertIn("c=tok1", opener.calls[1])
+
+    def test_eerste_pagina_zonder_continuation_doet_een_ronde(self):
+        opener = FakePager(pagina(0, 2))
+        res = freshrss_fetch_stream(BASE, AUTH, STREAM, page_size=1000, opener=opener)
+        self.assertEqual(len(opener.calls), 1)
+        self.assertEqual(len(res.items), 2)
+
+    def test_veiligheidsgrens_geeft_een_eigen_status(self):
+        """Bij de bovengrens stoppen we — maar dan mag het geen 'ok' heten."""
+        opener = FakePager(
+            pagina(0, 3, continuation="tok1"),
+            pagina(3, 3, continuation="tok2"),
+            pagina(6, 3, continuation="tok3"),
+        )
+        res = freshrss_fetch_stream(BASE, AUTH, STREAM, page_size=3,
+                                    max_items=6, opener=opener)
+        self.assertEqual(res.status, STREAM_AFGEKAPT)
+        self.assertTrue(res.failed, "afgekapt telt als onbetrouwbaar")
+
+    def test_storing_op_een_latere_pagina_is_mislukt_niet_gedeeltelijk(self):
+        """Een half gelezen stream is niet te onderscheiden van een hele.
+
+        Downstream labelt er negatieven mee, dus gedeeltelijke data stil
+        doorgeven zou items als 'niet gelezen' wegzetten die dat wel zijn.
+        """
+        opener = FakePager(
+            pagina(0, 3, continuation="tok1"),
+            urllib.error.HTTPError(BASE, 500, "boom", {}, None),
+        )
+        res = freshrss_fetch_stream(BASE, AUTH, STREAM, page_size=3, opener=opener)
+        self.assertEqual(res.status, STREAM_MISLUKT)
+        self.assertTrue(res.failed)
+
+    def test_read_stream_pagineert_ook(self):
+        opener = FakePager(
+            pagina(0, 2, continuation="tok1", gelezen=True),
+            pagina(2, 2, gelezen=True),
+        )
+        res = freshrss_read_stream(BASE, AUTH, page_size=2, opener=opener)
+        self.assertEqual(len(res.items), 4)
+        self.assertEqual(len(opener.calls), 2)
 
 
 if __name__ == "__main__":

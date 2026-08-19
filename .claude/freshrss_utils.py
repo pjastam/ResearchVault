@@ -18,12 +18,24 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-STREAM_OK = "ok"            # stream opgehaald, er zijn items
-STREAM_LEEG = "leeg"        # stream opgehaald en geparsed, maar zonder items
-STREAM_MISLUKT = "mislukt"  # niet op te halen of niet te parsen
-STREAM_TIMEOUT = "timeout"  # server antwoordde niet binnen de tijdslimiet
+STREAM_OK = "ok"              # stream volledig opgehaald, er zijn items
+STREAM_LEEG = "leeg"          # stream volledig opgehaald, maar zonder items
+STREAM_MISLUKT = "mislukt"    # niet op te halen of niet te parsen
+STREAM_TIMEOUT = "timeout"    # server antwoordde niet binnen de tijdslimiet
+STREAM_AFGEKAPT = "afgekapt"  # veiligheidsgrens geraakt; er is méér dan we hebben
 
 STREAM_TIMEOUT_SECONDS = 30
+
+# Paginagrootte per verzoek. GReader honoreert `n` letterlijk, dus zonder
+# doorlezen krijg je precies zoveel items als je vraagt — en dat ziet eruit als
+# een compleet antwoord. Gemeten 19 aug 2026: n=1000 gaf 999 gesterde items
+# terwijl er 1.797 waren, en 57 van de 218 gelezen items.
+STREAM_PAGE_SIZE = 1000
+
+# Bovengrens over alle pagina's samen. Puur een noodrem tegen een server die
+# oneindig blijft doorpagineren; bij ~2.500 items is er ruimte zat. Wordt hij
+# geraakt, dan is de uitkomst STREAM_AFGEKAPT — nooit stilzwijgend "ok".
+MAX_STREAM_ITEMS = 50_000
 
 READING_LIST = "user/-/state/com.google/reading-list"
 READ_STATE = "user/-/state/com.google/read"
@@ -56,7 +68,10 @@ class StreamResult:
 
     @property
     def failed(self):
-        return self.status in (STREAM_MISLUKT, STREAM_TIMEOUT)
+        # STREAM_AFGEKAPT telt als mislukt: de data is onvolledig, en downstream
+        # labelt er negatieven mee. Een half gelezen stream is niet te
+        # onderscheiden van een hele, dus hij mag niet als bruikbaar gelden.
+        return self.status in (STREAM_MISLUKT, STREAM_TIMEOUT, STREAM_AFGEKAPT)
 
     def __repr__(self):
         return f"StreamResult({len(self.items)} items, {self.status})"
@@ -73,6 +88,51 @@ def _authed_opener(auth):
             return resp.read()
 
     return opener
+
+
+def _paginate(base_url, auth, stream_id, page_size, max_items, opener, verzamel):
+    """Leest een GReader-stream volledig uit, pagina voor pagina.
+
+    GReader levert per antwoord een `continuation`-token; met `&c=<token>` haal
+    je het volgende blok. Zonder token is de stroom op.
+
+    `verzamel(item, result)` bepaalt wat er per item bewaard wordt — zo delen de
+    gesterde stream en de gelezen stream dezelfde pagineerlus terwijl ze
+    verschillende filters houden.
+
+    Geeft een StreamResult. Een storing op een látere pagina levert
+    STREAM_MISLUKT op en géén gedeeltelijke data: downstream labelt er negatieven
+    mee, en een half gelezen stream is niet te onderscheiden van een hele.
+    """
+    stream_pad = urllib.parse.quote(stream_id, safe="/-")
+    result = {}
+    continuation = None
+    gezien = 0
+
+    while True:
+        url = (
+            f"{base_url}/greader.php/reader/api/0/stream/contents/"
+            f"{stream_pad}?output=json&n={page_size}"
+        )
+        if continuation:
+            url += "&c=" + urllib.parse.quote(continuation)
+
+        data, mislukking = _fetch_json(url, auth, opener)
+        if mislukking is not None:
+            return mislukking
+
+        items = data.get("items", [])
+        gezien += len(items)
+        for item in items:
+            verzamel(item, result)
+
+        continuation = data.get("continuation")
+        if not continuation or not items:
+            break
+        if gezien >= max_items:
+            return StreamResult(result, STREAM_AFGEKAPT)
+
+    return StreamResult(result, STREAM_OK if result else STREAM_LEEG)
 
 
 def _fetch_json(url, auth, opener):
@@ -170,44 +230,42 @@ def freshrss_auth(creds: dict) -> tuple[str, str]:
 
 
 def freshrss_fetch_stream(
-    base_url: str, auth: str, stream_id: str, n: int = 1000, opener=None
+    base_url: str, auth: str, stream_id: str,
+    page_size: int = STREAM_PAGE_SIZE, max_items: int = MAX_STREAM_ITEMS,
+    opener=None,
 ) -> StreamResult:
     """
-    Haal items op uit een GReader-stream.
+    Haal een GReader-stream volledig op, met paginering.
 
     Geeft een StreamResult met {item_url: gitem_id} en een expliciete status, zodat
-    "deze stream is leeg" te onderscheiden is van "de fetch is mislukt". De opener
-    is injecteerbaar zodat de tests op kale stdlib draaien, zonder netwerk.
+    "deze stream is leeg" te onderscheiden is van "de fetch is mislukt" én van
+    "we hebben niet alles". De opener is injecteerbaar zodat de tests op kale
+    stdlib draaien, zonder netwerk.
 
     Veelgebruikte stream_id waarden:
-      user/-/state/com.google/reading-list  — alle ongelezen items
+      user/-/state/com.google/reading-list  — alle items, met hun read-state
       user/-/state/com.google/starred       — gestefte items
     """
-    url = (
-        f"{base_url}/greader.php/reader/api/0/stream/contents/"
-        f"{urllib.parse.quote(stream_id, safe='/-')}"
-        f"?output=json&n={n}"
-    )
-    data, mislukking = _fetch_json(url, auth, opener)
-    if mislukking is not None:
-        return mislukking
-
-    result = {}
-    for item in data.get("items", []):
+    def verzamel(item, result):
         href = _first_href(item)
         if href:
             result[href] = item["id"]
-    return StreamResult(result, STREAM_OK if result else STREAM_LEEG)
+
+    return _paginate(base_url, auth, stream_id, page_size, max_items,
+                     opener, verzamel)
 
 
 def freshrss_starred_stream(base_url: str, auth: str, opener=None) -> StreamResult:
-    """Gestefde items in FreshRSS, als StreamResult."""
+    """Gestefde items in FreshRSS, als StreamResult (volledig, gepagineerd)."""
     return freshrss_fetch_stream(
         base_url, auth, "user/-/state/com.google/starred", opener=opener
     )
 
 
-def freshrss_read_stream(base_url: str, auth: str, opener=None) -> StreamResult:
+def freshrss_read_stream(base_url: str, auth: str,
+                         page_size: int = STREAM_PAGE_SIZE,
+                         max_items: int = MAX_STREAM_ITEMS,
+                         opener=None) -> StreamResult:
     """Gelezen items in FreshRSS, als StreamResult.
 
     Afgeleid uit de reading-list in plaats van uit een eigen read-stream. De
@@ -221,23 +279,15 @@ def freshrss_read_stream(base_url: str, auth: str, opener=None) -> StreamResult:
     read-state in. Eén call, en de URL zit er al bij — het alternatief
     (`stream/items/ids?s=…/read`) geeft alleen ID's en zou een tweede ronde vergen.
     """
-    url = (
-        f"{base_url}/greader.php/reader/api/0/stream/contents/"
-        f"{urllib.parse.quote(READING_LIST, safe='/-')}"
-        f"?output=json&n=1000"
-    )
-    data, mislukking = _fetch_json(url, auth, opener)
-    if mislukking is not None:
-        return mislukking
-
-    result = {}
-    for item in data.get("items", []):
+    def verzamel(item, result):
         if READ_STATE not in item.get("categories", []):
-            continue
+            return
         href = _first_href(item)
         if href:
             result[href] = item["id"]
-    return StreamResult(result, STREAM_OK if result else STREAM_LEEG)
+
+    return _paginate(base_url, auth, READING_LIST, page_size, max_items,
+                     opener, verzamel)
 
 
 def freshrss_star_by_urls(
