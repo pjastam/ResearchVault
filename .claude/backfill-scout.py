@@ -245,11 +245,6 @@ def _read_tr_cache(fr, vid: str) -> tuple[bool, str | None]:
     return False, None
 
 
-def _is_block(exc: Exception) -> bool:
-    n = type(exc).__name__.lower()
-    return "block" in n or "ratelimit" in n or "toomanyrequests" in n
-
-
 def _fetch_tr(fr, item: dict, channel: str, throttle: float, block_flag: dict) -> str | None:
     """Netwerk-fetch (trap 2). Bij IpBlocked: zet flag, breek af, cache NIET."""
     vid = item["video_id"]
@@ -259,7 +254,9 @@ def _fetch_tr(fr, item: dict, channel: str, throttle: float, block_flag: dict) -
         snips = fr.YouTubeTranscriptApi().fetch(vid, languages=["nl", "en", "de", "fr"])
         text = " ".join(s.text for s in snips)
     except Exception as e:
-        if _is_block(e):
+        # Gedeeld met feedreader-score.py: beide schrijven naar dezelfde
+        # transcript-cache, dus ze moeten dezelfde blokkade-detectie gebruiken.
+        if fr.is_block(e):
             block_flag["blocked"] = True
             log("       ⛔ IpBlocked — trap 2 afgebroken (wissel VPN-exit en draai opnieuw)")
             return None

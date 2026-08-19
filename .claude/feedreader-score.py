@@ -437,12 +437,33 @@ def extract_video_id(url: str) -> str | None:
     return m.group(1) if m else None
 
 
+def is_block(exc: Exception) -> bool:
+    """Herkent een rate-limit of IP-blokkade aan de naam van de exceptie.
+
+    Bewust op de klassenaam en niet op het type: youtube_transcript_api hernoemt
+    zijn excepties tussen versies, en een gemiste blokkade is duurder dan een
+    valse treffer — die kost hooguit een herhaalde poging, terwijl een gemiste
+    blokkade de cache voorgoed vergiftigt.
+
+    Woonde tot 19 aug 2026 alleen in backfill-scout.py, terwijl beide scripts naar
+    dezelfde cachemap schrijven. Eén schrijver was gehard, de andere niet.
+    """
+    n = type(exc).__name__.lower()
+    return "block" in n or "ratelimit" in n or "toomanyrequests" in n
+
+
 def fetch_and_cache_transcript(
     video_id: str, title: str, channel: str, url: str, published: str
 ) -> str | None:
     """
     Haalt het transcript op via YouTubeTranscriptApi en slaat het op in de cache.
-    Schrijft ook bij mislukking een cache-bestand om herhaalde API-pogingen te vermijden.
+
+    Bij een écht ontbrekend transcript wordt de mislukking gecachet, om herhaalde
+    API-pogingen te vermijden. Bij een blokkade juist niet: die zegt niets over
+    dit transcript, alleen over dit moment. Meting 19 aug 2026: 81 van de 275
+    YouTube-cachebestanden (29,5%) stond op `text: null`, en er is achteraf niet
+    te zien welke daarvan echt geen transcript hebben en welke ooit geblokkeerd
+    werden. Een titel-only item scoort aantoonbaar scheef.
     """
     TRANSCRIPT_CACHE_DIR.mkdir(exist_ok=True)
     cache_file = TRANSCRIPT_CACHE_DIR / f"{video_id}.json"
@@ -462,8 +483,16 @@ def fetch_and_cache_transcript(
             video_id, languages=["nl", "en", "de", "fr"]
         )
         text = " ".join(s.text for s in snippets)
-    except Exception:
-        pass  # geen transcript beschikbaar; cache toch om herhaalde pogingen te voorkomen
+    except Exception as exc:
+        if is_block(exc):
+            # Niet cachen. Zou dit als `text: null` in de cache belanden, dan is
+            # de video voorgoed titel-only — ononderscheidbaar van een video die
+            # echt geen transcript heeft.
+            print(f"⚠️  transcript geblokkeerd ({type(exc).__name__}) voor {video_id}; "
+                  f"niet gecachet, volgende run opnieuw", file=sys.stderr)
+            return None
+        # Geen blokkade: er is echt geen transcript. Wel cachen, om herhaalde
+        # API-pogingen te vermijden.
 
     cache_file.write_text(json.dumps({
         "video_id":   video_id,
@@ -553,8 +582,64 @@ def _make_atom_content_html(item: dict) -> str:
             if para:
                 parts.append(f"<p>{html.escape(para)}</p>")
 
+    parts.extend(_skip_button_html(item))
+
     content = "\n".join(parts)
     return content.replace("]]>", "]]&gt;")
+
+
+def _skip_button_html(item: dict) -> list[str]:
+    """De 👎-knop onder een artikel, of niets als er geen HTTPS-adres is.
+
+    **Het adres moet PUBLIC_BASE_URL zijn.** NetNewsWire krijgt het artikel over
+    HTTPS binnen via de Tailscale-funnel; een HTTP-subresource daarin is mixed
+    content en wordt door WebKit stil geweigerd. Precies dat maakte de knop tussen
+    18 en 29 april 2026 waardeloos: hij wees naar `http://{hostname}.local:8765`,
+    en dat is bovendien mDNS (alleen op het thuisnetwerk). In dat venster
+    passeerden 993 items en kwam er nul 👎 binnen.
+
+    Gemeten op 19 aug 2026 met drie varianten onder één artikel in NNW: knop over
+    HTTPS kwam aan, dezelfde knop over HTTP niet, en een gewone link over HTTPS
+    ook wel. Zie ADR-0005.
+
+    Vereist "Enable JavaScript" in NNW → Settings → Article Content. Zonder
+    PUBLIC_BASE_URL geven we bewust géén knop: liever geen knop dan een knop die
+    stil geblokkeerd wordt.
+    """
+    if not PUBLIC_BASE_URL:
+        return []
+
+    q = urllib.parse.urlencode({
+        "url":      item.get("url", ""),
+        "title":    item.get("title", ""),
+        # De identity meesturen zodat feedreader-learn.py op de guid kan matchen.
+        # Zonder dit valt de match terug op de canonieke URL, en dan raakt één 👎
+        # op een Captivate-podcast álle afleveringen van die show.
+        "identity": item.get("identity", ""),
+        "type":     "skip",
+    })
+    action_url = f"{PUBLIC_BASE_URL}/action?{q}"
+    btn_style = (
+        "cursor:pointer;border:1px solid #ccc;border-radius:5px;"
+        "background:#f5f5f5;padding:.25rem .6rem;font-size:.85em;"
+    )
+    return [
+        '<hr style="margin:1.5em 0;border:none;border-top:1px solid #ccc">',
+        f'<p><button style="{btn_style}" onclick="rvSkip(this)">👎 Overslaan</button></p>',
+        '<script>function rvSkip(b){'
+        'b.disabled=true;b.style.opacity=".5";'
+        'var i=new Image();'
+        'i.onload=function(){b.textContent="\\u2713 Afgewezen";};'
+        'i.onerror=function(){b.textContent="\\u26a0\\ufe0f Fout";};'
+        # Bewust NIET html.escape(): de inhoud van een <script> is in HTML raw
+        # text, dus character references worden er niet gedecodeerd. Een `&amp;`
+        # zou letterlijk in de URL belanden, waardoor `type` verandert in
+        # `amp;type` en de server 400 antwoordt — de knop zou stuk zijn.
+        # Veilig zonder escapen omdat urlencode() alle aanhalingstekens en
+        # punthaken al percent-codeert; uitbreken uit de JS-string kan niet.
+        f'i.src="{action_url}";'
+        '}</script>',
+    ]
 
 
 def generate_atom(items: list[dict], generated_at: datetime, feed_title: str = "Feedreader — Gefilterde RSS-feed") -> str:

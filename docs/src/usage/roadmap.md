@@ -69,7 +69,7 @@ This changes the daily rhythm:
 - **Now:** browse HTML reader → manually forward interesting items → Phase 2
 - **After:** feedreader fills `_inbox` autonomously → you interact mainly in Phase 2 and 3
 
-The HTML reader stays available as a transparency window and as an ongoing calibration channel. The 👎 button continues to work as a correction mechanism. Occasional browsing in NetNewsWire and sharing items to Zotero remains useful for keeping the scoring calibrated over time.
+NetNewsWire stays available as a transparency window and as an ongoing calibration channel. The 👎 button under each article continues to work as a correction mechanism. Occasional browsing and sharing items to Zotero remains useful for keeping the scoring calibrated over time — more so than it looks, because stars above `THRESHOLD_STAR` are set by the pipeline itself and are excluded from the threshold recommendation. Your manual signals are the only ones that steer it.
 
 ### Skill update — after autonomous mode
 

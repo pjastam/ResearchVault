@@ -42,6 +42,8 @@ The feedreader learns from your behaviour. Two types of signal matter:
 | 👎 without clicking | Strong explicit negative | `skipped: true` immediately |
 | Clicked, then 👎 | Strongest negative | `skipped: true` + `added_to_zotero: false` |
 
+**👎 is a hard stop.** A rejection blocks every later signal in the loop, including a star you set by hand — it is the only unambiguous judgement in the chain, so nothing derived may override it. This is enforced in `feedreader_labels.py` and locked down by the contract tests in `test_feedreader_labels.py` (class `DocContractTest`). The last row of the table above went unimplemented from the loop's inception until 19 Aug 2026: `skipped` was written but never read back, and `added_to_zotero: false` only ever arrived by accident, via the three-day timeout.
+
 **Use 👎 liberally** on off-topic headlines. Unclicked items are ambiguous — they could mean "not seen" just as easily as "not interesting." Only 👎 signals are unambiguous rejections.
 
 "Added to Zotero" is detected two ways, by URL and by title. The URL half was silently broken until 16 August 2026: it queried the Zotero table that holds file paths rather than the one that holds URLs, so it always came back empty. Title matching covered for it, which is precisely why it went unnoticed — a dead signal propped up by its neighbour looks exactly like a quiet day. The counts are now compared on a normalised URL, so the link Zotero recorded after redirects still matches the one the feedreader read from the RSS. Threshold statistics count each article once rather than each log line, so an article that arrived repeatedly cannot outweigh the rest.
@@ -82,7 +84,9 @@ The three type-specific feeds can be subscribed to in NetNewsWire on macOS or iO
 Each article in NNW shows one action button (requires JavaScript enabled in NNW Article Content settings):
 - **👎 Overslaan** — sends a negative signal to the learning loop
 
-Pressing 👎 fades the item and writes the URL to `skip_queue.jsonl`; `feedreader-learn.py` processes it the next morning. To send items to Zotero `_inbox`, use the Zotero browser extension or iOS app instead.
+Pressing 👎 fades the item and writes the URL, the feed guid and the title to `skip_queue.jsonl`; `feedreader-learn.py` processes it the next morning and matches on the guid before the URL (podcast feeds that reuse the show page as every episode's link would otherwise take a whole show down with one rejection). To send items to Zotero `_inbox`, use the Zotero browser extension or iOS app instead.
+
+> **Two conditions, both easy to get wrong.** The button only appears when `FEEDREADER_PUBLIC_URL` is set, and it must be the **HTTPS** Tailscale-funnel address. NetNewsWire receives the article over HTTPS, so a plain-HTTP subresource is mixed content and WebKit blocks it silently — measured on 19 Aug 2026 with three variants under one article: the HTTPS button landed, the identical HTTP button did not. Between 18 and 29 Apr 2026 the button pointed at `http://<hostname>.local:8765`; 993 items passed through and not one 👎 arrived. And JavaScript must be enabled per device, so if the loop reports zero rejections for weeks, check that box first.
 
 ---
 

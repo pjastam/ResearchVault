@@ -26,14 +26,17 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from freshrss_utils import (
+    STREAM_LEEG,
     load_freshrss_creds,
     freshrss_auth,
     freshrss_star_by_urls,
-    freshrss_starred_urls,
-    freshrss_read_urls,
+    freshrss_starred_stream,
+    freshrss_read_stream,
 )
 from zotero_utils import make_sqlite_copy
+from feedreader_core import THRESHOLD_STAR
 from feedreader_identity import canonical_url, dedupe_by_url
+from feedreader_labels import apply_skips, mark_auto_starred, split_positives
 
 # ── Configuratie ──────────────────────────────────────────────────────────────
 
@@ -140,14 +143,19 @@ def save_log(path: Path, entries: list[dict]) -> None:
             fcntl.flock(f, fcntl.LOCK_UN)
 
 
-def process_skip_queue(entries: list[dict]) -> int:
-    """
-    Verwerkt skip_queue.jsonl: zoekt elk URL op in entries en zet skipped=True.
-    Leegt de queue atomair (lezen + truncate binnen één exclusieve lock) zodat
-    geen skip-signalen verloren gaan als feedreader-server.py gelijktijdig schrijft.
+def drain_skip_queue() -> list[dict]:
+    """Leest skip_queue.jsonl en leegt hem atomair.
+
+    Lezen en truncaten binnen één exclusieve lock, zodat er geen skip-signalen
+    verloren gaan als feedreader-server.py gelijktijdig schrijft.
+
+    Alleen I/O — de matchlogica zit in feedreader_labels.apply_skips, zodat die
+    testbaar is. Tot 19 aug 2026 zaten beide hier, en toen matchte hij op de
+    canonieke URL in plaats van op de identity; niet-gematchte skips werden
+    stilzwijgend weggegooid.
     """
     if not SKIP_QUEUE.exists():
-        return 0
+        return []
     queue = []
     with SKIP_QUEUE.open("r+", encoding="utf-8") as f:
         fcntl.flock(f, fcntl.LOCK_EX)
@@ -161,16 +169,7 @@ def process_skip_queue(entries: list[dict]) -> int:
             f.truncate()
         finally:
             fcntl.flock(f, fcntl.LOCK_UN)
-    if not queue:
-        return 0
-    skip_urls = {canonical_url(e["url"]) for e in queue if e.get("url")}
-    skip_urls.discard("")
-    count = 0
-    for entry in entries:
-        if canonical_url(entry.get("url", "")) in skip_urls and not entry.get("skipped"):
-            entry["skipped"] = True
-            count += 1
-    return count
+    return queue
 
 
 # ── Hoofdprogramma ────────────────────────────────────────────────────────────
@@ -194,12 +193,24 @@ def main():
     # Logboek laden + skip-queue verwerken
     entries = load_log(LOG_FILE)
     print(f"\n[1/4] Skip-queue verwerken...")
-    newly_skipped = process_skip_queue(entries)
+    skips = drain_skip_queue()
+    newly_skipped, ongematcht = apply_skips(entries, skips)
     if newly_skipped:
         save_log(LOG_FILE, entries)
         print(f"     👎 {newly_skipped} item(s) als 'skipped' gemarkeerd.")
+    elif skips:
+        print(f"     {len(skips)} skip-signaal(en) verwerkt, geen nieuwe markeringen.")
     else:
         print(f"     Geen nieuwe skip-signalen.")
+    if ongematcht:
+        # De queue is al geleegd, dus deze zijn weg. Melden in plaats van
+        # verzwijgen: een 👎 dat nergens op matcht is een defect (verkeerde
+        # sleutel, item buiten het logboek), geen rustige dag.
+        print(f"     ⚠️  {len(ongematcht)} skip-signaal(en) matchten geen logregel en zijn verloren:")
+        for skip in ongematcht[:5]:
+            print(f"         {skip.get('url', '?')}")
+        if len(ongematcht) > 5:
+            print(f"         … en nog {len(ongematcht) - 5}")
 
     # Zotero-URLs en -titels + FreshRSS-signalen ophalen
     print("[2/4] Zotero-URLs en -titels + FreshRSS-signalen ophalen...")
@@ -217,6 +228,14 @@ def main():
     # FreshRSS GReader-signalen: gestefd (positief) en gelezen (negatief)
     fr_starred: set[str] = set()
     fr_read:    set[str] = set()
+    # Alleen wanneer beide streams betrouwbaar binnenkwamen, mogen de negatieve
+    # signalen vuren. Een mislukte fetch geeft een lege set, en zonder deze vlag
+    # zou een storing dus élk openstaand item als negatief labelen — precies de
+    # verwisseling van "leeg" en "mislukt" die deze reparatie wegneemt.
+    signalen_betrouwbaar = False
+    # Buiten het STAR_QUEUE-blok, want de markeerpas hieronder gebruikt hem ook
+    # wanneer de queue deze run ontbreekt.
+    queue_urls: list[str] = []
     fr_creds = load_freshrss_creds()
     if all(fr_creds.values()):
         fr_auth, fr_post = freshrss_auth(fr_creds)
@@ -225,14 +244,27 @@ def main():
                 queue_urls = [u for u in STAR_QUEUE.read_text(encoding="utf-8").splitlines() if u]
                 if queue_urls:
                     starred = freshrss_star_by_urls(fr_creds["url"], fr_auth, fr_post, queue_urls)
-                    print(f"     ⭐ {starred}/{len(queue_urls)} item(s) gestefd via star-queue.")
+                    if starred < 0:
+                        print(f"     ⚠️  star-queue MISLUKT: reading-list niet op te halen; "
+                              f"{len(queue_urls)} item(s) niet gesterd.")
+                    else:
+                        print(f"     ⭐ {starred}/{len(queue_urls)} item(s) gestefd via star-queue.")
                 STAR_QUEUE.unlink()
             # Canonicaliseren omdat de logkant dat ook wordt. FreshRSS levert de
             # URL terug die in de Atom-<link> stond; dat is dezelfde ruwe URL als
             # in het logboek, dus dit repareert geen bestaande breuk — het maakt
             # de match ongevoelig voor toekomstige parameterruis.
-            fr_starred = {canonical_url(u) for u in freshrss_starred_urls(fr_creds["url"], fr_auth)}
-            fr_read    = {canonical_url(u) for u in freshrss_read_urls(fr_creds["url"], fr_auth)}
+            starred_res = freshrss_starred_stream(fr_creds["url"], fr_auth)
+            read_res    = freshrss_read_stream(fr_creds["url"], fr_auth)
+            for naam, res in (("gesterd", starred_res), ("gelezen", read_res)):
+                if res.failed:
+                    print(f"     ⚠️  FreshRSS-stream '{naam}' MISLUKT ({res.status}): {res.error}")
+                    print(f"         → dit signaal draagt deze run niets bij; labels blijven staan.")
+                elif res.status == STREAM_LEEG:
+                    print(f"     ℹ️  FreshRSS-stream '{naam}' is leeg (geen storing).")
+            signalen_betrouwbaar = not (starred_res.failed or read_res.failed)
+            fr_starred = {canonical_url(u) for u in starred_res.items}
+            fr_read    = {canonical_url(u) for u in read_res.items}
             fr_starred.discard("")
             fr_read.discard("")
             print(f"     ⭐ {len(fr_starred)} gestefd, 📖 {len(fr_read)} gelezen in FreshRSS.")
@@ -240,6 +272,14 @@ def main():
             print("     ⚠️  FreshRSS GReader auth mislukt; FreshRSS-signalen overgeslagen.")
     else:
         print("     ℹ️  FRESHRSS_API_WACHTWOORD niet ingesteld; FreshRSS-signalen overgeslagen.")
+
+    # Auto-sterren markeren vóór het labelen. Een ster die de pijplijn zichzelf gaf
+    # is geen menselijk oordeel; zonder dit onderscheid bevestigt het drempeladvies
+    # grotendeels zijn eigen drempel. Zie feedreader_labels.mark_auto_starred.
+    gemarkeerd = mark_auto_starred(entries, queue_urls, THRESHOLD_STAR)
+    if gemarkeerd:
+        print(f"     🤖 {gemarkeerd} regel(s) gemarkeerd als auto-ster "
+              f"(blijven gelabeld, tellen niet mee in het advies).")
 
     # Logboek labelen
     print("[3/4] Logboek bijwerken...")
@@ -252,10 +292,23 @@ def main():
     newly_true_starred = 0
     newly_false        = 0
     newly_false_nnw    = 0
+    newly_false_skip   = 0
     relabeled_url      = 0
 
     for entry in entries:
         url = canonical_url(entry.get("url", ""))
+
+        # ADR-0005 — harde stop. Een expliciete afwijzing blokkeert alle latere
+        # signalen, inclusief een handmatig gezette ster. Het 👎 is het enige
+        # ondubbelzinnige oordeel in de keten; afgeleide signalen mogen het niet
+        # overschrijven. Tot 19 aug 2026 las de labellus het veld `skipped`
+        # nergens, terwijl phase1-sources.md al beloofde dat een 👎 na een klik
+        # `added_to_zotero: false` zou opleveren.
+        if entry.get("skipped"):
+            if entry.get("added_to_zotero") is None:
+                entry["added_to_zotero"] = False
+                newly_false_skip += 1
+            continue
 
         if entry.get("added_to_zotero") is not None:
             # Herlabelpas — nodig omdat get_zotero_urls() tot 16 aug 2026 een
@@ -305,7 +358,10 @@ def main():
         # actie. Dit legt afwezigheid van handeling vast: "niet gezien" en "niet interessant"
         # zijn er niet in te onderscheiden. Het staat laatst in de lus omdat het het breedste
         # net is, niet omdat het het meeste bewijst.
-        if ts < cutoff:
+        # Alleen labelen als de FreshRSS-signalen deze run betrouwbaar binnenkwamen.
+        # Anders zou een mislukte fetch elk openstaand item als negatief wegzetten,
+        # en labels zijn onherroepelijk (`is not None: continue` hierboven).
+        if ts < cutoff and signalen_betrouwbaar:
             entry["added_to_zotero"] = False
             newly_false += 1
 
@@ -317,13 +373,20 @@ def main():
     print(f"     ✅ via titel:         {newly_true_title} nieuw gelabeld")
     print(f"     📖 NNW gelezen/geen Zotero (>{NNW_READ_LABEL_AFTER_DAYS}d): {newly_false_nnw} nieuw gelabeld")
     print(f"     ❌ genegeerd, timeout (>{LABEL_AFTER_DAYS}d): {newly_false} nieuw gelabeld")
+    print(f"     👎 expliciet afgewezen (harde stop):        {newly_false_skip} nieuw gelabeld")
 
     # Drempeladvies
     print("[4/4] Drempeladvies berekenen...")
     # Per artikel tellen, niet per logregel: churn heeft de dataset scheefgetrokken
     # (147 overtollige positieven, 414 negatieven). Zie dedupe_by_url().
-    positives        = [e["score"] for e in dedupe_by_url(
-                        [e for e in entries if e.get("added_to_zotero") is True])]
+    # Alleen menselijk oordeel voedt het advies. De auto-ster is zelfbevestiging:
+    # score.py sterrt alles ≥ THRESHOLD_STAR, learn.py leest die ster in dezelfde
+    # run terug als positief bewijs. Meting 19 aug 2026: 1.815 van de 1.816
+    # gesterde regels lag op of boven de drempel — het advies kwam niet toevallig
+    # uit op ongeveer THRESHOLD_STAR.
+    echte_pos, auto_pos = split_positives(entries)
+    positives        = [e["score"] for e in dedupe_by_url(echte_pos)]
+    auto_positives   = [e["score"] for e in dedupe_by_url(auto_pos)]
     skipped          = [e["score"] for e in dedupe_by_url(
                         [e for e in entries if e.get("skipped") is True])]
     negatives_nnw    = [e["score"] for e in dedupe_by_url(
@@ -342,7 +405,8 @@ def main():
 
     print(f"\n{'=' * 52}")
     print(f"Gelabelde dataset:")
-    print(f"  ✅ positieven (Zotero of NNW-ster):              {len(positives)}")
+    print(f"  ✅ positieven (menselijk oordeel):               {len(positives)}")
+    print(f"  🤖 auto-sterren (uitgesloten van het advies):    {len(auto_positives)}")
     print(f"  ❌ zwakste negatief (timeout, dubbelzinnig):     {len(negatives_timeout)}")
     print(f"  📖 sterk negatief (NNW gelezen, niet Zotero):   {len(negatives_nnw)}")
     print(f"  👎 expliciet afgewezen (skip-knop):              {len(skipped)}")
