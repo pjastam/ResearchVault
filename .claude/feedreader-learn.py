@@ -36,7 +36,12 @@ from freshrss_utils import (
 from zotero_utils import make_sqlite_copy
 from feedreader_core import THRESHOLD_STAR
 from feedreader_identity import canonical_url, dedupe_by_url
-from feedreader_labels import apply_skips, mark_auto_starred, split_positives
+from feedreader_labels import (
+    apply_skips,
+    mark_auto_starred,
+    split_positives,
+    star_threshold_report,
+)
 
 # ── Configuratie ──────────────────────────────────────────────────────────────
 
@@ -114,6 +119,22 @@ def get_zotero_titles(conn: sqlite3.Connection) -> set[str]:
         if title and len(title) >= MIN_TITLE_LENGTH:
             titles.add(normalize_title(title))
     return titles
+
+
+def _in_zotero(entry: dict, zotero_urls: set[str], zotero_titles: set[str]) -> bool:
+    """Staat dit artikel in Zotero? URL-match vóór titelmatch.
+
+    Dit is de maatstaf voor het THRESHOLD_STAR-advies: de ster mag zichzelf niet
+    beoordelen, dus "was dit de moeite waard" wordt afgemeten aan of je het
+    daadwerkelijk hebt opgeslagen. Zelfde twee routes als positief signaal 2 in de
+    labellus, maar hier zonder de `continue` — een item mag beide dragen.
+    """
+    url = canonical_url(entry.get("url", ""))
+    if url and url in zotero_urls:
+        return True
+    titel = entry.get("title", "")
+    return (len(titel) >= MIN_TITLE_LENGTH
+            and normalize_title(titel) in zotero_titles)
 
 
 def load_log(path: Path) -> list[dict]:
@@ -432,12 +453,41 @@ def main():
     if negatives:
         print(f"  Negatieven — P75 (top 25%): {neg_p75:.0f}")
 
-    print(f"\n📊 Drempeladvies:")
-    print(f"  Conservatief (weinig false negatives): drempel = {p10:.0f}")
-    print(f"  Gebalanceerd:                          drempel = {p25:.0f}")
-    print(f"  Strikt (minder items, hogere precisie): drempel = {p50:.0f}")
-    print(f"\n  Aanbeveling: begin met {p10:.0f} en verhoog geleidelijk.")
-    print(f"  Activeer de filter in feedreader-score.py via SCORE_THRESHOLD = {p10:.0f}\n")
+    # Het oude advies (percentielen over de positieven) stuurde `SCORE_THRESHOLD`,
+    # een variabele die niet bestaat: THRESHOLD_GREEN/YELLOW kleuren alleen het
+    # label, en de enige echte begrenzing is MAX_FEED_ITEMS (een aantal, geen
+    # drempel). De enige drempel met gevolgen is THRESHOLD_STAR — die bepaalt wat
+    # automatisch gesterd wordt. Daar rekenen we nu op, tegen de Zotero-match als
+    # maatstaf: de ster mag zichzelf niet beoordelen.
+    artikelen = dedupe_by_url(entries)
+    for e in artikelen:
+        e["zotero_hit"] = _in_zotero(e, zotero_urls, zotero_titles)
+    rap = star_threshold_report(artikelen)
+
+    print(f"\n📊 Advies voor THRESHOLD_STAR (nu {THRESHOLD_STAR})")
+    print(f"  Basispercentage: {rap['treffers_totaal']} van {rap['totaal']} artikelen "
+          f"belandde in Zotero ({rap['basisrate'] * 100:.1f}%)")
+    if rap["vloer"] is not None:
+        print(f"  👎-vloer: {rap['vloer']} — geen enkel afgewezen item scoorde hoger")
+    print(f"  Timeout-negatieven tellen niet mee: hun verdeling ligt over die van de")
+    print(f"    positieven heen (\"genegeerd\" = overwegend \"niet gezien\"). "
+          f"{len(negatives_timeout)} rijen buiten beschouwing.")
+    print()
+    print(f"  {'drempel':>7} {'gesterd':>8} {'→Zotero':>8} {'precisie':>9} {'dekking':>8} {'lift':>6}")
+    for r in rap["rijen"]:
+        vlag = "  ⛔ onder de 👎-vloer" if r["onder_vloer"] else ""
+        merk = "  ← advies" if r["drempel"] == rap["advies"] else ""
+        print(f"  {r['drempel']:>7} {r['gesterd']:>8} {r['treffers']:>8} "
+              f"{r['precisie'] * 100:>8.1f}% {r['dekking'] * 100:>7.1f}% "
+              f"{r['lift']:>5.1f}×{vlag}{merk}")
+    print()
+    if rap["advies"] is None:
+        print(f"  Geen advies: {rap['reden']}")
+    else:
+        print(f"  Aanbevolen: THRESHOLD_STAR = {rap['advies']}  ({rap['reden']})")
+        if rap["advies"] != THRESHOLD_STAR:
+            print(f"  Aanpassen in feedreader_core.py; nu staat hij op {THRESHOLD_STAR}.")
+    print()
 
 
 def cleanup_transcript_cache(max_age_days: int = 90) -> None:

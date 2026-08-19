@@ -54,7 +54,17 @@ The feedreader learns from your behaviour. Two types of signal matter:
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/feedreader-learn.py
 ```
 
-After ≥30 positive signals, it prints an initial threshold recommendation. The recommendation is computed from the **positive** signals alone — percentiles over their scores. The negative and 👎 counts are printed beside it for inspection, but nothing in the calculation reads them. That is also why the two negative classes are pooled without weighting: their difference in evidential strength does not yet have anywhere to act. Apply the recommendation in `.claude/feedreader-score.py`:
+It prints an evidence table for **`THRESHOLD_STAR`** — the only threshold in the pipeline with consequences, since it decides what gets auto-starred. `THRESHOLD_GREEN` and `THRESHOLD_YELLOW` only colour the 🟢/🟡/🔴 label; nothing is filtered out (the sole limit is `MAX_FEED_ITEMS`, a count).
+
+The table reports, per candidate threshold: how many items you would star, how many of those ended up in Zotero, and the **lift** over the base rate — precision divided by the fraction of all articles that ever reached Zotero (2.6% as of 19 Aug 2026). A lift of 1.0 means the score tells you nothing you could not get by starring at random.
+
+Three deliberate choices in that calculation:
+
+- **Zotero membership is the yardstick, not the star.** The star may not grade itself; that was the circularity removed on 19 Aug 2026 (ADR-0005).
+- **👎 signals set a hard floor, not a weight.** No threshold is recommended that would star an item you explicitly rejected. With 56 observations that class cannot carry a weighting, but it carries a boundary — and a boundary is the strongest thing you can do with it.
+- **Timeout negatives are excluded, and the report says so.** Their score distribution sits almost on top of the positives' (AUC 0.585 against 0.771 for 👎): "ignored" mostly means "not seen", not "not interesting". At 10,859 rows against 56 they would drown the one informative signal 194 to 1.
+
+The recommendation is the lowest threshold above the floor that reaches a lift of 2.5× with at least 30 Zotero hits behind it — lowest rather than best, because every step up costs coverage and a missed star is cheap: nothing is filtered, the item is still in the score-sorted feed. Fall short of 30 hits and the report gives no number at all rather than one with false precision.
 
 ```python
 THRESHOLD_GREEN  = ...   # from the recommendation

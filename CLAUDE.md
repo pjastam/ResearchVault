@@ -267,7 +267,7 @@ zijn daarin niet te onderscheiden (zo staat het ook in `docs/src/usage/phase1-so
 heeft dat verschil geen gevolg, want negatieven voeden het drempeladvies niet: dat komt uitsluitend
 uit de positieven. Zodra negatieven wél gewogen worden, is dit onderscheid het eerste wat telt.
 
-Na ≥30 positieven verschijnt een drempeladvies; pas dan `THRESHOLD_GREEN` en `THRESHOLD_YELLOW` aan.
+Het drempeladvies is sinds 19 aug 2026 een **evidentie-tabel voor `THRESHOLD_STAR`** — de enige drempel met gevolgen (`THRESHOLD_GREEN`/`YELLOW` kleuren alleen; er wordt niets weggefilterd, alleen `MAX_FEED_ITEMS` begrenst). Per kandidaat-drempel: gesterd, daarvan in Zotero, precisie, dekking en **lift** t.o.v. het basispercentage (2,6%). Maatstaf is de Zotero-match, niet de ster — die mag zichzelf niet beoordelen. De 👎's leveren een **harde vloer** (geen drempel onder de hoogste afgewezen score), de timeout-negatieven blijven eruit en dat wordt gemeld. Aanbeveling = laagste drempel boven de vloer met lift ≥ 2,5× en ≥ 30 treffers; anders géén getal. Zie `feedreader_labels.star_threshold_report()`.
 
 **Signaal 2 stond tot 16 aug 2026 droog.** `get_zotero_urls()` bevroeg `itemAttachments.path` met `LIKE 'http%'`, maar dat veld bevat bestandspaden (`/Users/…`, `storage:…`) — de URL van een item of link-bijlage staat in `itemData` onder veld `url`. De query gaf dus altijd een lege set; het URL-deel van signaal 2 heeft nooit gevuurd. Na de fix: 3.489 canonieke URLs en 161 treffers in het bestaande logboek. Onzichtbaar bleef het doordat titelmatching (de andere helft van signaal 2) het opving en de uitvoerregel `✅ via URL: 0 nieuw gelabeld` er identiek uitziet aan een rustige dag — een dood signaal dat door een buurman wordt opgevangen geeft geen alarm.
 

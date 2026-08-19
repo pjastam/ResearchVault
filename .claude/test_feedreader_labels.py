@@ -10,7 +10,12 @@ zélf sterrt. Het drempeladvies bevestigde daarmee grotendeels zijn eigen oordee
 
 import unittest
 
-from feedreader_labels import apply_skips, mark_auto_starred, split_positives
+from feedreader_labels import (
+    apply_skips,
+    mark_auto_starred,
+    split_positives,
+    star_threshold_report,
+)
 
 
 def regel(**kw):
@@ -211,6 +216,97 @@ class DocContractTest(unittest.TestCase):
         echt, auto = split_positives(entries)
         self.assertEqual([e["url"] for e in echt], ["https://a.test/mens"])
         self.assertEqual([e["url"] for e in auto], ["https://a.test/auto"])
+
+
+def ster_rij(score, zotero_hit=False, skipped=False):
+    """Eén artikel voor het drempelrapport."""
+    r = {"url": f"https://a.test/{score}-{zotero_hit}-{skipped}",
+         "score": score, "zotero_hit": zotero_hit}
+    if skipped:
+        r["skipped"] = True
+    return r
+
+
+class StarThresholdReportTest(unittest.TestCase):
+    """Het advies voor THRESHOLD_STAR rust op de Zotero-match, niet op de ster.
+
+    De ster mag zichzelf niet beoordelen — dat is precies de circulariteit die op
+    19 aug 2026 uit de leerloop is gehaald (ADR-0005).
+    """
+
+    def test_precisie_en_dekking_per_drempel(self):
+        rijen = (
+            [ster_rij(80, zotero_hit=True)] * 2
+            + [ster_rij(80)] * 8       # 10 items ≥80, 2 treffers → precisie 20%
+            + [ster_rij(50, zotero_hit=True)] * 2
+            + [ster_rij(50)] * 88      # 100 items ≥50, 4 treffers → precisie 4%
+        )
+        rap = star_threshold_report(rijen, candidates=[50, 80])
+        per = {r["drempel"]: r for r in rap["rijen"]}
+        self.assertEqual(per[80]["gesterd"], 10)
+        self.assertAlmostEqual(per[80]["precisie"], 0.20)
+        self.assertAlmostEqual(per[80]["dekking"], 0.50)   # 2 van de 4 treffers
+        self.assertEqual(per[50]["gesterd"], 100)
+        self.assertAlmostEqual(per[50]["precisie"], 0.04)
+        self.assertAlmostEqual(per[50]["dekking"], 1.0)
+
+    def test_lift_is_precisie_gedeeld_door_het_basispercentage(self):
+        rijen = [ster_rij(80, zotero_hit=True)] + [ster_rij(80)] * 9 + [ster_rij(10)] * 90
+        rap = star_threshold_report(rijen, candidates=[80])
+        # basis: 1 van de 100 = 1%; precisie bij 80: 1 van de 10 = 10% → lift 10×
+        self.assertAlmostEqual(rap["basisrate"], 0.01)
+        self.assertAlmostEqual(rap["rijen"][0]["lift"], 10.0)
+
+    def test_duim_omlaag_legt_een_harde_vloer(self):
+        """Nooit een drempel adviseren die een expliciet afgewezen item zou sterren."""
+        rijen = (
+            [ster_rij(55, skipped=True)]
+            + [ster_rij(60, zotero_hit=True)] * 40
+            + [ster_rij(60)] * 40
+            + [ster_rij(10)] * 400
+        )
+        rap = star_threshold_report(rijen, candidates=[50, 60])
+        self.assertEqual(rap["vloer"], 56)
+        self.assertGreaterEqual(rap["advies"], 56)
+        self.assertEqual(rap["advies"], 60)
+
+    def test_zonder_afwijzingen_is_er_geen_vloer(self):
+        rijen = [ster_rij(60, zotero_hit=True)] * 40 + [ster_rij(10)] * 400
+        rap = star_threshold_report(rijen, candidates=[60])
+        self.assertIsNone(rap["vloer"])
+
+    def test_kiest_de_laagste_drempel_die_de_lift_haalt(self):
+        rijen = (
+            [ster_rij(90, zotero_hit=True)] * 40
+            + [ster_rij(70, zotero_hit=True)] * 40 + [ster_rij(70)] * 60
+            + [ster_rij(10)] * 900
+        )
+        rap = star_threshold_report(rijen, candidates=[70, 90], lift_target=2.5)
+        self.assertEqual(rap["advies"], 70, "laagste drempel die de lift haalt, niet de hoogste")
+
+    def test_te_weinig_treffers_geeft_geen_advies(self):
+        """Liever geen getal dan een getal met valse precisie."""
+        rijen = [ster_rij(90, zotero_hit=True)] * 5 + [ster_rij(10)] * 500
+        rap = star_threshold_report(rijen, candidates=[90], lift_target=2.5, min_hits=30)
+        self.assertIsNone(rap["advies"])
+        self.assertIn("treffers", rap["reden"])
+
+    def test_geen_enkele_zotero_treffer_geeft_geen_advies(self):
+        rijen = [ster_rij(s) for s in (10, 50, 90)]
+        rap = star_threshold_report(rijen, candidates=[50])
+        self.assertIsNone(rap["advies"])
+        self.assertEqual(rap["treffers_totaal"], 0)
+
+    def test_lege_invoer_valt_niet_om(self):
+        rap = star_threshold_report([], candidates=[70])
+        self.assertIsNone(rap["advies"])
+        self.assertEqual(rap["totaal"], 0)
+
+    def test_drempel_zonder_gesterde_items_deelt_niet_door_nul(self):
+        rijen = [ster_rij(10, zotero_hit=True)] + [ster_rij(10)] * 99
+        rap = star_threshold_report(rijen, candidates=[90])
+        self.assertEqual(rap["rijen"][0]["gesterd"], 0)
+        self.assertEqual(rap["rijen"][0]["precisie"], 0.0)
 
 
 if __name__ == "__main__":
