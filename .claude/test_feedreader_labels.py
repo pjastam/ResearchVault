@@ -163,5 +163,55 @@ class HardeStopTest(unittest.TestCase):
         self.assertNotIn("auto_starred", entries[0])
 
 
+class DocContractTest(unittest.TestCase):
+    """De signaaltabel uit docs/src/usage/phase1-sources.md, als uitvoerbare afspraak.
+
+    Die tabel is het contract van de leerloop. Rij 5 stond er sinds jaar en dag in
+    en was nooit geïmplementeerd: `process_skip_queue` zette alleen `skipped`, en
+    de labellus las dat veld nergens. Dat de uitkomst tóch klopte kwam door de
+    timeout na 3 dagen — toeval, geen ontwerp. Deze klasse zorgt dat de volgende
+    afwijking rood wordt in plaats van onzichtbaar.
+    """
+
+    def test_rij1_geklikt_en_in_zotero_is_sterk_positief(self):
+        entries = [regel(url="https://a.test/1", added_to_zotero=True)]
+        echt, _ = split_positives(entries)
+        self.assertEqual(len(echt), 1)
+
+    def test_rij4_duim_omlaag_zonder_klik_markeert_direct(self):
+        """"skipped: true immediately" — niet pas na de timeout van 3 dagen."""
+        entries = [regel(url="https://a.test/1")]
+        n, _ = apply_skips(entries, [{"url": "https://a.test/1"}])
+        self.assertEqual(n, 1)
+        self.assertTrue(entries[0]["skipped"])
+
+    def test_rij5_geklikt_dan_duim_omlaag_is_het_sterkste_negatief(self):
+        """De rij die vier maanden niet klopte.
+
+        `skipped: true` + `added_to_zotero: false`, en het 👎 wint van de ster —
+        ook van een ster die de pijplijn zelf zette.
+        """
+        entries = [regel(url="https://a.test/1", starred_in_freshrss=True, score=75)]
+        apply_skips(entries, [{"url": "https://a.test/1"}])
+        self.assertTrue(entries[0]["skipped"])
+
+        mark_auto_starred(entries, {"https://a.test/1"}, threshold=70)
+        echt, auto = split_positives(entries)
+        self.assertEqual(echt, [], "een afgewezen item is geen menselijk positief")
+        self.assertEqual(auto, [], "en ook geen auto-positief")
+
+    def test_auto_ster_is_geen_menselijk_positief(self):
+        """Niet uit de doc-tabel, maar het gevolg van ADR-0005 en taak 3."""
+        entries = [
+            regel(url="https://a.test/auto", score=80,
+                  starred_in_freshrss=True, added_to_zotero=True),
+            regel(url="https://a.test/mens", score=45, added_to_zotero=True),
+        ]
+        mark_auto_starred(entries, set(), threshold=70)
+        echt, auto = split_positives(entries)
+        self.assertEqual([e["url"] for e in echt], ["https://a.test/mens"])
+        self.assertEqual([e["url"] for e in auto], ["https://a.test/auto"])
+
+
 if __name__ == "__main__":
     unittest.main()

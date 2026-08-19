@@ -194,9 +194,11 @@ Each Atom feed is limited to the top 300 items by score. Items older than 30 day
 |--------|--------|
 | **👎 Overslaan** | Marks the item as skipped — sends a negative signal to the learning loop |
 
-The button fires a silent HTTP request to the local feedreader server via `new Image().src` — no browser tab opens. The item's URL and title are written to `skip_queue.jsonl`; `feedreader-learn.py` processes the queue the next morning.
+The button fires a silent request to the feedreader server via `new Image().src` — no browser tab opens. The item's URL, feed guid and title are written to `skip_queue.jsonl`; `feedreader-learn.py` processes the queue the next morning, matching on the guid before the URL.
 
-> **Note:** the ✅ and 📖 Zotero action buttons have been removed. NNW stars (via FreshRSS) now serve as the primary positive signal to the learning loop. Only the 👎 skip button remains active — it is fully local and does not require Zotero.
+> **The request must go over HTTPS.** The action URL is built from `FEEDREADER_PUBLIC_URL` (the Tailscale funnel on `:8443`), never from the machine's `.local` hostname. NetNewsWire receives the article over HTTPS, so a plain-HTTP subresource counts as mixed content and WebKit blocks it without a visible error. If `FEEDREADER_PUBLIC_URL` is unset the button is omitted entirely — better no button than one that is silently blocked.
+
+> **History, so the trap is not re-set.** The ✅ and 📖 Zotero action buttons were removed on 29 Apr 2026, and so was 👎 — the same commit dropped all three, while leaving the endpoint, the queue, the consumer and this page describing a button that no longer existed. It was restored on 19 Aug 2026 with the HTTPS fix. The reason it produced nothing between 18 and 29 Apr was the `.local` HTTP address, not the removal: 993 items passed through that window and not a single 👎 arrived. See ADR-0005.
 
 **Auto-starring** — items with a Bayesian score ≥70 (`THRESHOLD_STAR`) are automatically starred in FreshRSS/NNW. `feedreader-score.py` writes their URLs to `/tmp/feedreader-star-queue.txt`; `feedreader-learn.py` reads that queue each morning and stars the items via the FreshRSS GReader API before processing any other signals. This means high-confidence items appear starred in NetNewsWire without any manual action.
 

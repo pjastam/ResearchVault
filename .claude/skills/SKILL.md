@@ -165,12 +165,14 @@ De feedreader draait automatisch via launchd (login-getriggerde ochtendbatch + d
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/feedreader-learn.py
 ```
 
-**Actieknoppen:** elk item in de Atom-feed heeft ✅ (direct verwerken) en 📖 (samenvatting nodig) knoppen die het item via de feedreader-server direct aan de Zotero `_inbox` collectie toevoegen met de bijbehorende tag. De 👎-knop geeft een expliciet afwijzingssignaal. Alle knoppen werken via de image-trick (GET `/action?type=...`) in de `<content>` van elk Atom-entry — NNW rendert deze HTML en stuurt de acties naar de feedreader-server (poort 8765). Signalen worden opgeslagen in `score_log.jsonl` resp. `skip_queue.jsonl`.
+**Actieknop:** elk item in de Atom-feed heeft één 👎-knop, die een expliciet afwijzingssignaal geeft. De ✅- en 📖-knoppen zijn op 29 apr 2026 verwijderd; toevoegen aan Zotero loopt sindsdien via de share sheet. De knop werkt via de image-trick (GET `/action?type=skip`) in de `<content>` van elk Atom-entry.
+
+Twee voorwaarden, allebei gemakkelijk over het hoofd te zien. Het adres moet **`FEEDREADER_PUBLIC_URL`** zijn (de Tailscale-funnel, HTTPS): NNW krijgt het artikel over HTTPS, dus een HTTP-subresource is mixed content en wordt stil geweigerd — precies waarom de knop tussen 18 en 29 apr 2026 nul signalen opleverde, toen hij naar `http://<host>.local:8765` wees. En **"Enable JavaScript"** moet aan staan in NNW → Settings → Article Content, per apparaat. Staat de leerloop weken op nul 👎, controleer dan eerst dat vinkje. Zie ADR-0005.
 
 **Drempeladvies opvragen:**
-- Draai `feedreader-learn.py` — het verwerkt eerst de skip-queue, toont daarna ✅ positieven · 👎 expliciet afgewezen · ❌ zwak negatief
+- Draai `feedreader-learn.py` — het verwerkt eerst de skip-queue, toont daarna ✅ positieven (menselijk oordeel) · 🤖 auto-sterren (uitgesloten) · 👎 expliciet afgewezen · ❌ zwak negatief
 - Na ≥30 positieven verschijnt een initieel drempeladvies; pas `THRESHOLD_GREEN` en `THRESHOLD_YELLOW` aan in `feedreader_core.py`
-- Het leren gaat daarna continu door: ook na de initiële instelling draagt elk 👎-signaal en elke Zotero-toevoeging bij aan de kalibratie
+- Het leren gaat daarna continu door: ook na de initiële instelling draagt elke Zotero-toevoeging bij aan de kalibratie. **Let op:** sterren op of boven `THRESHOLD_STAR` zet de pijplijn zélf, en die tellen sinds 19 aug 2026 niet mee in het advies — anders bevestigt de lus zijn eigen drempel. Alleen jouw handmatige signalen sturen hem
 
 **NNW + FreshRSS:** NetNewsWire op alle apparaten verbindt met FreshRSS (`http://100.113.121.73:7077/api/greader.php`). Leesstatus synchroniseert automatisch tussen Mac Mini, iPad en iPhone. FreshRSS bewaart ongelezen items ook nadat de feedreader een nieuwe ronde heeft gedraaid — artikelen verdwijnen pas uit de ongelezen-teller als je ze markeert. De drie feeds in FreshRSS: `filtered-webpage.xml`, `filtered-youtube.xml`, `filtered-podcast.xml` (via de Tailscale-Funnel op poort 8443, lokaal poort 8765).
 
