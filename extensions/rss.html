@@ -341,9 +341,12 @@ sudo launchctl load /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
 <tr><td><strong>👎 Overslaan</strong></td><td>Marks the item as skipped — sends a negative signal to the learning loop</td></tr>
 </tbody></table>
 </div>
-<p>The button fires a silent HTTP request to the local feedreader server via <code>new Image().src</code> — no browser tab opens. The item's URL and title are written to <code>skip_queue.jsonl</code>; <code>feedreader-learn.py</code> processes the queue the next morning.</p>
+<p>The button fires a silent request to the feedreader server via <code>new Image().src</code> — no browser tab opens. The item's URL, feed guid and title are written to <code>skip_queue.jsonl</code>; <code>feedreader-learn.py</code> processes the queue the next morning, matching on the guid before the URL.</p>
 <blockquote>
-<p><strong>Note:</strong> the ✅ and 📖 Zotero action buttons have been removed. NNW stars (via FreshRSS) now serve as the primary positive signal to the learning loop. Only the 👎 skip button remains active — it is fully local and does not require Zotero.</p>
+<p><strong>The request must go over HTTPS.</strong> The action URL is built from <code>FEEDREADER_PUBLIC_URL</code> (the Tailscale funnel on <code>:8443</code>), never from the machine's <code>.local</code> hostname. NetNewsWire receives the article over HTTPS, so a plain-HTTP subresource counts as mixed content and WebKit blocks it without a visible error. If <code>FEEDREADER_PUBLIC_URL</code> is unset the button is omitted entirely — better no button than one that is silently blocked.</p>
+</blockquote>
+<blockquote>
+<p><strong>History, so the trap is not re-set.</strong> The ✅ and 📖 Zotero action buttons were removed on 29 Apr 2026, and so was 👎 — the same commit dropped all three, while leaving the endpoint, the queue, the consumer and this page describing a button that no longer existed. It was restored on 19 Aug 2026 with the HTTPS fix. The reason it produced nothing between 18 and 29 Apr was the <code>.local</code> HTTP address, not the removal: 993 items passed through that window and not a single 👎 arrived. See ADR-0005.</p>
 </blockquote>
 <p><strong>Auto-starring</strong> — items with a Bayesian score ≥70 (<code>THRESHOLD_STAR</code>) are automatically starred in FreshRSS/NNW. <code>feedreader-score.py</code> writes their URLs to <code>/tmp/feedreader-star-queue.txt</code>; <code>feedreader-learn.py</code> reads that queue each morning and stars the items via the FreshRSS GReader API before processing any other signals. This means high-confidence items appear starred in NetNewsWire without any manual action.</p>
 <p><strong>Add your source feeds</strong> to <code>.claude/feedreader-list.txt</code> instead of directly to NetNewsWire. Useful sources:</p>

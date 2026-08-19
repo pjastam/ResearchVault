@@ -211,6 +211,7 @@
 <tr><td>Clicked, then 👎</td><td>Strongest negative</td><td><code>skipped: true</code> + <code>added_to_zotero: false</code></td></tr>
 </tbody></table>
 </div>
+<p><strong>👎 is a hard stop.</strong> A rejection blocks every later signal in the loop, including a star you set by hand — it is the only unambiguous judgement in the chain, so nothing derived may override it. This is enforced in <code>feedreader_labels.py</code> and locked down by the contract tests in <code>test_feedreader_labels.py</code> (class <code>DocContractTest</code>). The last row of the table above went unimplemented from the loop's inception until 19 Aug 2026: <code>skipped</code> was written but never read back, and <code>added_to_zotero: false</code> only ever arrived by accident, via the three-day timeout.</p>
 <p><strong>Use 👎 liberally</strong> on off-topic headlines. Unclicked items are ambiguous — they could mean "not seen" just as easily as "not interesting." Only 👎 signals are unambiguous rejections.</p>
 <p>"Added to Zotero" is detected two ways, by URL and by title. The URL half was silently broken until 16 August 2026: it queried the Zotero table that holds file paths rather than the one that holds URLs, so it always came back empty. Title matching covered for it, which is precisely why it went unnoticed — a dead signal propped up by its neighbour looks exactly like a quiet day. The counts are now compared on a normalised URL, so the link Zotero recorded after redirects still matches the one the feedreader read from the RSS. Threshold statistics count each article once rather than each log line, so an article that arrived repeatedly cannot outweigh the rest.</p>
 <p><code>feedreader-learn.py</code> runs as the last step of the morning batch (triggered by your login) and again at 09:00, 12:00, 15:00, 18:00 and 21:00, and tracks signal quality. Run it manually for a progress report:</p>
@@ -234,7 +235,10 @@ THRESHOLD_YELLOW = ...   # from the recommendation
 <ul>
 <li><strong>👎 Overslaan</strong> — sends a negative signal to the learning loop</li>
 </ul>
-<p>Pressing 👎 fades the item and writes the URL to <code>skip_queue.jsonl</code>; <code>feedreader-learn.py</code> processes it the next morning. To send items to Zotero <code>_inbox</code>, use the Zotero browser extension or iOS app instead.</p>
+<p>Pressing 👎 fades the item and writes the URL, the feed guid and the title to <code>skip_queue.jsonl</code>; <code>feedreader-learn.py</code> processes it the next morning and matches on the guid before the URL (podcast feeds that reuse the show page as every episode's link would otherwise take a whole show down with one rejection). To send items to Zotero <code>_inbox</code>, use the Zotero browser extension or iOS app instead.</p>
+<blockquote>
+<p><strong>Two conditions, both easy to get wrong.</strong> The button only appears when <code>FEEDREADER_PUBLIC_URL</code> is set, and it must be the <strong>HTTPS</strong> Tailscale-funnel address. NetNewsWire receives the article over HTTPS, so a plain-HTTP subresource is mixed content and WebKit blocks it silently — measured on 19 Aug 2026 with three variants under one article: the HTTPS button landed, the identical HTTP button did not. Between 18 and 29 Apr 2026 the button pointed at <code>http://&lt;hostname&gt;.local:8765</code>; 993 items passed through and not one 👎 arrived. And JavaScript must be enabled per device, so if the loop reports zero rejections for weeks, check that box first.</p>
+</blockquote>
 <hr />
 <h2 id="source-2-ios-share-sheet"><a class="header" href="#source-2-ios-share-sheet">Source 2: iOS share sheet</a></h2>
 <p>Items you share directly from YouTube, Overcast, Safari, or NetNewsWire arrive in Zotero <code>_inbox</code> as deliberate choices. You have typically already consumed the content (watched the video, listened to the podcast, read the article) or you made a specific decision to save it.</p>

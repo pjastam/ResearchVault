@@ -290,6 +290,7 @@
 <tr><td>Clicked, then 👎</td><td>Strongest negative</td><td><code>skipped: true</code> + <code>added_to_zotero: false</code></td></tr>
 </tbody></table>
 </div>
+<p><strong>👎 is a hard stop.</strong> A rejection blocks every later signal in the loop, including a star you set by hand — it is the only unambiguous judgement in the chain, so nothing derived may override it. This is enforced in <code>feedreader_labels.py</code> and locked down by the contract tests in <code>test_feedreader_labels.py</code> (class <code>DocContractTest</code>). The last row of the table above went unimplemented from the loop's inception until 19 Aug 2026: <code>skipped</code> was written but never read back, and <code>added_to_zotero: false</code> only ever arrived by accident, via the three-day timeout.</p>
 <p><strong>Use 👎 liberally</strong> on off-topic headlines. Unclicked items are ambiguous — they could mean "not seen" just as easily as "not interesting." Only 👎 signals are unambiguous rejections.</p>
 <p>"Added to Zotero" is detected two ways, by URL and by title. The URL half was silently broken until 16 August 2026: it queried the Zotero table that holds file paths rather than the one that holds URLs, so it always came back empty. Title matching covered for it, which is precisely why it went unnoticed — a dead signal propped up by its neighbour looks exactly like a quiet day. The counts are now compared on a normalised URL, so the link Zotero recorded after redirects still matches the one the feedreader read from the RSS. Threshold statistics count each article once rather than each log line, so an article that arrived repeatedly cannot outweigh the rest.</p>
 <p><code>feedreader-learn.py</code> runs as the last step of the morning batch (triggered by your login) and again at 09:00, 12:00, 15:00, 18:00 and 21:00, and tracks signal quality. Run it manually for a progress report:</p>
@@ -313,7 +314,10 @@ THRESHOLD_YELLOW = ...   # from the recommendation
 <ul>
 <li><strong>👎 Overslaan</strong> — sends a negative signal to the learning loop</li>
 </ul>
-<p>Pressing 👎 fades the item and writes the URL to <code>skip_queue.jsonl</code>; <code>feedreader-learn.py</code> processes it the next morning. To send items to Zotero <code>_inbox</code>, use the Zotero browser extension or iOS app instead.</p>
+<p>Pressing 👎 fades the item and writes the URL, the feed guid and the title to <code>skip_queue.jsonl</code>; <code>feedreader-learn.py</code> processes it the next morning and matches on the guid before the URL (podcast feeds that reuse the show page as every episode's link would otherwise take a whole show down with one rejection). To send items to Zotero <code>_inbox</code>, use the Zotero browser extension or iOS app instead.</p>
+<blockquote>
+<p><strong>Two conditions, both easy to get wrong.</strong> The button only appears when <code>FEEDREADER_PUBLIC_URL</code> is set, and it must be the <strong>HTTPS</strong> Tailscale-funnel address. NetNewsWire receives the article over HTTPS, so a plain-HTTP subresource is mixed content and WebKit blocks it silently — measured on 19 Aug 2026 with three variants under one article: the HTTPS button landed, the identical HTTP button did not. Between 18 and 29 Apr 2026 the button pointed at <code>http://&lt;hostname&gt;.local:8765</code>; 993 items passed through and not one 👎 arrived. And JavaScript must be enabled per device, so if the loop reports zero rejections for weeks, check that box first.</p>
+</blockquote>
 <hr />
 <h2 id="source-2-ios-share-sheet"><a class="header" href="#source-2-ios-share-sheet">Source 2: iOS share sheet</a></h2>
 <p>Items you share directly from YouTube, Overcast, Safari, or NetNewsWire arrive in Zotero <code>_inbox</code> as deliberate choices. You have typically already consumed the content (watched the video, listened to the podcast, read the article) or you made a specific decision to save it.</p>
@@ -500,7 +504,7 @@ cp SKILL.md ~/Documents/ResearchVault/.claude/skills/
 <h2 id="daily-workflow-after-installation"><a class="header" href="#daily-workflow-after-installation">Daily workflow after installation</a></h2>
 <p>Once everything is set up, the daily workflow is straightforward. The feedreader runs automatically — no action required.</p>
 <ol>
-<li><strong>Browse the filtered feed</strong> at <code>http://localhost:8765/filtered.html</code> (or in NetNewsWire via the three type-specific Atom feeds). Items are sorted by relevance score. Send interesting ones to Zotero <code>_inbox</code> via the Zotero browser extension or iOS app. Press 👎 on clearly off-topic items to give a negative signal to the learning loop.</li>
+<li><strong>Browse the filtered feeds in NetNewsWire</strong> (the three type-specific Atom feeds, synced through FreshRSS). Items are sorted by relevance score. Send interesting ones to Zotero <code>_inbox</code> via the Zotero browser extension or iOS app. Press 👎 on clearly off-topic items to give a negative signal to the learning loop. There is no longer an HTML reader — <code>generate_html()</code> was removed on 18 Apr 2026 and NetNewsWire plus FreshRSS took its place.</li>
 <li><strong>Open Terminal in your vault:</strong> <code>cd ~/Documents/ResearchVault &amp;&amp; claude</code></li>
 <li><strong>Activate the skill:</strong> type <code>/research</code> or "start research workflow"</li>
 <li>Claude Code asks an intake question and guides you interactively from there</li>
@@ -620,7 +624,7 @@ THRESHOLD_YELLOW = ...   # from the recommendation
 <li><strong>Now:</strong> browse HTML reader → manually forward interesting items → Phase 2</li>
 <li><strong>After:</strong> feedreader fills <code>_inbox</code> autonomously → you interact mainly in Phase 2 and 3</li>
 </ul>
-<p>The HTML reader stays available as a transparency window and as an ongoing calibration channel. The 👎 button continues to work as a correction mechanism. Occasional browsing in NetNewsWire and sharing items to Zotero remains useful for keeping the scoring calibrated over time.</p>
+<p>NetNewsWire stays available as a transparency window and as an ongoing calibration channel. The 👎 button under each article continues to work as a correction mechanism. Occasional browsing and sharing items to Zotero remains useful for keeping the scoring calibrated over time — more so than it looks, because stars above <code>THRESHOLD_STAR</code> are set by the pipeline itself and are excluded from the threshold recommendation. Your manual signals are the only ones that steer it.</p>
 <h3 id="skill-update--after-autonomous-mode"><a class="header" href="#skill-update--after-autonomous-mode">Skill update — after autonomous mode</a></h3>
 <p>The research workflow skill (<code>SKILL.md</code>) will be updated to reflect the fully autonomous feedreader as the default state for source 1, and to document the three-source model more precisely in the daily workflow description.</p>
 <h3 id="netnewswire-integration-ongoing-optional"><a class="header" href="#netnewswire-integration-ongoing-optional">NetNewsWire integration (ongoing, optional)</a></h3>
@@ -1432,9 +1436,12 @@ sudo launchctl load /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
 <tr><td><strong>👎 Overslaan</strong></td><td>Marks the item as skipped — sends a negative signal to the learning loop</td></tr>
 </tbody></table>
 </div>
-<p>The button fires a silent HTTP request to the local feedreader server via <code>new Image().src</code> — no browser tab opens. The item's URL and title are written to <code>skip_queue.jsonl</code>; <code>feedreader-learn.py</code> processes the queue the next morning.</p>
+<p>The button fires a silent request to the feedreader server via <code>new Image().src</code> — no browser tab opens. The item's URL, feed guid and title are written to <code>skip_queue.jsonl</code>; <code>feedreader-learn.py</code> processes the queue the next morning, matching on the guid before the URL.</p>
 <blockquote>
-<p><strong>Note:</strong> the ✅ and 📖 Zotero action buttons have been removed. NNW stars (via FreshRSS) now serve as the primary positive signal to the learning loop. Only the 👎 skip button remains active — it is fully local and does not require Zotero.</p>
+<p><strong>The request must go over HTTPS.</strong> The action URL is built from <code>FEEDREADER_PUBLIC_URL</code> (the Tailscale funnel on <code>:8443</code>), never from the machine's <code>.local</code> hostname. NetNewsWire receives the article over HTTPS, so a plain-HTTP subresource counts as mixed content and WebKit blocks it without a visible error. If <code>FEEDREADER_PUBLIC_URL</code> is unset the button is omitted entirely — better no button than one that is silently blocked.</p>
+</blockquote>
+<blockquote>
+<p><strong>History, so the trap is not re-set.</strong> The ✅ and 📖 Zotero action buttons were removed on 29 Apr 2026, and so was 👎 — the same commit dropped all three, while leaving the endpoint, the queue, the consumer and this page describing a button that no longer existed. It was restored on 19 Aug 2026 with the HTTPS fix. The reason it produced nothing between 18 and 29 Apr was the <code>.local</code> HTTP address, not the removal: 993 items passed through that window and not a single 👎 arrived. See ADR-0005.</p>
 </blockquote>
 <p><strong>Auto-starring</strong> — items with a Bayesian score ≥70 (<code>THRESHOLD_STAR</code>) are automatically starred in FreshRSS/NNW. <code>feedreader-score.py</code> writes their URLs to <code>/tmp/feedreader-star-queue.txt</code>; <code>feedreader-learn.py</code> reads that queue each morning and stars the items via the FreshRSS GReader API before processing any other signals. This means high-confidence items appear starred in NetNewsWire without any manual action.</p>
 <p><strong>Add your source feeds</strong> to <code>.claude/feedreader-list.txt</code> instead of directly to NetNewsWire. Useful sources:</p>
