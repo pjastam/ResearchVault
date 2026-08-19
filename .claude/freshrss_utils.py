@@ -13,9 +13,95 @@ Benodigde variabelen in ~/.bin/.researchvault-env of als omgevingsvariabele:
 
 import json
 import os
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
+
+STREAM_OK = "ok"            # stream opgehaald, er zijn items
+STREAM_LEEG = "leeg"        # stream opgehaald en geparsed, maar zonder items
+STREAM_MISLUKT = "mislukt"  # niet op te halen of niet te parsen
+STREAM_TIMEOUT = "timeout"  # server antwoordde niet binnen de tijdslimiet
+
+STREAM_TIMEOUT_SECONDS = 30
+
+
+class StreamResult:
+    """Uitkomst van één GReader-stream-ophaalpoging.
+
+    Bestaat omdat `except Exception: return {}` HTTP 400, netwerkfouten, verlopen
+    auth en een echt lege stream ononderscheidbaar maakte. Signaal 3 uit de
+    leerloop (NNW-gelezen) stond daardoor maandenlang droog zonder dat iets het
+    meldde: FreshRSS antwoordt op de read-stream met 400, en dat werd een lege set.
+
+    Het gevaar reikt verder dan dat ene signaal. Valt de *starred*-fetch één dag
+    uit, dan verdwijnt het leeuwendeel van het positieve signaal en wordt alles die
+    run timeout-negatief — zonder alarm. Zelfde vorm als FetchResult in
+    feedreader_fetch.py, om dezelfde reden.
+    """
+
+    __slots__ = ("items", "status", "error")
+
+    def __init__(self, items, status, error=None):
+        self.items = items
+        self.status = status
+        self.error = error
+
+    @property
+    def ok(self):
+        return self.status == STREAM_OK
+
+    @property
+    def failed(self):
+        return self.status in (STREAM_MISLUKT, STREAM_TIMEOUT)
+
+    def __repr__(self):
+        return f"StreamResult({len(self.items)} items, {self.status})"
+
+
+def _authed_opener(auth):
+    """Standaard-opener: GET met GoogleLogin-header en expliciete tijdslimiet."""
+
+    def opener(url, timeout):
+        req = urllib.request.Request(
+            url, headers={"Authorization": f"GoogleLogin auth={auth}"}
+        )
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.read()
+
+    return opener
+
+
+def _fetch_json(url, auth, opener):
+    """Haalt JSON op en vertaalt elke storing naar een StreamResult-status.
+
+    Geeft (data, None) bij succes en (None, StreamResult) bij mislukking, zodat de
+    aanroeper zelf bepaalt hoe hij de items uit de data haalt.
+    """
+    if opener is None:
+        opener = _authed_opener(auth)
+    try:
+        raw = opener(url, STREAM_TIMEOUT_SECONDS)
+    except TimeoutError as exc:
+        return None, StreamResult({}, STREAM_TIMEOUT, exc)
+    except Exception as exc:
+        if isinstance(exc, urllib.error.URLError) and isinstance(
+            getattr(exc, "reason", None), TimeoutError
+        ):
+            return None, StreamResult({}, STREAM_TIMEOUT, exc)
+        return None, StreamResult({}, STREAM_MISLUKT, exc)
+    try:
+        return json.loads(raw), None
+    except Exception as exc:
+        return None, StreamResult({}, STREAM_MISLUKT, exc)
+
+
+def _first_href(item):
+    """De URL van een GReader-item, of None."""
+    for alt in item.get("alternate", []):
+        if alt.get("href"):
+            return alt["href"]
+    return None
 
 
 def load_freshrss_creds() -> dict:
@@ -81,52 +167,47 @@ def freshrss_auth(creds: dict) -> tuple[str, str]:
 
 
 def freshrss_fetch_stream(
-    base_url: str, auth: str, stream_id: str, n: int = 1000
-) -> dict[str, str]:
+    base_url: str, auth: str, stream_id: str, n: int = 1000, opener=None
+) -> StreamResult:
     """
     Haal items op uit een GReader-stream.
-    Geeft {item_url: gitem_id} terug; leeg dict bij mislukking.
+
+    Geeft een StreamResult met {item_url: gitem_id} en een expliciete status, zodat
+    "deze stream is leeg" te onderscheiden is van "de fetch is mislukt". De opener
+    is injecteerbaar zodat de tests op kale stdlib draaien, zonder netwerk.
 
     Veelgebruikte stream_id waarden:
       user/-/state/com.google/reading-list  — alle ongelezen items
       user/-/state/com.google/starred       — gestefte items
-      user/-/state/com.google/read          — gelezen items
     """
     url = (
         f"{base_url}/greader.php/reader/api/0/stream/contents/"
         f"{urllib.parse.quote(stream_id, safe='/-')}"
         f"?output=json&n={n}"
     )
-    try:
-        with urllib.request.urlopen(
-            urllib.request.Request(
-                url, headers={"Authorization": f"GoogleLogin auth={auth}"}
-            ),
-            timeout=30,
-        ) as resp:
-            data = json.loads(resp.read())
-        result = {}
-        for item in data.get("items", []):
-            for alt in item.get("alternate", []):
-                if alt.get("href"):
-                    result[alt["href"]] = item["id"]
-                    break
-        return result
-    except Exception:
-        return {}
+    data, mislukking = _fetch_json(url, auth, opener)
+    if mislukking is not None:
+        return mislukking
+
+    result = {}
+    for item in data.get("items", []):
+        href = _first_href(item)
+        if href:
+            result[href] = item["id"]
+    return StreamResult(result, STREAM_OK if result else STREAM_LEEG)
 
 
-def freshrss_starred_urls(base_url: str, auth: str) -> set[str]:
-    """Geeft de set van URLs van gestefte items in FreshRSS."""
-    return set(
-        freshrss_fetch_stream(base_url, auth, "user/-/state/com.google/starred")
+def freshrss_starred_stream(base_url: str, auth: str, opener=None) -> StreamResult:
+    """Gestefde items in FreshRSS, als StreamResult."""
+    return freshrss_fetch_stream(
+        base_url, auth, "user/-/state/com.google/starred", opener=opener
     )
 
 
-def freshrss_read_urls(base_url: str, auth: str) -> set[str]:
-    """Geeft de set van URLs van gelezen items in FreshRSS."""
-    return set(
-        freshrss_fetch_stream(base_url, auth, "user/-/state/com.google/read")
+def freshrss_read_stream(base_url: str, auth: str, opener=None) -> StreamResult:
+    """Gelezen items in FreshRSS, als StreamResult."""
+    return freshrss_fetch_stream(
+        base_url, auth, "user/-/state/com.google/read", opener=opener
     )
 
 
@@ -138,10 +219,15 @@ def freshrss_star_by_urls(
     Haalt de reading-list op om URL→item_id te resolven, sterf dan de matches.
     Geeft het aantal succesvol gesterfde items terug.
     """
-    stream_map = freshrss_fetch_stream(
+    stream = freshrss_fetch_stream(
         base_url, auth, "user/-/state/com.google/reading-list"
     )
-    to_star = [stream_map[u] for u in urls if u in stream_map]
+    if stream.failed:
+        # Onderscheid bewaren: -1 is "de lookup mislukte", 0 is "geen van deze
+        # URLs stond in de reading-list". Zonder dat onderscheid ziet een storing
+        # eruit als een rustige dag — de fout die deze hele reparatie aanleiding gaf.
+        return -1
+    to_star = [stream.items[u] for u in urls if u in stream.items]
     if not to_star:
         return 0
     starred = 0

@@ -9,6 +9,8 @@ on:
       - '.claude/test_feedreader_fetch.py'
       - '.claude/feedreader_identity.py'
       - '.claude/test_feedreader_identity.py'
+      - '.claude/freshrss_utils.py'
+      - '.claude/test_freshrss_utils.py'
       - '.github/workflows/tests.yml'
   pull_request:
     paths:
@@ -18,6 +20,8 @@ on:
       - '.claude/test_feedreader_fetch.py'
       - '.claude/feedreader_identity.py'
       - '.claude/test_feedreader_identity.py'
+      - '.claude/freshrss_utils.py'
+      - '.claude/test_freshrss_utils.py'
 
 jobs:
   unittest:

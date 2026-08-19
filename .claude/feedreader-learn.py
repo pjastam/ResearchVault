@@ -26,11 +26,12 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from freshrss_utils import (
+    STREAM_LEEG,
     load_freshrss_creds,
     freshrss_auth,
     freshrss_star_by_urls,
-    freshrss_starred_urls,
-    freshrss_read_urls,
+    freshrss_starred_stream,
+    freshrss_read_stream,
 )
 from zotero_utils import make_sqlite_copy
 from feedreader_identity import canonical_url, dedupe_by_url
@@ -217,6 +218,11 @@ def main():
     # FreshRSS GReader-signalen: gestefd (positief) en gelezen (negatief)
     fr_starred: set[str] = set()
     fr_read:    set[str] = set()
+    # Alleen wanneer beide streams betrouwbaar binnenkwamen, mogen de negatieve
+    # signalen vuren. Een mislukte fetch geeft een lege set, en zonder deze vlag
+    # zou een storing dus élk openstaand item als negatief labelen — precies de
+    # verwisseling van "leeg" en "mislukt" die deze reparatie wegneemt.
+    signalen_betrouwbaar = False
     fr_creds = load_freshrss_creds()
     if all(fr_creds.values()):
         fr_auth, fr_post = freshrss_auth(fr_creds)
@@ -225,14 +231,27 @@ def main():
                 queue_urls = [u for u in STAR_QUEUE.read_text(encoding="utf-8").splitlines() if u]
                 if queue_urls:
                     starred = freshrss_star_by_urls(fr_creds["url"], fr_auth, fr_post, queue_urls)
-                    print(f"     ⭐ {starred}/{len(queue_urls)} item(s) gestefd via star-queue.")
+                    if starred < 0:
+                        print(f"     ⚠️  star-queue MISLUKT: reading-list niet op te halen; "
+                              f"{len(queue_urls)} item(s) niet gesterd.")
+                    else:
+                        print(f"     ⭐ {starred}/{len(queue_urls)} item(s) gestefd via star-queue.")
                 STAR_QUEUE.unlink()
             # Canonicaliseren omdat de logkant dat ook wordt. FreshRSS levert de
             # URL terug die in de Atom-<link> stond; dat is dezelfde ruwe URL als
             # in het logboek, dus dit repareert geen bestaande breuk — het maakt
             # de match ongevoelig voor toekomstige parameterruis.
-            fr_starred = {canonical_url(u) for u in freshrss_starred_urls(fr_creds["url"], fr_auth)}
-            fr_read    = {canonical_url(u) for u in freshrss_read_urls(fr_creds["url"], fr_auth)}
+            starred_res = freshrss_starred_stream(fr_creds["url"], fr_auth)
+            read_res    = freshrss_read_stream(fr_creds["url"], fr_auth)
+            for naam, res in (("gesterd", starred_res), ("gelezen", read_res)):
+                if res.failed:
+                    print(f"     ⚠️  FreshRSS-stream '{naam}' MISLUKT ({res.status}): {res.error}")
+                    print(f"         → dit signaal draagt deze run niets bij; labels blijven staan.")
+                elif res.status == STREAM_LEEG:
+                    print(f"     ℹ️  FreshRSS-stream '{naam}' is leeg (geen storing).")
+            signalen_betrouwbaar = not (starred_res.failed or read_res.failed)
+            fr_starred = {canonical_url(u) for u in starred_res.items}
+            fr_read    = {canonical_url(u) for u in read_res.items}
             fr_starred.discard("")
             fr_read.discard("")
             print(f"     ⭐ {len(fr_starred)} gestefd, 📖 {len(fr_read)} gelezen in FreshRSS.")
@@ -305,7 +324,10 @@ def main():
         # actie. Dit legt afwezigheid van handeling vast: "niet gezien" en "niet interessant"
         # zijn er niet in te onderscheiden. Het staat laatst in de lus omdat het het breedste
         # net is, niet omdat het het meeste bewijst.
-        if ts < cutoff:
+        # Alleen labelen als de FreshRSS-signalen deze run betrouwbaar binnenkwamen.
+        # Anders zou een mislukte fetch elk openstaand item als negatief wegzetten,
+        # en labels zijn onherroepelijk (`is not None: continue` hierboven).
+        if ts < cutoff and signalen_betrouwbaar:
             entry["added_to_zotero"] = False
             newly_false += 1
 
