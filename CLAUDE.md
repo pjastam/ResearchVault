@@ -240,7 +240,7 @@ De feedreader scoort RSS/YouTube/podcast-feeds automatisch op relevantie en prod
 - `POST /api/inbox/nogo` — verwijdert `key` direct uit Zotero `_inbox` (synchroon, web-API)
 - `POST /api/inbox/summarize` — start `summarize_item.py` voor `key` (asynchroon)
 
-**Scores en labels:** 🟢 ≥50 · 🟡 40–49 · 🔴 <40 (Bayesiaanse scores met prior π=0.70; drempels worden bijgesteld via feedreader-learn.py). Items met score ≥70 worden auto-gestefd in FreshRSS/NNW.
+**Scores en labels:** 🟢 ≥50 · 🟡 40–49 · 🔴 <40 (Bayesiaanse scores met prior π=0.70; drempels worden bijgesteld via feedreader-learn.py). Items met score ≥`THRESHOLD_STAR` (sinds 19 aug 2026: **75**, was 70) worden auto-gestefd in FreshRSS/NNW.
 
 **Handmatig uitvoeren:**
 ```bash

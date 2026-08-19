@@ -200,7 +200,7 @@ The button fires a silent request to the feedreader server via `new Image().src`
 
 > **History, so the trap is not re-set.** The ✅ and 📖 Zotero action buttons were removed on 29 Apr 2026, and so was 👎 — the same commit dropped all three, while leaving the endpoint, the queue, the consumer and this page describing a button that no longer existed. It was restored on 19 Aug 2026 with the HTTPS fix. The reason it produced nothing between 18 and 29 Apr was the `.local` HTTP address, not the removal: 993 items passed through that window and not a single 👎 arrived. See ADR-0005.
 
-**Auto-starring** — items with a Bayesian score ≥70 (`THRESHOLD_STAR`) are automatically starred in FreshRSS/NNW. `feedreader-score.py` writes their URLs to `/tmp/feedreader-star-queue.txt`; `feedreader-learn.py` reads that queue each morning and stars the items via the FreshRSS GReader API before processing any other signals. This means high-confidence items appear starred in NetNewsWire without any manual action.
+**Auto-starring** — items with a Bayesian score at or above `THRESHOLD_STAR` (75 since 19 Aug 2026, previously 70) are automatically starred in FreshRSS/NNW. `feedreader-score.py` writes their URLs to `/tmp/feedreader-star-queue.txt`; `feedreader-learn.py` reads that queue each morning and stars the items via the FreshRSS GReader API before processing any other signals. This means high-confidence items appear starred in NetNewsWire without any manual action.
 
 **Add your source feeds** to `.claude/feedreader-list.txt` instead of directly to NetNewsWire. Useful sources:
 - Journal RSS (e.g. BMJ, NEJM, Wiley Health Economics)

@@ -12,7 +12,11 @@ import numpy as np
 
 THRESHOLD_GREEN  = 50
 THRESHOLD_YELLOW = 40
-THRESHOLD_STAR   = 70  # items met score ≥ dit worden auto-gestefd in FreshRSS/NNW
+THRESHOLD_STAR   = 75  # items met score ≥ dit worden auto-gestefd in FreshRSS/NNW
+                       # 70 → 75 op 19 aug 2026, op advies van feedreader-learn.py:
+                       # lift 1,9× → 2,6× t.o.v. het basispercentage van 2,6%, ten koste
+                       # van dekking (31,0% → 20,5%). Een gemiste ster is goedkoop — er
+                       # wordt niets weggefilterd, het item staat in de gesorteerde feed.
 
 PRIOR_RELEVANCE = 0.80  # a priori kans dat een item uit de geselecteerde feeds relevant is — tijdelijk 0.80 voor testdoeleinden (was 0.70)
 
