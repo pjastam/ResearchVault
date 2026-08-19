@@ -437,12 +437,33 @@ def extract_video_id(url: str) -> str | None:
     return m.group(1) if m else None
 
 
+def is_block(exc: Exception) -> bool:
+    """Herkent een rate-limit of IP-blokkade aan de naam van de exceptie.
+
+    Bewust op de klassenaam en niet op het type: youtube_transcript_api hernoemt
+    zijn excepties tussen versies, en een gemiste blokkade is duurder dan een
+    valse treffer — die kost hooguit een herhaalde poging, terwijl een gemiste
+    blokkade de cache voorgoed vergiftigt.
+
+    Woonde tot 19 aug 2026 alleen in backfill-scout.py, terwijl beide scripts naar
+    dezelfde cachemap schrijven. Eén schrijver was gehard, de andere niet.
+    """
+    n = type(exc).__name__.lower()
+    return "block" in n or "ratelimit" in n or "toomanyrequests" in n
+
+
 def fetch_and_cache_transcript(
     video_id: str, title: str, channel: str, url: str, published: str
 ) -> str | None:
     """
     Haalt het transcript op via YouTubeTranscriptApi en slaat het op in de cache.
-    Schrijft ook bij mislukking een cache-bestand om herhaalde API-pogingen te vermijden.
+
+    Bij een écht ontbrekend transcript wordt de mislukking gecachet, om herhaalde
+    API-pogingen te vermijden. Bij een blokkade juist niet: die zegt niets over
+    dit transcript, alleen over dit moment. Meting 19 aug 2026: 81 van de 275
+    YouTube-cachebestanden (29,5%) stond op `text: null`, en er is achteraf niet
+    te zien welke daarvan echt geen transcript hebben en welke ooit geblokkeerd
+    werden. Een titel-only item scoort aantoonbaar scheef.
     """
     TRANSCRIPT_CACHE_DIR.mkdir(exist_ok=True)
     cache_file = TRANSCRIPT_CACHE_DIR / f"{video_id}.json"
@@ -462,8 +483,16 @@ def fetch_and_cache_transcript(
             video_id, languages=["nl", "en", "de", "fr"]
         )
         text = " ".join(s.text for s in snippets)
-    except Exception:
-        pass  # geen transcript beschikbaar; cache toch om herhaalde pogingen te voorkomen
+    except Exception as exc:
+        if is_block(exc):
+            # Niet cachen. Zou dit als `text: null` in de cache belanden, dan is
+            # de video voorgoed titel-only — ononderscheidbaar van een video die
+            # echt geen transcript heeft.
+            print(f"⚠️  transcript geblokkeerd ({type(exc).__name__}) voor {video_id}; "
+                  f"niet gecachet, volgende run opnieuw", file=sys.stderr)
+            return None
+        # Geen blokkade: er is echt geen transcript. Wel cachen, om herhaalde
+        # API-pogingen te vermijden.
 
     cache_file.write_text(json.dumps({
         "video_id":   video_id,
