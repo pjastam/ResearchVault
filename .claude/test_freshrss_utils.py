@@ -20,6 +20,7 @@ from freshrss_utils import (
     STREAM_OK,
     STREAM_TIMEOUT,
     freshrss_fetch_stream,
+    freshrss_read_stream,
 )
 
 BASE = "http://freshrss.test/api"
@@ -88,6 +89,59 @@ class FetchStreamTest(unittest.TestCase):
         ]}
         res = freshrss_fetch_stream(BASE, AUTH, STREAM, opener=FakeOpener(body))
         self.assertEqual(res.items, {"https://a.test/2": "g2"})
+
+
+class ReadStreamRouteTest(unittest.TestCase):
+    """De read-state komt uit de reading-list, niet uit een eigen read-stream.
+
+    FreshRSS antwoordt op stream/contents/user/-/state/com.google/read met
+    HTTP 400 (vastgesteld 17 aug 2026, live gereproduceerd 19 aug). De
+    reading-list levert dezelfde items mét hun categorieën, en die dragen de
+    read-state — één call, en de URL zit erbij.
+    """
+
+    def test_leest_read_state_uit_categories(self):
+        body = {"items": [
+            {"id": "g1",
+             "categories": ["user/-/state/com.google/reading-list",
+                            "user/-/state/com.google/read"],
+             "alternate": [{"href": "https://a.test/gelezen"}]},
+            {"id": "g2",
+             "categories": ["user/-/state/com.google/reading-list"],
+             "alternate": [{"href": "https://a.test/ongelezen"}]},
+        ]}
+        res = freshrss_read_stream(BASE, AUTH, opener=FakeOpener(body))
+        self.assertEqual(res.status, STREAM_OK)
+        self.assertEqual(res.items, {"https://a.test/gelezen": "g1"})
+
+    def test_vraagt_de_reading_list_op_niet_de_read_stream(self):
+        opener = FakeOpener({"items": []})
+        freshrss_read_stream(BASE, AUTH, opener=opener)
+        gevraagde_url = opener.calls[0][0]
+        self.assertIn("reading-list", gevraagde_url)
+        # De oude route eindigde op .../com.google/read?… — die geeft bij FreshRSS 400.
+        self.assertNotIn("com.google/read?", gevraagde_url)
+
+    def test_geen_gelezen_items_is_leeg_niet_mislukt(self):
+        body = {"items": [
+            {"id": "g2",
+             "categories": ["user/-/state/com.google/reading-list"],
+             "alternate": [{"href": "https://a.test/ongelezen"}]},
+        ]}
+        res = freshrss_read_stream(BASE, AUTH, opener=FakeOpener(body))
+        self.assertEqual(res.status, STREAM_LEEG)
+        self.assertFalse(res.failed)
+
+    def test_mislukte_fetch_blijft_mislukt(self):
+        exc = urllib.error.HTTPError(BASE, 500, "Server Error", {}, None)
+        res = freshrss_read_stream(BASE, AUTH, opener=FakeOpener(exc))
+        self.assertTrue(res.failed)
+        self.assertEqual(res.status, STREAM_MISLUKT)
+
+    def test_item_zonder_categories_telt_niet_als_gelezen(self):
+        body = {"items": [{"id": "g3", "alternate": [{"href": "https://a.test/x"}]}]}
+        res = freshrss_read_stream(BASE, AUTH, opener=FakeOpener(body))
+        self.assertEqual(res.items, {})
 
 
 if __name__ == "__main__":

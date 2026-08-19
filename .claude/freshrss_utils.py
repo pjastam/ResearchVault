@@ -25,6 +25,9 @@ STREAM_TIMEOUT = "timeout"  # server antwoordde niet binnen de tijdslimiet
 
 STREAM_TIMEOUT_SECONDS = 30
 
+READING_LIST = "user/-/state/com.google/reading-list"
+READ_STATE = "user/-/state/com.google/read"
+
 
 class StreamResult:
     """Uitkomst van één GReader-stream-ophaalpoging.
@@ -205,10 +208,36 @@ def freshrss_starred_stream(base_url: str, auth: str, opener=None) -> StreamResu
 
 
 def freshrss_read_stream(base_url: str, auth: str, opener=None) -> StreamResult:
-    """Gelezen items in FreshRSS, als StreamResult."""
-    return freshrss_fetch_stream(
-        base_url, auth, "user/-/state/com.google/read", opener=opener
+    """Gelezen items in FreshRSS, als StreamResult.
+
+    Afgeleid uit de reading-list in plaats van uit een eigen read-stream. De
+    directe route `stream/contents/user/-/state/com.google/read` geeft bij FreshRSS
+    HTTP 400 — vastgesteld 17 aug 2026 en live gereproduceerd op 19 aug. Dat werd
+    door de oude `except Exception: return {}` een lege set, ononderscheidbaar van
+    "je hebt niets gelezen", waardoor signaal 3 van de leerloop maandenlang droog
+    stond.
+
+    De reading-list levert dezelfde items mét hun `categories`, en daar staat de
+    read-state in. Eén call, en de URL zit er al bij — het alternatief
+    (`stream/items/ids?s=…/read`) geeft alleen ID's en zou een tweede ronde vergen.
+    """
+    url = (
+        f"{base_url}/greader.php/reader/api/0/stream/contents/"
+        f"{urllib.parse.quote(READING_LIST, safe='/-')}"
+        f"?output=json&n=1000"
     )
+    data, mislukking = _fetch_json(url, auth, opener)
+    if mislukking is not None:
+        return mislukking
+
+    result = {}
+    for item in data.get("items", []):
+        if READ_STATE not in item.get("categories", []):
+            continue
+        href = _first_href(item)
+        if href:
+            result[href] = item["id"]
+    return StreamResult(result, STREAM_OK if result else STREAM_LEEG)
 
 
 def freshrss_star_by_urls(
