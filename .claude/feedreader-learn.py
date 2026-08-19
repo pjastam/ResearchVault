@@ -34,7 +34,9 @@ from freshrss_utils import (
     freshrss_read_stream,
 )
 from zotero_utils import make_sqlite_copy
+from feedreader_core import THRESHOLD_STAR
 from feedreader_identity import canonical_url, dedupe_by_url
+from feedreader_labels import mark_auto_starred, split_positives
 
 # ── Configuratie ──────────────────────────────────────────────────────────────
 
@@ -223,6 +225,9 @@ def main():
     # zou een storing dus élk openstaand item als negatief labelen — precies de
     # verwisseling van "leeg" en "mislukt" die deze reparatie wegneemt.
     signalen_betrouwbaar = False
+    # Buiten het STAR_QUEUE-blok, want de markeerpas hieronder gebruikt hem ook
+    # wanneer de queue deze run ontbreekt.
+    queue_urls: list[str] = []
     fr_creds = load_freshrss_creds()
     if all(fr_creds.values()):
         fr_auth, fr_post = freshrss_auth(fr_creds)
@@ -259,6 +264,14 @@ def main():
             print("     ⚠️  FreshRSS GReader auth mislukt; FreshRSS-signalen overgeslagen.")
     else:
         print("     ℹ️  FRESHRSS_API_WACHTWOORD niet ingesteld; FreshRSS-signalen overgeslagen.")
+
+    # Auto-sterren markeren vóór het labelen. Een ster die de pijplijn zichzelf gaf
+    # is geen menselijk oordeel; zonder dit onderscheid bevestigt het drempeladvies
+    # grotendeels zijn eigen drempel. Zie feedreader_labels.mark_auto_starred.
+    gemarkeerd = mark_auto_starred(entries, queue_urls, THRESHOLD_STAR)
+    if gemarkeerd:
+        print(f"     🤖 {gemarkeerd} regel(s) gemarkeerd als auto-ster "
+              f"(blijven gelabeld, tellen niet mee in het advies).")
 
     # Logboek labelen
     print("[3/4] Logboek bijwerken...")
@@ -344,8 +357,14 @@ def main():
     print("[4/4] Drempeladvies berekenen...")
     # Per artikel tellen, niet per logregel: churn heeft de dataset scheefgetrokken
     # (147 overtollige positieven, 414 negatieven). Zie dedupe_by_url().
-    positives        = [e["score"] for e in dedupe_by_url(
-                        [e for e in entries if e.get("added_to_zotero") is True])]
+    # Alleen menselijk oordeel voedt het advies. De auto-ster is zelfbevestiging:
+    # score.py sterrt alles ≥ THRESHOLD_STAR, learn.py leest die ster in dezelfde
+    # run terug als positief bewijs. Meting 19 aug 2026: 1.815 van de 1.816
+    # gesterde regels lag op of boven de drempel — het advies kwam niet toevallig
+    # uit op ongeveer THRESHOLD_STAR.
+    echte_pos, auto_pos = split_positives(entries)
+    positives        = [e["score"] for e in dedupe_by_url(echte_pos)]
+    auto_positives   = [e["score"] for e in dedupe_by_url(auto_pos)]
     skipped          = [e["score"] for e in dedupe_by_url(
                         [e for e in entries if e.get("skipped") is True])]
     negatives_nnw    = [e["score"] for e in dedupe_by_url(
@@ -364,7 +383,8 @@ def main():
 
     print(f"\n{'=' * 52}")
     print(f"Gelabelde dataset:")
-    print(f"  ✅ positieven (Zotero of NNW-ster):              {len(positives)}")
+    print(f"  ✅ positieven (menselijk oordeel):               {len(positives)}")
+    print(f"  🤖 auto-sterren (uitgesloten van het advies):    {len(auto_positives)}")
     print(f"  ❌ zwakste negatief (timeout, dubbelzinnig):     {len(negatives_timeout)}")
     print(f"  📖 sterk negatief (NNW gelezen, niet Zotero):   {len(negatives_nnw)}")
     print(f"  👎 expliciet afgewezen (skip-knop):              {len(skipped)}")
