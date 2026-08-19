@@ -961,6 +961,12 @@ def main():
             "source_type":     item["source_type"],
             "timestamp":       now.isoformat(),
             "text_length":     len(item["score_text"]),
+            # De ster-drempel die op dit moment gold. feedreader-learn.py
+            # beoordeelt een regel met de drempel die tóén actief was: zonder dit
+            # veld zou elke verhoging van THRESHOLD_STAR de betekenis van
+            # bestaande regels verschuiven, en zouden handmatige sterren in de
+            # band [oude drempel, nieuwe drempel) als zelfbevestiging gaan gelden.
+            "star_threshold":  THRESHOLD_STAR,
             "added_to_zotero": None,
         }
         for item in all_items
@@ -970,7 +976,13 @@ def main():
     # 4b. Star-kandidaten opslaan voor verwerking in feedreader-learn.py (na freshrss actualize)
     star_candidates = [i["url"] for i in all_items if i.get("score", 0) >= THRESHOLD_STAR and i.get("url")]
     if star_candidates:
-        STAR_QUEUE.write_text("\n".join(star_candidates) + "\n", encoding="utf-8")
+        # Appenden, niet overschrijven. feedreader-learn.py leegt de queue pas na
+        # een geslaagde sterractie; draait score.py intussen opnieuw — bijvoorbeeld
+        # omdat de FreshRSS-authenticatie een dag faalde — dan zou write_text het
+        # bewijs van de vorige ronde wissen. Dat bewijs is wat mark_auto_starred
+        # onderscheidt van de vuistregel. learn.py ontdubbelt bij het lezen.
+        with STAR_QUEUE.open("a", encoding="utf-8") as f:
+            f.write("\n".join(star_candidates) + "\n")
         print(f"     ⭐ {len(star_candidates)} item(s) met score ≥{THRESHOLD_STAR} opgeslagen in star-queue.")
     else:
         print("     Geen star-kandidaten.")

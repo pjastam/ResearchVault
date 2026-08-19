@@ -38,6 +38,12 @@ STAR_LIFT_TARGET = 2.5
 # een getal. Liever geen advies dan valse precisie.
 MIN_HITS_FOR_ADVICE = 30
 
+# De ster-drempel die gold vóór logregels een eigen `star_threshold` gingen dragen
+# (19 aug 2026). Van 29 apr tot die datum stond THRESHOLD_STAR op 70. Deze waarde
+# hoort NOOIT mee te bewegen met de levende drempel: hij beschrijft een afgesloten
+# periode. Verhoog je THRESHOLD_STAR, dan verandert hier niets.
+HISTORIC_AUTOSTAR_THRESHOLD = 70
+
 
 def _entry_keys(entry):
     """Sleutelvormen waaronder een logregel bekend kan zijn: identity én canonieke URL.
@@ -96,19 +102,30 @@ def apply_skips(entries, skips):
     return count, ongematcht
 
 
-def mark_auto_starred(entries, star_urls, threshold):
+def mark_auto_starred(entries, star_urls, fallback_threshold=HISTORIC_AUTOSTAR_THRESHOLD):
     """Markeert logregels die de pijplijn zélf gesterd heeft.
 
-    Twee bronnen van bewijs:
+    Twee bronnen van bewijs, in deze volgorde:
 
-    * de URL stond in de star-queue van deze run — hard bewijs;
-    * de regel draagt een ster én scoort op of boven ``threshold`` — het
-      historische geval, want de star-queue van toen bestaat niet meer.
+    * **de star-queue van deze run** — hard bewijs: wíj hebben hem gesterd;
+    * **de vuistregel** "gesterd én score ≥ de drempel die op deze regel staat" —
+      het vangnet voor regels waarvan het queue-bewijs niet (meer) bestaat.
 
-    Die tweede regel is een gemeten benadering, geen zekerheid. Van de 1.816
-    gesterde logregels op 19 aug 2026 lag er precies één onder de drempel.
-    Handmatig sterren laat een andere verdeling achter dan dat: wie met de hand
-    sterrt, raakt ook af en toe een 55.
+    De vuistregel leest ``star_threshold`` van de regel zélf, niet de levende
+    ``THRESHOLD_STAR``. Dat is de kern: een regel wordt beoordeeld met de drempel
+    die tóén gold. Zou hij de huidige waarde lezen, dan zou elke verhoging de
+    betekenis van bestaande regels veranderen — handmatige sterren in de band
+    [oude drempel, nieuwe drempel) zouden als zelfbevestiging gaan gelden, en die
+    band groeit bij elke volgende verhoging. Bevriezen op één constante lost dat
+    niet op; dan schuift de fout alleen naar de andere kant.
+
+    ``fallback_threshold`` geldt uitsluitend voor regels zónder dat veld. Die
+    dateren per definitie van vóór 19 aug 2026, toen de drempel op 70 stond.
+
+    De vuistregel is een gemeten benadering, geen zekerheid. Van de 1.823 gesterde
+    logregels op 19 aug 2026 lag er precies één onder de drempel; handmatig sterren
+    laat een andere verdeling achter dan dat. Ze blijft nodig zolang het
+    queue-bewijs verloren kan gaan — zie de append-semantiek van de star-queue.
 
     Eenrichting en idempotent: markeert alleen, verwijdert nooit. Regels met een
     expliciete afwijzing (``skipped``) worden overgeslagen — een 👎 blokkeert alle
@@ -124,9 +141,12 @@ def mark_auto_starred(entries, star_urls, threshold):
             continue
         url = canonical_url(entry.get("url", ""))
         uit_queue = bool(url) and url in canon
+        drempel_toen = entry.get("star_threshold")
+        if drempel_toen is None:
+            drempel_toen = fallback_threshold
         historisch = (
             entry.get("starred_in_freshrss") is True
-            and (entry.get("score") or 0) >= threshold
+            and (entry.get("score") or 0) >= drempel_toen
         )
         if uit_queue or historisch:
             entry["auto_starred"] = True
