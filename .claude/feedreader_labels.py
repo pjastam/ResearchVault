@@ -24,6 +24,20 @@ en dat is niet terug te draaien. Ze worden gemarkeerd en uitgesloten uit het adv
 
 from feedreader_identity import canonical_url
 
+# Kandidaat-drempels voor het THRESHOLD_STAR-advies.
+STAR_CANDIDATES = tuple(range(40, 91, 5))
+
+# Hoeveel beter dan willekeurig een drempel minimaal moet zijn voordat hij
+# aanbevolen wordt. Bewust arbitrair, maar expliciet arbitrair: het volledige
+# lift-verloop wordt eronder getoond zodat de keuze te overrulen is. 2,5× is
+# gekozen omdat de score onder ~65 een lift van hooguit 1,2× haalt (gemeten
+# 19 aug 2026) — dat is niet te onderscheiden van willekeurig sterren.
+STAR_LIFT_TARGET = 2.5
+
+# Onder dit aantal Zotero-treffers boven de drempel is de schatting te dun voor
+# een getal. Liever geen advies dan valse precisie.
+MIN_HITS_FOR_ADVICE = 30
+
 
 def _entry_keys(entry):
     """Sleutelvormen waaronder een logregel bekend kan zijn: identity én canonieke URL.
@@ -137,3 +151,97 @@ def split_positives(entries):
             continue
         (auto if entry.get("auto_starred") else echt).append(entry)
     return echt, auto
+
+
+def star_threshold_report(rows, candidates=STAR_CANDIDATES,
+                          lift_target=STAR_LIFT_TARGET,
+                          min_hits=MIN_HITS_FOR_ADVICE):
+    """Evidentie-tabel voor `THRESHOLD_STAR`: wat levert elke drempel op?
+
+    **Positief is de Zotero-match (`zotero_hit`), niet de ster.** De ster mag
+    zichzelf niet beoordelen — precies de circulariteit die op 19 aug 2026 uit de
+    leerloop is gehaald (ADR-0005). Elke rij is één artikel (ontdubbeld), met
+    `score`, `zotero_hit` en eventueel `skipped`.
+
+    Drie grootheden per kandidaat-drempel:
+
+    * **precisie** — welk deel van wat je zou sterren, belandde in Zotero;
+    * **dekking** — welk deel van alles wat in Zotero belandde, zou je sterren;
+    * **lift** — precisie gedeeld door het basispercentage. 1,0 betekent: niet te
+      onderscheiden van willekeurig sterren.
+
+    De 👎-signalen leveren een **harde vloer** in plaats van een gewicht: geen
+    drempel wordt aanbevolen die een expliciet afgewezen item zou sterren. Met 56
+    waarnemingen (meting 19 aug 2026) draagt die klasse geen weging, maar wel een
+    grens — en dat is het sterkste dat je ermee kunt doen.
+
+    De timeout-negatieven doen hier bewust *niet* aan mee. Hun scoreverdeling ligt
+    vrijwel over die van de positieven heen (AUC 0,585 tegen 0,771 voor de 👎's):
+    "genegeerd" betekent overwegend "niet gezien", niet "niet interessant". Met
+    10.859 tegen 56 rijen zouden ze het enige informatieve signaal 194 op 1
+    overstemmen. De aanroeper hoort dat te melden in plaats van ze stil weg te
+    laten.
+
+    Geeft een dict met `basisrate`, `totaal`, `treffers_totaal`, `vloer`,
+    `rijen` (per drempel) en `advies` + `reden`.
+    """
+    totaal = len(rows)
+    treffers_totaal = sum(1 for r in rows if r.get("zotero_hit"))
+    basisrate = treffers_totaal / totaal if totaal else 0.0
+
+    skip_scores = [r.get("score", 0) for r in rows if r.get("skipped")]
+    vloer = max(skip_scores) + 1 if skip_scores else None
+
+    tabel = []
+    for drempel in candidates:
+        boven = [r for r in rows if r.get("score", 0) >= drempel]
+        treffers = sum(1 for r in boven if r.get("zotero_hit"))
+        precisie = treffers / len(boven) if boven else 0.0
+        tabel.append({
+            "drempel":  drempel,
+            "gesterd":  len(boven),
+            "treffers": treffers,
+            "precisie": precisie,
+            "dekking":  treffers / treffers_totaal if treffers_totaal else 0.0,
+            "lift":     precisie / basisrate if basisrate else 0.0,
+            "onder_vloer": vloer is not None and drempel < vloer,
+        })
+
+    advies, reden = _kies_drempel(tabel, vloer, lift_target, min_hits,
+                                  treffers_totaal, basisrate)
+    return {
+        "basisrate":       basisrate,
+        "totaal":          totaal,
+        "treffers_totaal": treffers_totaal,
+        "vloer":           vloer,
+        "rijen":           tabel,
+        "advies":          advies,
+        "reden":           reden,
+    }
+
+
+def _kies_drempel(tabel, vloer, lift_target, min_hits, treffers_totaal, basisrate):
+    """De laagste drempel boven de vloer die de lift én het minimum aantal haalt.
+
+    De láágste, niet de beste: elke stap hoger kost dekking, en een gemiste ster
+    is goedkoop omdat er niets wordt weggefilterd — het item staat gewoon in de
+    gesorteerde feed. Zodra de lift gehaald is, is verder verhogen alleen nog
+    verlies.
+    """
+    if not treffers_totaal or not basisrate:
+        return None, "geen enkele Zotero-treffer in het logboek; niets om op te ijken"
+
+    haalbaar = [r for r in tabel if not r["onder_vloer"] and r["lift"] >= lift_target]
+    if not haalbaar:
+        return None, (f"geen enkele drempel haalt een lift van {lift_target}× — "
+                      f"de score onderscheidt hier te weinig")
+
+    genoeg = [r for r in haalbaar if r["treffers"] >= min_hits]
+    if not genoeg:
+        beste = max(haalbaar, key=lambda r: r["treffers"])
+        return None, (f"te weinig treffers boven de drempel ({beste['treffers']} < {min_hits}); "
+                      f"de schatting is te dun voor een getal")
+
+    keuze = min(genoeg, key=lambda r: r["drempel"])
+    return keuze["drempel"], (f"laagste drempel boven de vloer met lift ≥ {lift_target}× "
+                              f"en ≥ {min_hits} treffers")
