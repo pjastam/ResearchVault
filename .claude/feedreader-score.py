@@ -553,8 +553,64 @@ def _make_atom_content_html(item: dict) -> str:
             if para:
                 parts.append(f"<p>{html.escape(para)}</p>")
 
+    parts.extend(_skip_button_html(item))
+
     content = "\n".join(parts)
     return content.replace("]]>", "]]&gt;")
+
+
+def _skip_button_html(item: dict) -> list[str]:
+    """De 👎-knop onder een artikel, of niets als er geen HTTPS-adres is.
+
+    **Het adres moet PUBLIC_BASE_URL zijn.** NetNewsWire krijgt het artikel over
+    HTTPS binnen via de Tailscale-funnel; een HTTP-subresource daarin is mixed
+    content en wordt door WebKit stil geweigerd. Precies dat maakte de knop tussen
+    18 en 29 april 2026 waardeloos: hij wees naar `http://{hostname}.local:8765`,
+    en dat is bovendien mDNS (alleen op het thuisnetwerk). In dat venster
+    passeerden 993 items en kwam er nul 👎 binnen.
+
+    Gemeten op 19 aug 2026 met drie varianten onder één artikel in NNW: knop over
+    HTTPS kwam aan, dezelfde knop over HTTP niet, en een gewone link over HTTPS
+    ook wel. Zie ADR-0005.
+
+    Vereist "Enable JavaScript" in NNW → Settings → Article Content. Zonder
+    PUBLIC_BASE_URL geven we bewust géén knop: liever geen knop dan een knop die
+    stil geblokkeerd wordt.
+    """
+    if not PUBLIC_BASE_URL:
+        return []
+
+    q = urllib.parse.urlencode({
+        "url":      item.get("url", ""),
+        "title":    item.get("title", ""),
+        # De identity meesturen zodat feedreader-learn.py op de guid kan matchen.
+        # Zonder dit valt de match terug op de canonieke URL, en dan raakt één 👎
+        # op een Captivate-podcast álle afleveringen van die show.
+        "identity": item.get("identity", ""),
+        "type":     "skip",
+    })
+    action_url = f"{PUBLIC_BASE_URL}/action?{q}"
+    btn_style = (
+        "cursor:pointer;border:1px solid #ccc;border-radius:5px;"
+        "background:#f5f5f5;padding:.25rem .6rem;font-size:.85em;"
+    )
+    return [
+        '<hr style="margin:1.5em 0;border:none;border-top:1px solid #ccc">',
+        f'<p><button style="{btn_style}" onclick="rvSkip(this)">👎 Overslaan</button></p>',
+        '<script>function rvSkip(b){'
+        'b.disabled=true;b.style.opacity=".5";'
+        'var i=new Image();'
+        'i.onload=function(){b.textContent="\\u2713 Afgewezen";};'
+        'i.onerror=function(){b.textContent="\\u26a0\\ufe0f Fout";};'
+        # Bewust NIET html.escape(): de inhoud van een <script> is in HTML raw
+        # text, dus character references worden er niet gedecodeerd. Een `&amp;`
+        # zou letterlijk in de URL belanden, waardoor `type` verandert in
+        # `amp;type` en de server 400 antwoordt — de knop zou stuk zijn.
+        # Veilig zonder escapen omdat urlencode() alle aanhalingstekens en
+        # punthaken al percent-codeert; uitbreken uit de JS-string kan niet.
+        f'i.src="{action_url}";'
+        '}</script>',
+    ]
 
 
 def generate_atom(items: list[dict], generated_at: datetime, feed_title: str = "Feedreader — Gefilterde RSS-feed") -> str:

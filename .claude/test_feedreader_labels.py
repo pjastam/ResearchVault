@@ -10,7 +10,7 @@ zélf sterrt. Het drempeladvies bevestigde daarmee grotendeels zijn eigen oordee
 
 import unittest
 
-from feedreader_labels import mark_auto_starred, split_positives
+from feedreader_labels import apply_skips, mark_auto_starred, split_positives
 
 
 def regel(**kw):
@@ -83,6 +83,84 @@ class SplitPositivesTest(unittest.TestCase):
         echt, auto = split_positives(entries)
         self.assertEqual(echt, [])
         self.assertEqual(auto, [])
+
+
+class SkipTest(unittest.TestCase):
+    def test_matcht_op_identity_niet_op_url(self):
+        """Podcasts delen de showpagina als link; alleen de guid onderscheidt afleveringen.
+
+        Captivate en RedCircle geven bij élke aflevering dezelfde showpagina als
+        link. Op URL matchen zou één 👎 de hele show laten raken — precies het
+        defect waarvoor feedreader_identity.py is gebouwd.
+        """
+        entries = [
+            regel(url="https://pod.test/show/", identity="uuid-afl-1"),
+            regel(url="https://pod.test/show/", identity="uuid-afl-2"),
+        ]
+        n, ongematcht = apply_skips(entries, [{"identity": "uuid-afl-2"}])
+        self.assertEqual(n, 1)
+        self.assertEqual(ongematcht, [])
+        self.assertNotIn("skipped", entries[0])
+        self.assertTrue(entries[1]["skipped"])
+
+    def test_valt_terug_op_url_voor_regels_zonder_identity(self):
+        """Regels van vóór 16 aug 2026 dragen geen identity-veld."""
+        entries = [regel(url="https://a.test/oud?utm_source=x")]
+        n, ongematcht = apply_skips(entries, [{"url": "https://a.test/oud"}])
+        self.assertEqual(n, 1)
+        self.assertTrue(entries[0]["skipped"])
+
+    def test_meldt_wat_niet_matchte_in_plaats_van_het_weg_te_gooien(self):
+        entries = [regel(url="https://a.test/1")]
+        n, ongematcht = apply_skips(entries, [{"url": "https://onbekend.test/x"}])
+        self.assertEqual(n, 0)
+        self.assertEqual(len(ongematcht), 1)
+        self.assertEqual(ongematcht[0]["url"], "https://onbekend.test/x")
+
+    def test_al_gemarkeerde_regel_telt_niet_dubbel(self):
+        entries = [regel(url="https://a.test/1", skipped=True)]
+        n, ongematcht = apply_skips(entries, [{"url": "https://a.test/1"}])
+        self.assertEqual(n, 0)
+        self.assertEqual(ongematcht, [], "hij matchte wél, dus hij is niet verloren")
+
+    def test_skip_zonder_bruikbare_sleutel_wordt_genegeerd(self):
+        entries = [regel(url="https://a.test/1")]
+        n, ongematcht = apply_skips(entries, [{"url": "", "identity": ""}])
+        self.assertEqual(n, 0)
+        self.assertEqual(ongematcht, [])
+
+    def test_een_skip_kan_meerdere_logregels_van_hetzelfde_artikel_raken(self):
+        """Link-churn heeft hetzelfde artikel vaak meermaals gelogd."""
+        entries = [
+            regel(url="https://a.test/x?ff=111"),
+            regel(url="https://a.test/x?ff=222"),
+        ]
+        n, ongematcht = apply_skips(entries, [{"url": "https://a.test/x"}])
+        self.assertEqual(n, 2)
+        self.assertEqual(ongematcht, [])
+
+
+class HardeStopTest(unittest.TestCase):
+    """ADR-0005: een 👎 blokkeert alle latere signalen, ook een handmatige ster."""
+
+    def test_skipped_wint_van_een_handmatige_ster(self):
+        entries = [regel(url="https://a.test/1", score=55,
+                         starred_in_freshrss=True, added_to_zotero=True)]
+        echt_voor, _ = split_positives(entries)
+        self.assertEqual(len(echt_voor), 1, "voorwaarde: telt eerst wél als positief")
+
+        n, ongematcht = apply_skips(entries, [{"url": "https://a.test/1"}])
+        self.assertEqual(n, 1)
+        self.assertEqual(ongematcht, [])
+
+        echt_na, auto_na = split_positives(entries)
+        self.assertEqual(echt_na, [], "na het 👎 telt het niet meer als positief")
+        self.assertEqual(auto_na, [])
+
+    def test_skipped_blokkeert_ook_de_auto_stermarkering(self):
+        entries = [regel(url="https://a.test/1", score=75, skipped=True)]
+        self.assertEqual(mark_auto_starred(entries, {"https://a.test/1"}, threshold=70), 0)
+        self.assertNotIn("auto_starred", entries[0])
 
 
 if __name__ == "__main__":

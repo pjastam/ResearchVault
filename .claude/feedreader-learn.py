@@ -36,7 +36,7 @@ from freshrss_utils import (
 from zotero_utils import make_sqlite_copy
 from feedreader_core import THRESHOLD_STAR
 from feedreader_identity import canonical_url, dedupe_by_url
-from feedreader_labels import mark_auto_starred, split_positives
+from feedreader_labels import apply_skips, mark_auto_starred, split_positives
 
 # ── Configuratie ──────────────────────────────────────────────────────────────
 
@@ -143,14 +143,19 @@ def save_log(path: Path, entries: list[dict]) -> None:
             fcntl.flock(f, fcntl.LOCK_UN)
 
 
-def process_skip_queue(entries: list[dict]) -> int:
-    """
-    Verwerkt skip_queue.jsonl: zoekt elk URL op in entries en zet skipped=True.
-    Leegt de queue atomair (lezen + truncate binnen één exclusieve lock) zodat
-    geen skip-signalen verloren gaan als feedreader-server.py gelijktijdig schrijft.
+def drain_skip_queue() -> list[dict]:
+    """Leest skip_queue.jsonl en leegt hem atomair.
+
+    Lezen en truncaten binnen één exclusieve lock, zodat er geen skip-signalen
+    verloren gaan als feedreader-server.py gelijktijdig schrijft.
+
+    Alleen I/O — de matchlogica zit in feedreader_labels.apply_skips, zodat die
+    testbaar is. Tot 19 aug 2026 zaten beide hier, en toen matchte hij op de
+    canonieke URL in plaats van op de identity; niet-gematchte skips werden
+    stilzwijgend weggegooid.
     """
     if not SKIP_QUEUE.exists():
-        return 0
+        return []
     queue = []
     with SKIP_QUEUE.open("r+", encoding="utf-8") as f:
         fcntl.flock(f, fcntl.LOCK_EX)
@@ -164,16 +169,7 @@ def process_skip_queue(entries: list[dict]) -> int:
             f.truncate()
         finally:
             fcntl.flock(f, fcntl.LOCK_UN)
-    if not queue:
-        return 0
-    skip_urls = {canonical_url(e["url"]) for e in queue if e.get("url")}
-    skip_urls.discard("")
-    count = 0
-    for entry in entries:
-        if canonical_url(entry.get("url", "")) in skip_urls and not entry.get("skipped"):
-            entry["skipped"] = True
-            count += 1
-    return count
+    return queue
 
 
 # ── Hoofdprogramma ────────────────────────────────────────────────────────────
@@ -197,12 +193,24 @@ def main():
     # Logboek laden + skip-queue verwerken
     entries = load_log(LOG_FILE)
     print(f"\n[1/4] Skip-queue verwerken...")
-    newly_skipped = process_skip_queue(entries)
+    skips = drain_skip_queue()
+    newly_skipped, ongematcht = apply_skips(entries, skips)
     if newly_skipped:
         save_log(LOG_FILE, entries)
         print(f"     👎 {newly_skipped} item(s) als 'skipped' gemarkeerd.")
+    elif skips:
+        print(f"     {len(skips)} skip-signaal(en) verwerkt, geen nieuwe markeringen.")
     else:
         print(f"     Geen nieuwe skip-signalen.")
+    if ongematcht:
+        # De queue is al geleegd, dus deze zijn weg. Melden in plaats van
+        # verzwijgen: een 👎 dat nergens op matcht is een defect (verkeerde
+        # sleutel, item buiten het logboek), geen rustige dag.
+        print(f"     ⚠️  {len(ongematcht)} skip-signaal(en) matchten geen logregel en zijn verloren:")
+        for skip in ongematcht[:5]:
+            print(f"         {skip.get('url', '?')}")
+        if len(ongematcht) > 5:
+            print(f"         … en nog {len(ongematcht) - 5}")
 
     # Zotero-URLs en -titels + FreshRSS-signalen ophalen
     print("[2/4] Zotero-URLs en -titels + FreshRSS-signalen ophalen...")
@@ -284,10 +292,23 @@ def main():
     newly_true_starred = 0
     newly_false        = 0
     newly_false_nnw    = 0
+    newly_false_skip   = 0
     relabeled_url      = 0
 
     for entry in entries:
         url = canonical_url(entry.get("url", ""))
+
+        # ADR-0005 — harde stop. Een expliciete afwijzing blokkeert alle latere
+        # signalen, inclusief een handmatig gezette ster. Het 👎 is het enige
+        # ondubbelzinnige oordeel in de keten; afgeleide signalen mogen het niet
+        # overschrijven. Tot 19 aug 2026 las de labellus het veld `skipped`
+        # nergens, terwijl phase1-sources.md al beloofde dat een 👎 na een klik
+        # `added_to_zotero: false` zou opleveren.
+        if entry.get("skipped"):
+            if entry.get("added_to_zotero") is None:
+                entry["added_to_zotero"] = False
+                newly_false_skip += 1
+            continue
 
         if entry.get("added_to_zotero") is not None:
             # Herlabelpas — nodig omdat get_zotero_urls() tot 16 aug 2026 een
@@ -352,6 +373,7 @@ def main():
     print(f"     ✅ via titel:         {newly_true_title} nieuw gelabeld")
     print(f"     📖 NNW gelezen/geen Zotero (>{NNW_READ_LABEL_AFTER_DAYS}d): {newly_false_nnw} nieuw gelabeld")
     print(f"     ❌ genegeerd, timeout (>{LABEL_AFTER_DAYS}d): {newly_false} nieuw gelabeld")
+    print(f"     👎 expliciet afgewezen (harde stop):        {newly_false_skip} nieuw gelabeld")
 
     # Drempeladvies
     print("[4/4] Drempeladvies berekenen...")

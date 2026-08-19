@@ -25,6 +25,63 @@ en dat is niet terug te draaien. Ze worden gemarkeerd en uitgesloten uit het adv
 from feedreader_identity import canonical_url
 
 
+def _entry_keys(entry):
+    """Sleutelvormen waaronder een logregel bekend kan zijn: identity én canonieke URL.
+
+    Twee vormen, om dezelfde reden als ``feedreader_identity.item_keys``: het
+    ``identity``-veld bestaat alleen op regels van ná 16 aug 2026, dus de canonieke
+    URL draagt de historie.
+    """
+    keys = set()
+    ident = entry.get("identity")
+    if ident:
+        keys.add(ident)
+    url = canonical_url(entry.get("url", ""))
+    if url:
+        keys.add(url)
+    return keys
+
+
+def apply_skips(entries, skips):
+    """Markeert logregels die expliciet zijn afgewezen (👎).
+
+    Matcht op identity vóór URL, net als de rest van de pijplijn sinds
+    16 aug 2026. Dat is nodig voor podcastfeeds die bij elke aflevering dezelfde
+    showpagina als link geven: op alleen de URL zou één 👎 de hele show raken.
+
+    Geeft ``(aantal_gemarkeerd, niet_gematchte_skips)`` terug. Die tweede bestaat
+    omdat de skip-queue onvoorwaardelijk geleegd wordt: zonder dit verdwijnt een
+    👎 dat nergens op past geruisloos, en ziet de uitvoerregel eruit als een
+    rustige dag. Dat is exact het maskeringspatroon dat de leerloop al drie keer
+    eerder heeft getroffen.
+    """
+    gezocht = []
+    for skip in skips:
+        sleutels = set()
+        if skip.get("identity"):
+            sleutels.add(skip["identity"])
+        cu = canonical_url(skip.get("url", ""))
+        if cu:
+            sleutels.add(cu)
+        if sleutels:
+            gezocht.append([skip, sleutels, False])  # [skip, sleutels, geraakt]
+
+    count = 0
+    for entry in entries:
+        keys = _entry_keys(entry)
+        if not keys:
+            continue
+        for paar in gezocht:
+            if keys & paar[1]:
+                paar[2] = True
+                if not entry.get("skipped"):
+                    entry["skipped"] = True
+                    count += 1
+                break
+    ongematcht = [paar[0] for paar in gezocht if not paar[2]]
+    return count, ongematcht
+
+
 def mark_auto_starred(entries, star_urls, threshold):
     """Markeert logregels die de pijplijn zélf gesterd heeft.
 

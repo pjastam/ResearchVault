@@ -498,9 +498,13 @@ class FeedreaderHandler(http.server.SimpleHTTPRequestHandler):
 
     def _handle_action(self, query_string: str):
         params = urllib.parse.parse_qs(query_string)
-        url    = params.get("url",   [""])[0]
-        action = params.get("type",  [""])[0]
-        title  = params.get("title", [""])[0]
+        url      = params.get("url",      [""])[0]
+        action   = params.get("type",     [""])[0]
+        title    = params.get("title",    [""])[0]
+        # De guid uit de Atom-feed. feedreader-learn.py matcht daarop vóór de URL,
+        # zodat een 👎 op een podcastaflevering niet de hele show raakt (die feeds
+        # geven bij elke aflevering dezelfde showpagina als link).
+        identity = params.get("identity", [""])[0]
 
         if not url or action != "skip":
             self._respond_html(400, "<p>Ongeldige aanvraag.</p>")
@@ -508,7 +512,8 @@ class FeedreaderHandler(http.server.SimpleHTTPRequestHandler):
 
         ts = datetime.now(timezone.utc).isoformat()
         with SKIP_QUEUE.open("a", encoding="utf-8") as f:
-            f.write(json.dumps({"url": url, "title": title, "timestamp": ts},
+            f.write(json.dumps({"url": url, "identity": identity,
+                                "title": title, "timestamp": ts},
                                ensure_ascii=False) + "\n")
         self._respond_pixel(200)
 
@@ -545,9 +550,15 @@ class FeedreaderHandler(http.server.SimpleHTTPRequestHandler):
         self.wfile.write(encoded)
 
     def log_message(self, format, *args):
+        # Een geslaagde GET /action (200) viel voorheen door alle drie de
+        # voorwaarden heen en werd dus nooit gelogd, terwijl een falende (4xx/5xx)
+        # er wél in kwam. Het instrument waarmee je zou controleren of het
+        # 👎-signaal leeft, was dus blind voor het geval dát het leeft — en dat
+        # heeft de diagnose van de dode knop maandenlang vertraagd.
         if args and (
             str(args[0]).startswith("POST")
             or (len(args) > 1 and str(args[1]) >= "400")
+            or "/action" in str(args[0])
             or (len(args) > 1 and str(args[1]) == "200" and any(f in str(args[0]) for f in self._FEED_FILES))
         ):
             super().log_message(format, *args)
