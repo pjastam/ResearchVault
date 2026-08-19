@@ -35,7 +35,7 @@ class AutoStarTest(unittest.TestCase):
             regel(url="https://a.test/hoog", score=75),
             regel(url="https://a.test/laag", score=42),
         ]
-        n = mark_auto_starred(entries, {"https://a.test/hoog"}, threshold=70)
+        n = mark_auto_starred(entries, {"https://a.test/hoog"}, fallback_threshold=70)
         self.assertEqual(n, 1)
         self.assertTrue(entries[0]["auto_starred"])
         self.assertNotIn("auto_starred", entries[1])
@@ -43,32 +43,32 @@ class AutoStarTest(unittest.TestCase):
     def test_markeert_historische_sterren_op_of_boven_de_drempel(self):
         """De star-queue van toen bestaat niet meer; score + ster is het bewijs."""
         entries = [regel(url="https://a.test/oud", score=74, starred_in_freshrss=True)]
-        n = mark_auto_starred(entries, set(), threshold=70)
+        n = mark_auto_starred(entries, set(), fallback_threshold=70)
         self.assertEqual(n, 1)
         self.assertTrue(entries[0]["auto_starred"])
 
     def test_handmatige_ster_onder_de_drempel_blijft_ongemarkeerd(self):
         entries = [regel(url="https://a.test/handmatig", score=55,
                          starred_in_freshrss=True)]
-        n = mark_auto_starred(entries, set(), threshold=70)
+        n = mark_auto_starred(entries, set(), fallback_threshold=70)
         self.assertEqual(n, 0)
         self.assertNotIn("auto_starred", entries[0])
 
     def test_ongesterde_regel_op_de_drempel_blijft_ongemarkeerd(self):
         """Score alleen is niet genoeg — er moet ook echt een ster staan."""
         entries = [regel(url="https://a.test/x", score=80)]
-        n = mark_auto_starred(entries, set(), threshold=70)
+        n = mark_auto_starred(entries, set(), fallback_threshold=70)
         self.assertEqual(n, 0)
 
     def test_canonicaliseert_de_queue_urls(self):
         entries = [regel(url="https://a.test/hoog?utm_source=nnw", score=75)]
-        n = mark_auto_starred(entries, {"https://a.test/hoog"}, threshold=70)
+        n = mark_auto_starred(entries, {"https://a.test/hoog"}, fallback_threshold=70)
         self.assertEqual(n, 1)
 
     def test_is_idempotent(self):
         entries = [regel(url="https://a.test/hoog", score=75)]
-        mark_auto_starred(entries, {"https://a.test/hoog"}, threshold=70)
-        n = mark_auto_starred(entries, {"https://a.test/hoog"}, threshold=70)
+        mark_auto_starred(entries, {"https://a.test/hoog"}, fallback_threshold=70)
+        n = mark_auto_starred(entries, {"https://a.test/hoog"}, fallback_threshold=70)
         self.assertEqual(n, 0)
 
 
@@ -164,7 +164,7 @@ class HardeStopTest(unittest.TestCase):
 
     def test_skipped_blokkeert_ook_de_auto_stermarkering(self):
         entries = [regel(url="https://a.test/1", score=75, skipped=True)]
-        self.assertEqual(mark_auto_starred(entries, {"https://a.test/1"}, threshold=70), 0)
+        self.assertEqual(mark_auto_starred(entries, {"https://a.test/1"}, fallback_threshold=70), 0)
         self.assertNotIn("auto_starred", entries[0])
 
 
@@ -200,7 +200,7 @@ class DocContractTest(unittest.TestCase):
         apply_skips(entries, [{"url": "https://a.test/1"}])
         self.assertTrue(entries[0]["skipped"])
 
-        mark_auto_starred(entries, {"https://a.test/1"}, threshold=70)
+        mark_auto_starred(entries, {"https://a.test/1"}, fallback_threshold=70)
         echt, auto = split_positives(entries)
         self.assertEqual(echt, [], "een afgewezen item is geen menselijk positief")
         self.assertEqual(auto, [], "en ook geen auto-positief")
@@ -212,10 +212,68 @@ class DocContractTest(unittest.TestCase):
                   starred_in_freshrss=True, added_to_zotero=True),
             regel(url="https://a.test/mens", score=45, added_to_zotero=True),
         ]
-        mark_auto_starred(entries, set(), threshold=70)
+        mark_auto_starred(entries, set(), fallback_threshold=70)
         echt, auto = split_positives(entries)
         self.assertEqual([e["url"] for e in echt], ["https://a.test/mens"])
         self.assertEqual([e["url"] for e in auto], ["https://a.test/auto"])
+
+
+class TijdperkTest(unittest.TestCase):
+    """Een logregel wordt beoordeeld met de drempel die tóén gold, niet die van nu.
+
+    De vuistregel "gesterd én score ≥ drempel" leest sinds 19 aug 2026 het veld
+    `star_threshold` van de regel zelf. Zonder dat veld zou elke verhoging van
+    THRESHOLD_STAR de betekenis van bestaande regels veranderen: handmatige
+    sterren in de band [oude drempel, nieuwe drempel) zouden ten onrechte als
+    zelfbevestiging gelden, en dat verlies groeit met elke volgende verhoging.
+    """
+
+    def test_regel_uit_het_70_tijdperk_telt_als_auto(self):
+        entries = [regel(score=72, starred_in_freshrss=True, star_threshold=70)]
+        self.assertEqual(mark_auto_starred(entries, set(), fallback_threshold=70), 1)
+        self.assertTrue(entries[0]["auto_starred"])
+
+    def test_dezelfde_score_uit_het_75_tijdperk_is_handmatig(self):
+        """72 lag onder de drempel van 75, dus de pijplijn kan hem niet gezet hebben."""
+        entries = [regel(score=72, starred_in_freshrss=True, star_threshold=75)]
+        self.assertEqual(mark_auto_starred(entries, set(), fallback_threshold=70), 0)
+        self.assertNotIn("auto_starred", entries[0])
+
+    def test_regel_zonder_veld_valt_terug_op_de_historische_drempel(self):
+        """Regels zonder star_threshold dateren van vóór 19 aug 2026 — toen gold 70."""
+        entries = [regel(score=72, starred_in_freshrss=True)]
+        self.assertEqual(mark_auto_starred(entries, set(), fallback_threshold=70), 1)
+
+    def test_twee_tijdperken_in_een_dataset_worden_apart_beoordeeld(self):
+        entries = [
+            regel(url="https://a.test/oud",    score=72, starred_in_freshrss=True, star_threshold=70),
+            regel(url="https://a.test/nieuw",  score=72, starred_in_freshrss=True, star_threshold=75),
+            regel(url="https://a.test/hoog",   score=78, starred_in_freshrss=True, star_threshold=75),
+        ]
+        self.assertEqual(mark_auto_starred(entries, set(), fallback_threshold=70), 2)
+        self.assertTrue(entries[0].get("auto_starred"))
+        self.assertNotIn("auto_starred", entries[1])
+        self.assertTrue(entries[2].get("auto_starred"))
+
+    def test_een_volgende_verhoging_verandert_de_historie_niet(self):
+        """De vraag die dit alles uitlokte: overleeft dit een tweede verhoging?"""
+        maak = lambda: [
+            regel(url="https://a.test/a", score=72, starred_in_freshrss=True, star_threshold=70),
+            regel(url="https://a.test/b", score=78, starred_in_freshrss=True, star_threshold=75),
+            regel(url="https://a.test/c", score=82, starred_in_freshrss=True, star_threshold=80),
+        ]
+        # De fallback is de enige knop die met de tijd zou kunnen meebewegen; hij
+        # mag de uitkomst voor regels mét een eigen veld niet raken.
+        for fallback in (70, 75, 80, 85):
+            entries = maak()
+            self.assertEqual(mark_auto_starred(entries, set(), fallback_threshold=fallback), 3,
+                             f"fallback {fallback} veranderde de historie")
+
+    def test_star_queue_wint_altijd_van_de_vuistregel(self):
+        """Hard bewijs gaat voor: de queue zegt dat wíj hem gesterd hebben."""
+        entries = [regel(url="https://a.test/x", score=10, star_threshold=75)]
+        self.assertEqual(
+            mark_auto_starred(entries, {"https://a.test/x"}, fallback_threshold=70), 1)
 
 
 def ster_rij(score, zotero_hit=False, skipped=False):

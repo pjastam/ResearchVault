@@ -37,6 +37,7 @@ from zotero_utils import make_sqlite_copy
 from feedreader_core import THRESHOLD_STAR
 from feedreader_identity import canonical_url, dedupe_by_url
 from feedreader_labels import (
+    HISTORIC_AUTOSTAR_THRESHOLD,
     apply_skips,
     mark_auto_starred,
     split_positives,
@@ -193,6 +194,22 @@ def drain_skip_queue() -> list[dict]:
     return queue
 
 
+def read_star_queue() -> list[str]:
+    """Leest de star-queue, ontdubbeld en met behoud van volgorde.
+
+    Leegt hem *niet* — dat gebeurt pas na een geslaagde sterractie. De queue
+    groeit aan (feedreader-score.py appendt) omdat hij tot 19 aug 2026 met
+    `write_text` werd overschreven: draaide score.py twee keer voordat learn.py
+    hem las — bijvoorbeeld nadat de FreshRSS-authenticatie een dag faalde — dan
+    was het bewijs van de eerste ronde weg. Ontdubbelen is daardoor nodig: het
+    bestand kan dezelfde URL meermaals bevatten.
+    """
+    if not STAR_QUEUE.exists():
+        return []
+    regels = [u.strip() for u in STAR_QUEUE.read_text(encoding="utf-8").splitlines()]
+    return list(dict.fromkeys(u for u in regels if u))
+
+
 # ── Hoofdprogramma ────────────────────────────────────────────────────────────
 
 def main():
@@ -256,21 +273,28 @@ def main():
     signalen_betrouwbaar = False
     # Buiten het STAR_QUEUE-blok, want de markeerpas hieronder gebruikt hem ook
     # wanneer de queue deze run ontbreekt.
-    queue_urls: list[str] = []
+    # Buiten het auth-blok: de queue is óók het bewijs waarop mark_auto_starred
+    # markeert. Zat hij binnen `if fr_auth:`, dan ging bij een authenticatiefout
+    # niet alleen het sterren mis maar ook de markering — en overschreef de
+    # volgende score-run het bewijs. Zie de append-semantiek in feedreader-score.py.
+    queue_urls = read_star_queue()
     fr_creds = load_freshrss_creds()
     if all(fr_creds.values()):
         fr_auth, fr_post = freshrss_auth(fr_creds)
         if fr_auth:
-            if STAR_QUEUE.exists():
-                queue_urls = [u for u in STAR_QUEUE.read_text(encoding="utf-8").splitlines() if u]
-                if queue_urls:
-                    starred = freshrss_star_by_urls(fr_creds["url"], fr_auth, fr_post, queue_urls)
-                    if starred < 0:
-                        print(f"     ⚠️  star-queue MISLUKT: reading-list niet op te halen; "
-                              f"{len(queue_urls)} item(s) niet gesterd.")
-                    else:
-                        print(f"     ⭐ {starred}/{len(queue_urls)} item(s) gestefd via star-queue.")
-                STAR_QUEUE.unlink()
+            if queue_urls:
+                starred = freshrss_star_by_urls(fr_creds["url"], fr_auth, fr_post, queue_urls)
+                if starred < 0:
+                    print(f"     ⚠️  star-queue MISLUKT: reading-list niet op te halen; "
+                          f"{len(queue_urls)} item(s) niet gesterd — queue blijft staan "
+                          f"voor de volgende run.")
+                else:
+                    print(f"     ⭐ {starred}/{len(queue_urls)} item(s) gestefd via star-queue.")
+                    # Pas legen ná succes. Tot 19 aug 2026 gebeurde dat
+                    # onvoorwaardelijk, dus een mislukte run gooide de kandidaten weg.
+                    STAR_QUEUE.unlink(missing_ok=True)
+            elif STAR_QUEUE.exists():
+                STAR_QUEUE.unlink(missing_ok=True)
             # Canonicaliseren omdat de logkant dat ook wordt. FreshRSS levert de
             # URL terug die in de Atom-<link> stond; dat is dezelfde ruwe URL als
             # in het logboek, dus dit repareert geen bestaande breuk — het maakt
@@ -297,7 +321,11 @@ def main():
     # Auto-sterren markeren vóór het labelen. Een ster die de pijplijn zichzelf gaf
     # is geen menselijk oordeel; zonder dit onderscheid bevestigt het drempeladvies
     # grotendeels zijn eigen drempel. Zie feedreader_labels.mark_auto_starred.
-    gemarkeerd = mark_auto_starred(entries, queue_urls, THRESHOLD_STAR)
+    # Bewust NIET THRESHOLD_STAR: elke regel draagt sinds 19 aug 2026 zelf de
+    # drempel die toen gold. De fallback geldt alleen voor regels van vóór die
+    # datum, en die waarde ligt vast — hij hoort niet mee te bewegen als
+    # THRESHOLD_STAR verandert.
+    gemarkeerd = mark_auto_starred(entries, queue_urls, HISTORIC_AUTOSTAR_THRESHOLD)
     if gemarkeerd:
         print(f"     🤖 {gemarkeerd} regel(s) gemarkeerd als auto-ster "
               f"(blijven gelabeld, tellen niet mee in het advies).")
