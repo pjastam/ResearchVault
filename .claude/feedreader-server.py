@@ -215,6 +215,32 @@ _worker_thread = threading.Thread(target=_inbox_worker, daemon=True)
 _worker_thread.start()
 
 
+def veilig_pad(basis: Path, verzoekpad: str) -> Path | None:
+    """Zet een URL-pad om naar een pad binnen `basis`, of None als het eruit wijst.
+
+    `http.server.SimpleHTTPRequestHandler.translate_path()` strijkt `..` zelf weg,
+    maar routes die het pad zélf samenstellen omzeilen die bescherming. Dat gold
+    voor `_serve_xml`: `SERVE_DIR / path.lstrip("/")` liet `/../buiten.xml` uit de
+    serveermap klimmen. Omdat de server via Tailscale Funnel op poort 8443 aan het
+    publieke internet hangt, was dat een onauthenticated leesmogelijkheid op elk
+    `.xml`-bestand van de gebruiker (vastgesteld 21 aug 2026, HTTP 200 zowel lokaal
+    als via de funnel).
+
+    Twee stappen zijn allebei nodig: eerst percent-decoderen, want anders glipt
+    `%2e%2e/` erlangs; daarna het opgeloste pad vergelijken met de wortel, wat ook
+    symlinks afvangt die naar buiten wijzen.
+    """
+    schoon = urllib.parse.unquote(verzoekpad).lstrip("/")
+    if "\x00" in schoon:
+        return None
+    try:
+        doel = (basis / schoon).resolve()
+        wortel = basis.resolve()
+    except OSError:
+        return None
+    return doel if doel.is_relative_to(wortel) and doel != wortel else None
+
+
 class FeedreaderHandler(http.server.SimpleHTTPRequestHandler):
 
     _FEED_FILES = ("filtered-webpage.xml", "filtered-youtube.xml", "filtered-podcast.xml")
@@ -483,8 +509,9 @@ class FeedreaderHandler(http.server.SimpleHTTPRequestHandler):
 
     def _serve_xml(self, path: str):
         """Serveert XML-feeds altijd als volledige respons (nooit 304)."""
-        file_path = SERVE_DIR / path.lstrip("/")
-        if not file_path.exists():
+        file_path = veilig_pad(SERVE_DIR, path)
+        # 404 en niet 403: een verboden pad mag niet verklappen of het bestaat.
+        if file_path is None or not file_path.is_file():
             self.send_error(404)
             return
         data = file_path.read_bytes()
