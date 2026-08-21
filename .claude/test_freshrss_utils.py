@@ -14,6 +14,7 @@ import json
 import unittest
 import urllib.error
 
+import freshrss_utils
 from freshrss_utils import (
     STREAM_LEEG,
     STREAM_MISLUKT,
@@ -246,6 +247,59 @@ class PagineringTest(unittest.TestCase):
         res = freshrss_read_stream(BASE, AUTH, page_size=2, opener=opener)
         self.assertEqual(len(res.items), 4)
         self.assertEqual(len(opener.calls), 2)
+
+
+
+class TestMaskeerGeheimen(unittest.TestCase):
+    """Regressietests bij het tokenlek van 21 aug 2026.
+
+    Een verkeerd samengestelde URL liet urllib de melding
+    "unknown url type: '<gebruiker>/<40 hex>/reader/api/...'" werpen, mét de
+    GReader-auth-token erin. Die melding belandde als tool-output in een
+    LLM-context. Het env-bestand was gitignored en de curl-uitvoer ging naar
+    /dev/null — het foutpad was de enige onafgedekte route.
+    """
+
+    NEP_AUTH = "gebruiker/3b7dd0a28a1b7db825e0a7ebf5bebc49d99901b9"
+
+    def test_greader_auth_wordt_gemaskeerd(self):
+        tekst = f"unknown url type: '{self.NEP_AUTH}/reader/api/0/subscription/list'"
+        uit = freshrss_utils.maskeer_geheimen(tekst)
+        self.assertNotIn("3b7dd0a2", uit)
+        self.assertIn("verwijderd", uit)
+
+    def test_query_sleutels_worden_gemaskeerd(self):
+        tekst = ("http://host:7077/i/?c=feed&a=actualize&id=13"
+                 "&user=piet&token=abc123geheim")
+        uit = freshrss_utils.maskeer_geheimen(tekst)
+        self.assertNotIn("abc123geheim", uit)
+        self.assertIn("id=13", uit)          # niet-geheime parameters blijven staan
+
+    def test_wachtwoordvelden_worden_gemaskeerd(self):
+        for sleutel in ("Passwd", "password", "wachtwoord", "api_key"):
+            uit = freshrss_utils.maskeer_geheimen(f"{sleutel}=zeergeheim&x=1")
+            self.assertNotIn("zeergeheim", uit, sleutel)
+
+    def test_losse_lange_hex_wordt_gemaskeerd(self):
+        uit = freshrss_utils.maskeer_geheimen("hash " + "a" * 40)
+        self.assertNotIn("a" * 40, uit)
+
+    def test_gewone_meldingen_blijven_leesbaar(self):
+        for tekst in ("HTTP Error 400: Bad Request", "timed out", "id=13 klaar"):
+            self.assertEqual(freshrss_utils.maskeer_geheimen(tekst), tekst)
+
+    def test_lege_invoer(self):
+        self.assertEqual(freshrss_utils.maskeer_geheimen(""), "")
+
+    def test_streamresult_maskeert_de_exceptie(self):
+        exc = urllib.error.URLError(f"unknown url type: '{self.NEP_AUTH}/reader'")
+        res = freshrss_utils.StreamResult({}, freshrss_utils.STREAM_MISLUKT, exc)
+        self.assertNotIn("3b7dd0a2", str(res.error))
+        self.assertIsNotNone(res._exc)       # rauwe exceptie blijft voor lokaal debuggen
+
+    def test_streamresult_zonder_fout(self):
+        res = freshrss_utils.StreamResult({}, freshrss_utils.STREAM_OK)
+        self.assertIsNone(res.error)
 
 
 if __name__ == "__main__":

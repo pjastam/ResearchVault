@@ -13,6 +13,7 @@ Benodigde variabelen in ~/.bin/.researchvault-env of als omgevingsvariabele:
 
 import json
 import os
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -41,6 +42,37 @@ READING_LIST = "user/-/state/com.google/reading-list"
 READ_STATE = "user/-/state/com.google/read"
 
 
+_GEHEIM_PATRONEN = (
+    # GReader-auth uit ClientLogin: "gebruiker/<40 hex>". Dit is de vorm die op
+    # 21 aug 2026 in een urllib-foutmelding belandde en zo in een LLM-context kwam.
+    (re.compile(r"\b[\w.\-]+/[0-9a-fA-F]{16,}\b"), "<auth-token verwijderd>"),
+    # query- en formuliersleutels die een geheim dragen
+    (re.compile(r"\b(auth|token|Passwd|password|wachtwoord|api_key|apikey)=[^&\s'\"]+",
+                re.IGNORECASE), r"\1=<verwijderd>"),
+    # losse lange hexreeksen (hashes, tokens zonder sleutelnaam)
+    (re.compile(r"\b[0-9a-fA-F]{32,}\b"), "<verwijderd>"),
+)
+
+
+def maskeer_geheimen(tekst: str) -> str:
+    """Haalt tokens en wachtwoorden uit een tekst, bedoeld voor foutmeldingen.
+
+    Aanleiding: een verkeerd samengestelde URL liet `urllib` de melding
+    "unknown url type: 'gebruiker/<40 hex>/reader/api/...'" werpen — mét de
+    GReader-auth-token erin. Het env-bestand is gitignored, curl-aanroepen sturen
+    hun uitvoer naar /dev/null en de credential-sleutels worden gefilterd, maar geen
+    van die maatregelen dekt een exceptie die zijn invoer terugecho't. Wie geheimen
+    uit logs en tool-output wil houden, moet dus ook het foutpad afdekken.
+
+    Puur en alleen stdlib, dus testbaar zonder netwerk.
+    """
+    if not tekst:
+        return tekst
+    for patroon, vervanging in _GEHEIM_PATRONEN:
+        tekst = patroon.sub(vervanging, tekst)
+    return tekst
+
+
 class StreamResult:
     """Uitkomst van één GReader-stream-ophaalpoging.
 
@@ -55,12 +87,17 @@ class StreamResult:
     feedreader_fetch.py, om dezelfde reden.
     """
 
-    __slots__ = ("items", "status", "error")
+    __slots__ = ("items", "status", "error", "_exc")
 
     def __init__(self, items, status, error=None):
         self.items = items
         self.status = status
-        self.error = error
+        # `error` is bewust een **gemaskeerde tekst**, geen exceptie: dit veld wordt
+        # gelogd en in diagnoses afgedrukt, en een exceptie kan de auth-token in zijn
+        # boodschap dragen (zie maskeer_geheimen). De rauwe exceptie blijft in `_exc`
+        # voor lokaal debuggen — druk die niet af.
+        self._exc = error
+        self.error = maskeer_geheimen(str(error)) if error is not None else None
 
     @property
     def ok(self):
