@@ -642,7 +642,9 @@ def _skip_button_html(item: dict) -> list[str]:
     ]
 
 
-def generate_atom(items: list[dict], generated_at: datetime, feed_title: str = "Feedreader — Gefilterde RSS-feed") -> str:
+def generate_atom(items: list[dict], generated_at: datetime,
+                  feed_title: str = "Feedreader — Gefilterde RSS-feed",
+                  feed_slug: str = "") -> str:
     """Genereert een Atom 1.0 feed als string.
 
     Bevat per item:
@@ -690,15 +692,25 @@ def generate_atom(items: list[dict], generated_at: datetime, feed_title: str = "
   </entry>""")
 
     entries_xml = "\n".join(entries)
-    home_link = (
-        f'\n  <link rel="alternate" type="text/html" href="{atom_escape(PUBLIC_BASE_URL)}/filtered.html"/>'
-        if PUBLIC_BASE_URL else ""
-    )
+    # rel="alternate" → FreshRSS slaat een htmlUrl op (zie _public_base_url).
+    # rel="self" → aanbeveling van de W3C Feed Validator; helpt lezers die de feed
+    # opnieuw willen vinden of doorgeven. Alleen zinvol als we onze publieke basis kennen.
+    links = ""
+    if PUBLIC_BASE_URL:
+        links = (
+            f'\n  <link rel="alternate" type="text/html" '
+            f'href="{atom_escape(PUBLIC_BASE_URL)}/filtered.html"/>'
+        )
+        if feed_slug:
+            links += (
+                f'\n  <link rel="self" type="application/atom+xml" '
+                f'href="{atom_escape(PUBLIC_BASE_URL)}/filtered-{atom_escape(feed_slug)}.xml"/>'
+            )
     return f"""<?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom"
       xmlns:rv="urn:researchvault:feedreader:1">
   <title>{atom_escape(feed_title)}</title>
-  <id>urn:feedreader:filtered-feed</id>{home_link}
+  <id>urn:feedreader:filtered-{feed_slug or "feed"}</id>{links}
   <updated>{ts}</updated>
   <author><name>feedreader-score.py</name></author>
 {entries_xml}
@@ -999,7 +1011,8 @@ def main():
         subset = [i for i in all_items if i["source_type"] == source_type][:MAX_FEED_ITEMS]
         path   = SERVE_DIR / f"filtered-{filename}.xml"
         path.write_text(
-            generate_atom(subset, now, feed_title=f"Feedreader {emoji} {label}"),
+            generate_atom(subset, now, feed_title=f"Feedreader {emoji} {label}",
+                          feed_slug=filename),
             encoding="utf-8",
         )
 
