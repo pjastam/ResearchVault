@@ -136,3 +136,16 @@ Gepubliceerde scores zijn niet onderling vergelijkbaar: `bge-m3` scoorde 69,2 op
 Nomic's tabel, `granite-embedding-r2` 59,8 in IBM's eigen paper — andere opzet, andere talen,
 andere belangen. In de E2-meting op eigen materiaal won `nomic-embed-text-v2-moe` (62% top-1)
 van `bge-m3` (52%), tegen die scores in. Meet op je eigen corpus, met je eigen begrippen.
+
+**En absolute gelijkenis is geen kwaliteitsmaat.** In een meting van 21 aug 2026 op korte
+Nederlandse teksten gaf `granite-embedding:278m` de hóógste cosine-waarden (mediaan 0,609,
+sd 0,035) en rangschikte het de bekend-relevante items het slechtst; `bge-m3` lag in absolute
+zin veel lager (mediaan 0,400) en rangschikte het best. Modellen spreiden de ruimte
+verschillend — een hoge cosine kan anisotropie zijn in plaats van gelijkenis. Vergelijk
+embedders dus op de rangorde van bekend-relevante items, nooit op een drempelwaarde.
+
+Let daarbij ook op de **aggregatie**, niet alleen op het model: een profiel dat het gemiddelde
+is van duizenden vectoren ligt dicht bij het zwaartepunt van de embeddingruimte, en gelijkenis
+met een zwaartepunt meet genericiteit. In dezelfde meting wonnen programma's met de titel
+"Pause" en "Weather". Toets dat artefact vóór de modelvergelijking — anders rapporteer je het
+als modelverschil.
