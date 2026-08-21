@@ -326,11 +326,13 @@ sudo docker restart addon_c80c7555_freshrss
 
 **Set API password** — FreshRSS → Profile → API Management → set a separate API password (different from the login password). This is what NetNewsWire and the pipeline scripts use.
 
-**Add the three feeds in FreshRSS** — feed URLs use the Mac mini's **Tailscale Funnel URL** so HA Green can reach the feedreader server:
+**Add the three feeds in FreshRSS** — feed URLs use the Mac mini's **Tailscale Funnel URL** so HA Green can reach the feedreader server. Find your own host with `tailscale funnel status`:
 
-- `https://mac-mini-van-piet.tail388762.ts.net:8443/filtered-webpage.xml`
-- `https://mac-mini-van-piet.tail388762.ts.net:8443/filtered-youtube.xml`
-- `https://mac-mini-van-piet.tail388762.ts.net:8443/filtered-podcast.xml`
+- `https://[mac-mini-funnel-host]:8443/filtered-webpage.xml`
+- `https://[mac-mini-funnel-host]:8443/filtered-youtube.xml`
+- `https://[mac-mini-funnel-host]:8443/filtered-podcast.xml`
+
+Note that a Funnel endpoint is reachable from the public internet, not just from your tailnet. Anything the feedreader server exposes is exposed to everyone who knows the URL — and the hostname is not a secret, since every Funnel certificate appears in the public Certificate Transparency logs. Keep `SERVE_DIR` free of anything you would not publish.
 
 **FreshRSS actualize step in `nachtelijke-taken.sh`** — the script triggers FreshRSS on HA Green via HTTP immediately after `feedreader-score.py` finishes, while the Mac mini is still awake and the feedreader server is still running:
 
