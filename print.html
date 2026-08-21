@@ -1540,12 +1540,13 @@ sudo docker exec addon_c80c7555_freshrss sed -i "s/'api_enabled' =&gt; false/'ap
 sudo docker restart addon_c80c7555_freshrss
 </code></pre>
 <p><strong>Set API password</strong> — FreshRSS → Profile → API Management → set a separate API password (different from the login password). This is what NetNewsWire and the pipeline scripts use.</p>
-<p><strong>Add the three feeds in FreshRSS</strong> — feed URLs use the Mac mini's <strong>Tailscale Funnel URL</strong> so HA Green can reach the feedreader server:</p>
+<p><strong>Add the three feeds in FreshRSS</strong> — feed URLs use the Mac mini's <strong>Tailscale Funnel URL</strong> so HA Green can reach the feedreader server. Find your own host with <code>tailscale funnel status</code>:</p>
 <ul>
-<li><code>https://mac-mini-van-piet.tail388762.ts.net:8443/filtered-webpage.xml</code></li>
-<li><code>https://mac-mini-van-piet.tail388762.ts.net:8443/filtered-youtube.xml</code></li>
-<li><code>https://mac-mini-van-piet.tail388762.ts.net:8443/filtered-podcast.xml</code></li>
+<li><code>https://[mac-mini-funnel-host]:8443/filtered-webpage.xml</code></li>
+<li><code>https://[mac-mini-funnel-host]:8443/filtered-youtube.xml</code></li>
+<li><code>https://[mac-mini-funnel-host]:8443/filtered-podcast.xml</code></li>
 </ul>
+<p>Note that a Funnel endpoint is reachable from the public internet, not just from your tailnet. Anything the feedreader server exposes is exposed to everyone who knows the URL — and the hostname is not a secret, since every Funnel certificate appears in the public Certificate Transparency logs. Keep <code>SERVE_DIR</code> free of anything you would not publish.</p>
 <p><strong>FreshRSS actualize step in <code>nachtelijke-taken.sh</code></strong> — the script triggers FreshRSS on HA Green via HTTP immediately after <code>feedreader-score.py</code> finishes, while the Mac mini is still awake and the feedreader server is still running:</p>
 <pre><code class="language-bash">source ~/bin/.researchvault-env   # contains FRESHRSS_USER, FRESHRSS_TOKEN, FRESHRSS_HA_URL
 # Per-feed actualize (bypasses TTL check):
