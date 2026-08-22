@@ -147,6 +147,45 @@ def page_sort_key(label: str) -> tuple:
     return (0, int(label), "") if label.isdigit() else (1, 0, label)
 
 
+# Hints per brontype. De guard gold oorspronkelijk (15 aug 2026) alleen het PDF-geval en
+# gaf daarom altijd de PDF-tekst: "controleer de Zotero-index, anders OCR". Op 22 aug 2026
+# strandden vier blogposts van Skipr en Zorgvisie op deze status — items met een
+# HTML-snapshot en nergens een PDF. De melding stuurde dus naar een index en een OCR-stap
+# die voor die items niet bestaan. Een diagnose die naar de verkeerde plek wijst kost meer
+# tijd dan geen diagnose, want je gaat wél zoeken.
+_LEEGTE_HINTS = {
+    "paper": "Geen bruikbare tekst uit het PDF. Controleer of Zotero het heeft geindexeerd "
+             "(Instellingen > Zoeken > index opnieuw opbouwen); levert dat niets op, dan mist "
+             "het PDF een tekstlaag en is OCR nodig. Niet ingesten.",
+    "web":   "Geen bruikbare tekst uit de snapshot. Open ~/Zotero/Snapshots/{key}.html en kijk "
+             "wat er staat: meestal een cookiemuur, een paywall, of een pagina die zijn tekst "
+             "pas via JavaScript laadt. Is er geen snapshot, laat dan enrich-inbox.py draaien. "
+             "Niet ingesten.",
+    "youtube": "Geen bruikbaar transcript. Koppel er eerst een aan met attach-transcript.py "
+               "(--item-key {key} --url ...); YouTube levert niet voor elke video ondertitels. "
+               "Niet ingesten.",
+    "podcast": "Geen bruikbaar transcript. Draai eerst attach-transcript.py (--item-key {key} "
+               "--url ...); dat downloadt de audio en transcribeert lokaal via whisper. "
+               "Niet ingesten.",
+}
+_LEEGTE_HINT_ONBEKEND = ("Geen bruikbare tekst in de bundle. Controleer welke bijlage het "
+                         "Zotero-item heeft en of daar tekst uit te halen valt. Niet ingesten.")
+
+
+def _leegte_hint(bundle_path: Path, item_key: str) -> str:
+    """Kiest de hint die past bij het brontype uit de frontmatter van de bundle."""
+    source_type = ""
+    try:
+        for regel in bundle_path.read_text(encoding="utf-8").splitlines()[:30]:
+            if regel.startswith("source_type:"):
+                source_type = regel.split(":", 1)[1].strip()
+                break
+    except OSError:
+        pass
+    sjabloon = _LEEGTE_HINTS.get(source_type, _LEEGTE_HINT_ONBEKEND)
+    return sjabloon.format(key=item_key)
+
+
 def detect_source_type(item_type: str) -> str:
     if item_type in ("journalArticle", "book", "bookSection", "report",
                      "thesis", "preprint", "conferencePaper"):
@@ -357,15 +396,16 @@ def main() -> None:
     # 90% van zulke gevallen is een indexeringsachterstand (herindexeren lost het op),
     # 10% een gescande PDF zonder tekstlaag (OCR nodig) — de status maakt dat onderscheid
     # niet, maar signaleert wél dat er iets te doen is voordat de bundle wordt ingest.
+    #
+    # De guard geldt inmiddels voor élk brontype, niet alleen PDF's; `_leegte_hint()` kiest
+    # daarom de melding die bij de bron past. Zie de toelichting daar.
     woorden = inhoudsomvang(bundle_path)
     if woorden < MIN_INHOUD_WOORDEN:
         print(json.dumps({
             "status": "leeg",
             "path": str(rel),
             "woorden": woorden,
-            "hint": "Geen bruikbare tekst. Controleer of Zotero het PDF heeft geindexeerd "
-                    "(Instellingen > Zoeken > index opnieuw opbouwen); levert dat niets op, "
-                    "dan mist het PDF een tekstlaag en is OCR nodig. Niet ingesten.",
+            "hint": _leegte_hint(bundle_path, args.item_key),
         }))
         return
 

@@ -89,7 +89,7 @@ Fetches the full text of a Zotero attachment and saves it to a local file. Only 
 # Output: Saved: inbox/bron.txt (12,345 chars, type: application/pdf)
 ```
 
-For HTML snapshots the script extracts only the main article text via **trafilatura** (`extract_article_text()`), stripping navigation/ads/comments so full-page snapshots (e.g. Tweakers) don't bloat the bundle or slow `olw ingest`; it falls back to a naive tag-strip if trafilatura is unavailable or returns nothing. `trafilatura` must be installed in the zotero-mcp venv.
+For HTML snapshots the script extracts only the main article text via **trafilatura** (`extract_article_text()`), stripping navigation/ads/comments so full-page snapshots (e.g. Tweakers) don't bloat the bundle or slow `olw ingest`; it falls back to a naive tag-strip if trafilatura is unavailable, returns nothing, **or returns fewer than 300 words** — the same threshold at which `build-zotero-bundle.py` rejects a bundle, so below it the choice is between boilerplate and nothing at all. Until 22 August 2026 the fallback only checked whether the extraction was empty, which a degenerate extraction is not: four Skipr and Zorgvisie articles with perfectly good snapshots yielded 58, 183, 52 and 239 words where the naive strip found 498, 587, 966 and 717, and all four were rejected as empty. Across all 198 snapshots in the Zotero store, 56 go from rejected to usable. The threshold is absolute rather than a ratio, because producing far less text than the naive strip is exactly what trafilatura is for. `trafilatura` must be installed in the zotero-mcp venv.
 
 ### `ollama-generate.py` — generate text via local LLM (Ollama or MLX)
 

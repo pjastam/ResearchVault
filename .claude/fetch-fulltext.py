@@ -30,25 +30,72 @@ def _naive_html_to_text(raw_html: str) -> str:
     return re.sub(r"\s+", " ", html_module.unescape(text)).strip()
 
 
+# Gelijk aan MIN_INHOUD_WOORDEN in build-zotero-bundle.py: onder deze grens wordt de
+# bundle daar afgewezen. Een extractie die er niet overheen komt is dus per definitie
+# onbruikbaar, en er valt niets te verliezen door het met de naïeve strip te proberen.
+MIN_ARTIKEL_WOORDEN = 300
+
+
 def extract_article_text(raw_html: str, url: str = "") -> str:
     """Haal de hoofd-artikeltekst uit snapshot-HTML — nav/ads/comments/boilerplate eruit.
 
     Volledige-pagina-snapshots (vooral van sites als Tweakers.net) bevatten enorm veel
     boilerplate; de oude naïeve tag-strip zette dat allemaal in de bundle → trage ingest +
-    vervuilde concept-extractie. trafilatura vindt de hoofd-content; bij twijfel/leeg valt
-    het terug op de naïeve strip zodat we nooit naar 'leeg' regresseren.
+    vervuilde concept-extractie. trafilatura vindt de hoofd-content; komt daar te weinig
+    uit, dan valt het terug op de naïeve strip zodat we nooit naar 'leeg' regresseren.
+
+    **De toets was tot 22 aug 2026 `if extracted and extracted.strip()`** — oftewel:
+    bestáát er output. Dat is geen bruikbaar criterium, want een degeneratieve extractie
+    is niet leeg. Gemeten die dag op vier Skipr/Zorgvisie-artikelen, allemaal met een
+    volwaardige snapshot (18 `<p>`-tags, `<article>`-elementen, geen JS-shell):
+
+        item        trafilatura   naïeve strip
+        PPWVUYJ5             58            498
+        GXAHWB4K            183            587
+        R259SKCH             52            966
+        6STPYA4B            239            717
+
+    Alle vier waren met de naïeve strip ruim door de bundeldrempel gekomen; met
+    trafilatura strandden ze op `status: "leeg"` en bleven ze in de `_inbox` hangen.
+
+    Waarom een *absolute* ondergrens en geen verhouding: trafilatura's bestaansreden is
+    juist dat zijn output veel kleiner is dan de naïeve strip (Tweakers ging van ~170 KB
+    naar ~5 KB). "Kleiner dan naïef" is dus normaal en geen faalsignaal. Wat hier telt is
+    dat het resultaat te klein is om een artikel te kúnnen zijn.
     """
+    extracted = ""
     try:
         import trafilatura
         extracted = trafilatura.extract(
             raw_html, include_comments=False, include_tables=True,
             url=url or None,
-        )
-        if extracted and extracted.strip():
-            return extracted.strip()
+        ) or ""
     except Exception as exc:  # trafilatura ontbreekt of faalt → fallback
         print(f"  trafilatura niet gebruikt ({exc}) — val terug op naïeve strip", file=sys.stderr)
-    return _naive_html_to_text(raw_html)
+
+    tekst = extracted.strip()
+    if len(tekst.split()) >= MIN_ARTIKEL_WOORDEN:
+        return tekst
+
+    naief = _naive_html_to_text(raw_html)
+    gekozen = _kies_tekst(tekst, naief)
+    if gekozen is naief and tekst:
+        print(f"  trafilatura gaf {len(tekst.split())} woorden waar de naïeve strip er "
+              f"{len(naief.split())} vindt — naïeve strip gebruikt", file=sys.stderr)
+    return gekozen
+
+
+def _kies_tekst(getrokken: str, naief: str) -> str:
+    """Kiest tussen de trafilatura-extractie en de naïeve tag-strip.
+
+    Apart gehouden zodat de beslissing testbaar is zonder trafilatura (de CI installeert
+    niets). De regel: haalt de extractie de bundeldrempel, dan wint hij — dát is waar
+    trafilatura voor is. Haalt hij hem niet, dan wordt de bundle toch afgewezen en is de
+    keuze er een tussen boilerplate en niets; pak dan wat het meeste oplevert.
+    """
+    if len(getrokken.split()) >= MIN_ARTIKEL_WOORDEN:
+        return getrokken
+    return naief if len(naief.split()) > len(getrokken.split()) else getrokken
 
 
 def main():

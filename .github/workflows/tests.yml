@@ -19,6 +19,10 @@ on:
       - '.claude/test_enrich_inbox.py'
       - '.claude/attach-transcript.py'
       - '.claude/test_attach_transcript.py'
+      - '.claude/fetch-fulltext.py'
+      - '.claude/test_fetch_fulltext.py'
+      - '.claude/build-zotero-bundle.py'
+      - '.claude/test_build_zotero_bundle.py'
       - '.github/workflows/tests.yml'
   pull_request:
     paths:
@@ -38,6 +42,10 @@ on:
       - '.claude/test_enrich_inbox.py'
       - '.claude/attach-transcript.py'
       - '.claude/test_attach_transcript.py'
+      - '.claude/fetch-fulltext.py'
+      - '.claude/test_fetch_fulltext.py'
+      - '.claude/build-zotero-bundle.py'
+      - '.claude/test_build_zotero_bundle.py'
 
 jobs:
   unittest:

@@ -100,6 +100,17 @@ OCR-fallback. Steekproef van 15 aug 2026: van de niet-geïndexeerde PDFs heeft *
 tekstlaag** (herindexeren lost het op, Instellingen → Zoeken → index opnieuw opbouwen) en 10%
 niet (gescand, OCR nodig). Controleer bij `leeg` dus eerst de index vóór je naar OCR grijpt.
 
+**De guard geldt voor élk brontype, en de hint vertakt daarop (sinds 22 aug 2026).** De melding
+stamde uit het PDF-geval en stuurde daarom altijd naar de Zotero-index en OCR. Op 22 aug 2026
+strandden vier blogposts van Skipr en Zorgvisie op deze status — items met een HTML-snapshot en
+nergens een PDF, dus de diagnose wees naar een index en een OCR-stap die voor die items niet
+bestaan. Een melding die naar de verkeerde plek wijst kost méér tijd dan geen melding, want je
+gaat wél zoeken. `_leegte_hint()` leest nu het `source_type` uit de frontmatter van de zojuist
+geschreven bundle en kiest daarop: `paper` → index/OCR; `web` → open `~/Zotero/Snapshots/{key}.html`
+(cookiemuur, paywall, of tekst die pas via JavaScript laadt); `youtube`/`podcast` → eerst
+`attach-transcript.py` draaien; onbekend → neutrale melding. Elke variant eindigt op "Niet
+ingesten". Tests: `test_build_zotero_bundle.py`.
+
 **Stap 3 — Ingest + compile (olw)**
 ```bash
 olw ingest vault/raw/{...}.md --vault vault   # concept-extractie
@@ -445,7 +456,7 @@ Voor losse stappen of speciale gevallen (transcripten, snapshots): gebruik `.cla
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/fetch-fulltext.py ITEMKEY .cache/bestand.txt
 ```
 
-**Snapshot-schoonmaak:** bij HTML-snapshots (linked_file én storage) haalt `fetch-fulltext.py` alleen de hoofd-artikeltekst eruit via **trafilatura** (`extract_article_text()`) — nav/ads/comments/boilerplate worden weggelaten (volledige-pagina-snapshots van bijv. Tweakers gingen zo van ~170KB naar ~5KB, wat een trage/afgekapte `olw ingest` voorkomt en de concept-extractie schoon houdt). Bij ontbrekende trafilatura of lege extractie valt het terug op de oude naïeve tag-strip. `trafilatura` moet in de zotero-mcp-venv staan (`bin/python3 -m pip install trafilatura`); pin het t.z.t. in de uv-tool-spec zodat een venv-rebuild het niet verliest.
+**Snapshot-schoonmaak:** bij HTML-snapshots (linked_file én storage) haalt `fetch-fulltext.py` alleen de hoofd-artikeltekst eruit via **trafilatura** (`extract_article_text()`) — nav/ads/comments/boilerplate worden weggelaten (volledige-pagina-snapshots van bijv. Tweakers gingen zo van ~170KB naar ~5KB, wat een trage/afgekapte `olw ingest` voorkomt en de concept-extractie schoon houdt). Bij ontbrekende trafilatura, een lege extractie **of een extractie onder de 300 woorden** valt het terug op de oude naïeve tag-strip (`MIN_ARTIKEL_WOORDEN`, gelijk aan `MIN_INHOUD_WOORDEN` in `build-zotero-bundle.py`); van de twee wordt dan de grootste genomen. Tot 22 aug 2026 toetste de terugval op `if extracted and extracted.strip()` — oftewel *bestaat er output*. Dat is geen bruikbaar criterium, want een degeneratieve extractie is niet leeg. Gemeten op vier Skipr/Zorgvisie-artikelen met een volwaardige snapshot (18 `<p>`-tags, `<article>`-elementen, geen JS-shell): trafilatura gaf 58/183/52/239 woorden waar de naïeve strip er 498/587/966/717 vond. Alle vier strandden daardoor op `status: "leeg"`. Over de hele Zotero-snapshotmap (198 stuks) gaan er **56 van afgewezen naar bruikbaar**, blijven er 44 terecht afgewezen en verandert er niets aan de 98 waar trafilatura al voldoende opleverde. Een *absolute* ondergrens en geen verhouding, want trafilatura's bestaansreden is juist dat zijn output veel kleiner is dan de naïeve strip — kleiner is normaal, te klein om een artikel te kúnnen zijn is het signaal. De keuze zit in `_kies_tekst()`, los van de extractie zodat hij zonder trafilatura testbaar is (`test_fetch_fulltext.py`). Let op: die 56 komen binnen mét boilerplate; `olw review` blijft de poort. `trafilatura` moet in de zotero-mcp-venv staan (`bin/python3 -m pip install trafilatura`); pin het t.z.t. in de uv-tool-spec zodat een venv-rebuild het niet verliest.
 
 Daarna verwerken via lokale LLM:
 ```bash
