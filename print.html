@@ -264,11 +264,12 @@
 <h2 id="source-1-the-feedreader"><a class="header" href="#source-1-the-feedreader">Source 1: the feedreader</a></h2>
 <p><code>feedreader-score.py</code> runs daily via launchd. It fetches all feeds from <code>feedreader-list.txt</code>, scores each item by semantic similarity to your Zotero library, and produces:</p>
 <ul>
-<li><strong>HTML reader</strong> (Mac, iPhone, iPad): <code>http://localhost:8765/filtered.html</code></li>
-<li><strong>Atom feeds</strong> (NetNewsWire): <code>http://[mac-ip]:8765/filtered-webpage.xml</code> · <code>filtered-youtube.xml</code> · <code>filtered-podcast.xml</code></li>
+<li><strong>Atom feeds</strong> (NetNewsWire, via FreshRSS): <code>http://[mac-ip]:8765/filtered-webpage.xml</code> · <code>filtered-youtube.xml</code> · <code>filtered-podcast.xml</code></li>
 </ul>
+<p>(The standalone HTML reader at <code>/filtered.html</code> was removed on 18 April 2026; NetNewsWire and FreshRSS took over the reading layer. The URL survives only as the channel home <code>&lt;link&gt;</code> inside the Atom feeds, because FreshRSS stores no <code>htmlUrl</code> without it.)</p>
 <p>Transient network errors are common enough to matter: a feed that cannot be fetched is retried once, under a 15-second per-feed timeout so that one unresponsive server cannot stall the whole run. Feeds that stay unreachable are listed explicitly at the end of the fetch step, so a silently missing source shows up in the run output instead of looking like a feed that simply had nothing new.</p>
 <p>Each item is shown once. That is less trivial than it sounds, because a link is a location, not an identity: PubMed appends a fresh <code>ff=&lt;timestamp&gt;</code> to every link on every fetch, so the same article arrived under a new URL each run and NetNewsWire kept showing it again. Items are therefore matched on a stable key — the RSS <code>&lt;guid&gt;</code> where the feed provides one, otherwise the link with tracking parameters stripped — both against earlier runs and within the current one, the latter catching a publication that appears in the PURE feeds of two co-authors. The reverse failure is guarded too: podcast feeds that give the show homepage as the link for every episode fall back to the guid alone, so episode 2 is not mistaken for a repeat of episode 1. The run output reports both counts (<code>Ontdubbeld: N al eerder gezien, M dubbel binnen deze run</code>).</p>
+<p>One caveat when editing <code>feedreader-list.txt</code>: the list is not de-duplicated. A feed listed twice is fetched twice per run, and — less obviously — the de-duplication key is <code>(feed URL, canonical link)</code>, so every episode is counted twice within what looks like the same feed. That trips the show-homepage fallback described above, and the items silently drop back to guid-only identity. Measured on 22 August 2026: the AI Report feed appeared under two category headings, and all 135 of its log lines carried a guid identity, never a URL form. The headings are comments only — source type is derived from the feed URL and the entry's enclosures — so a feed needs exactly one line, in whichever section fits.</p>
 <h3 id="reading-the-item-list"><a class="header" href="#reading-the-item-list">Reading the item list</a></h3>
 <p>Each item shows:</p>
 <ul>
@@ -453,12 +454,17 @@ zotero-mcp db-status   # check current database status
 <ol>
 <li>Downloads audio using the direct MP3 URL cached from the RSS <code>&lt;enclosure&gt;</code> tag (via <code>feedreader-score.py</code>) or falls back to yt-dlp</li>
 <li>Detects language automatically from cached show notes (Dutch show notes → <code>--language nl</code>); override with <code>--language</code> if needed</li>
-<li>Transcribes locally via <code>whisper-cli</code> (model: <code>large-v3-turbo</code>, Metal GPU, ~2–3 min per 30 min audio on M4)</li>
+<li>Converts the audio to 16 kHz mono 16-bit PCM via ffmpeg, then transcribes locally via <code>whisper-cli</code> (model: <code>large-v3-turbo</code>, Metal GPU, ~2–3 min per 30 min audio on M4)</li>
 <li>If <code>abstractNote</code> is already filled (show notes set by <code>enrich-inbox.py</code>): moves it to a child note titled "Shownotes"</li>
 <li>Generates an abstract via the local LLM; sets <code>abstractNote</code>; stores transcript as <code>.txt</code> linked-file attachment; adds tag <code>_enriched-transcript</code></li>
 </ol>
 <p>After a <strong>Go</strong> decision, process the item the same way as papers: <code>build-zotero-bundle.py</code> → <code>raw/</code>.</p>
-<p><strong>If yt-dlp fails</strong> with "Unsupported URL": add the feed to <code>feedreader-list.txt</code>. After the next <code>feedreader-score.py</code> run, the direct audio URL is cached and used automatically.</p>
+<p><strong>If yt-dlp fails</strong> with "Unsupported URL": add the feed to <code>feedreader-list.txt</code>. After the next <code>feedreader-score.py</code> run, the direct audio URL is cached and used automatically. This is the intended route — an episode should arrive through the feed reader, where it also gets a relevance score. yt-dlp is the escape hatch for one-off episodes from feeds you do not subscribe to, and that branch cannot transcode without ffmpeg.</p>
+<p><strong>Why the ffmpeg step (step 3).</strong> <code>whisper-cli</code> decodes audio with the built-in ggml/dr_libs decoders and is not linked against <code>libav*</code>, so it reads wav, mp3 and flac but not m4a/aac or opus. On an unreadable file it prints <code>error: failed to read audio file</code> and exits <strong>0</strong> without writing a <code>.txt</code> — indistinguishable from a failed transcription. Converting up front removes the format question entirely. If ffmpeg is absent the conversion is skipped and the original file is passed through, so ffmpeg is an improvement rather than a hard requirement.</p>
+<p><strong>A non-zero exit does not always mean no transcript.</strong> If whisper demonstrably ran to completion — both end markers (<code>output_txt: saving output to</code> and <code>whisper_print_timings:</code>) present in stderr, and the <code>.txt</code> on disk — the transcript is kept and the crash is logged as a teardown failure. Without that evidence it is rejected: a partial transcript must never pass as a complete one.</p>
+<blockquote>
+<p><strong>Privacy note:</strong> whisper-cli writes transcript text to <strong>stdout</strong> and only engine diagnostics to <strong>stderr</strong>. That is why stderr may be logged and stdout may not.</p>
+</blockquote>
 <hr />
 <h2 id="rss-web-articles"><a class="header" href="#rss-web-articles">RSS web articles</a></h2>
 <p>Non-academic articles from RSS feeds that you forward to <code>_inbox</code> can be processed the same way:</p>

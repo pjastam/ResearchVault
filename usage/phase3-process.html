@@ -228,12 +228,17 @@
 <ol>
 <li>Downloads audio using the direct MP3 URL cached from the RSS <code>&lt;enclosure&gt;</code> tag (via <code>feedreader-score.py</code>) or falls back to yt-dlp</li>
 <li>Detects language automatically from cached show notes (Dutch show notes → <code>--language nl</code>); override with <code>--language</code> if needed</li>
-<li>Transcribes locally via <code>whisper-cli</code> (model: <code>large-v3-turbo</code>, Metal GPU, ~2–3 min per 30 min audio on M4)</li>
+<li>Converts the audio to 16 kHz mono 16-bit PCM via ffmpeg, then transcribes locally via <code>whisper-cli</code> (model: <code>large-v3-turbo</code>, Metal GPU, ~2–3 min per 30 min audio on M4)</li>
 <li>If <code>abstractNote</code> is already filled (show notes set by <code>enrich-inbox.py</code>): moves it to a child note titled "Shownotes"</li>
 <li>Generates an abstract via the local LLM; sets <code>abstractNote</code>; stores transcript as <code>.txt</code> linked-file attachment; adds tag <code>_enriched-transcript</code></li>
 </ol>
 <p>After a <strong>Go</strong> decision, process the item the same way as papers: <code>build-zotero-bundle.py</code> → <code>raw/</code>.</p>
-<p><strong>If yt-dlp fails</strong> with "Unsupported URL": add the feed to <code>feedreader-list.txt</code>. After the next <code>feedreader-score.py</code> run, the direct audio URL is cached and used automatically.</p>
+<p><strong>If yt-dlp fails</strong> with "Unsupported URL": add the feed to <code>feedreader-list.txt</code>. After the next <code>feedreader-score.py</code> run, the direct audio URL is cached and used automatically. This is the intended route — an episode should arrive through the feed reader, where it also gets a relevance score. yt-dlp is the escape hatch for one-off episodes from feeds you do not subscribe to, and that branch cannot transcode without ffmpeg.</p>
+<p><strong>Why the ffmpeg step (step 3).</strong> <code>whisper-cli</code> decodes audio with the built-in ggml/dr_libs decoders and is not linked against <code>libav*</code>, so it reads wav, mp3 and flac but not m4a/aac or opus. On an unreadable file it prints <code>error: failed to read audio file</code> and exits <strong>0</strong> without writing a <code>.txt</code> — indistinguishable from a failed transcription. Converting up front removes the format question entirely. If ffmpeg is absent the conversion is skipped and the original file is passed through, so ffmpeg is an improvement rather than a hard requirement.</p>
+<p><strong>A non-zero exit does not always mean no transcript.</strong> If whisper demonstrably ran to completion — both end markers (<code>output_txt: saving output to</code> and <code>whisper_print_timings:</code>) present in stderr, and the <code>.txt</code> on disk — the transcript is kept and the crash is logged as a teardown failure. Without that evidence it is rejected: a partial transcript must never pass as a complete one.</p>
+<blockquote>
+<p><strong>Privacy note:</strong> whisper-cli writes transcript text to <strong>stdout</strong> and only engine diagnostics to <strong>stderr</strong>. That is why stderr may be logged and stdout may not.</p>
+</blockquote>
 <hr />
 <h2 id="rss-web-articles"><a class="header" href="#rss-web-articles">RSS web articles</a></h2>
 <p>Non-academic articles from RSS feeds that you forward to <code>_inbox</code> can be processed the same way:</p>
