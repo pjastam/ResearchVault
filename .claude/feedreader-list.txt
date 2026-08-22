@@ -25,7 +25,6 @@ https://feeds.feedburner.com/RBloggers
 https://journal.r-project.org/articles.xml
 
 # ── 1-Tech news ───────────────────────────────────────────────────────────────
-https://api.substack.com/feed/podcast/2351791.rss
 https://www.hcc.nl/?destination=node%2F1971%23comment-form&format=feed&type=rss
 https://feeds.nos.nl/nosnieuwstech
 https://openai.com/news/rss.xml

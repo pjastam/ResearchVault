@@ -8,8 +8,12 @@ Verrijkt items zonder tag '_enriched' met:
 3. HTML-snapshot als linked_file bijlage (webartikelen zonder DOI)
 
 Output (stdout): JSON-summary {"status","enriched","skipped","errors"}
+Exit-code: 1 bij een *systematische* storing (zie `systematische_fout`), 0 bij
+losse per-item-fouten. Dan draagt de summary ook een "systematisch"-veld en is
+"status" gelijk aan "systematisch-gefaald".
 Privacypatroon: geen webinhoud in stdout — alles gaat naar lokale bestanden.
 """
+import collections
 import hashlib
 import json
 import os
@@ -385,6 +389,51 @@ def enrich_item(item: dict) -> dict:
 
 # ── Main ──────────────────────────────────────────────────────────────────────────
 
+# Wanneer is een run "systematisch gefaald"? ─────────────────────────────────────
+# Aanleiding (22 aug 2026): de 09:00-overdagrun meldde {"status": "ok", "enriched": 0,
+# "skipped": 140, "errors": [5x HTTP 501]} en exit 0. De lokale Zotero-API (:23119) is
+# read-only, dus élke PATCH faalde — maar de leeskant werkte, dus de stap zag er gezond
+# uit. Vier die ochtend toegevoegde items bleven daardoor onverrijkt, waarna hun
+# Go-bundle op "leeg" strandde. Een dichte schrijfweg mag zich niet voordoen als een
+# rustige dag (zelfde regel als `afgekapt` in freshrss_utils.StreamResult).
+#
+# Niet élke fout is een storing: één kapotte CrossRef-lookup of een 404 op een snapshot
+# is normaal per-item-ruis. Onderscheidend is het *patroon* — daarom twee criteria.
+SYSTEMATISCH_MIN_FOUTEN = 3
+
+
+def _foutsignatuur(error: str) -> str:
+    """Kort kenmerk waarop fouten worden gegroepeerd: de HTTP-status als die er is,
+    anders de eerste regel. Zo vallen 5x 'HTTP 501' samen, maar blijven vijf
+    verschillende netwerkfouten vijf losse gevallen."""
+    m = re.search(r"HTTP (\d{3})", error or "")
+    if m:
+        return f"HTTP {m.group(1)}"
+    return (error or "?").strip().splitlines()[0][:60]
+
+
+def systematische_fout(enriched: int, errors: list[dict]) -> str | None:
+    """Geeft een omschrijving als deze run op een storing wijst, anders None.
+
+    Twee criteria, beide met een ondergrens zodat een enkel stuk item geen alarm geeft:
+      1. geen enkele poging slaagde (de weg is dicht);
+      2. één oorzaak domineert: dezelfde signatuur bij minstens de helft van de pogingen.
+    """
+    pogingen = enriched + len(errors)
+    if len(errors) < SYSTEMATISCH_MIN_FOUTEN:
+        return None
+    if enriched == 0:
+        top = collections.Counter(_foutsignatuur(e.get("error", "")) for e in errors)
+        sig, n = top.most_common(1)[0]
+        return (f"geen enkele van de {pogingen} pogingen slaagde "
+                f"(meest voorkomend: {n}x {sig})")
+    top = collections.Counter(_foutsignatuur(e.get("error", "")) for e in errors)
+    sig, n = top.most_common(1)[0]
+    if n >= SYSTEMATISCH_MIN_FOUTEN and n * 2 >= pogingen:
+        return f"{n} van {pogingen} pogingen faalden met dezelfde oorzaak ({sig})"
+    return None
+
+
 def main():
     items = get_inbox_items()
     enriched = skipped = 0
@@ -402,12 +451,19 @@ def main():
             errors.append({"key": result["key"], "error": result.get("error", "?")})
         time.sleep(1.5)  # Beleefd jegens externe APIs en Zotero Web API rate limit
 
+    storing = systematische_fout(enriched, errors)
     print(json.dumps({
-        "status": "ok",
+        "status": "systematisch-gefaald" if storing else "ok",
         "enriched": enriched,
         "skipped": skipped,
         "errors": errors,
+        **({"systematisch": storing} if storing else {}),
     }, ensure_ascii=False))
+    if storing:
+        # Naar stderr én non-zero exit: de batchscripts loggen dan hun eigen
+        # "WAARSCHUWING: enrich-inbox ... gefaald"-regel, die wél opvalt in de log.
+        print(f"FOUT: verrijking systematisch gefaald — {storing}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

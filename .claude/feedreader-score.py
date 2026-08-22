@@ -50,7 +50,7 @@ logging.getLogger("sentence_transformers").setLevel(logging.ERROR)
 from sentence_transformers import SentenceTransformer
 
 from feedreader_fetch import fetch_feed
-from feedreader_identity import canonical_url, item_identity, item_keys
+from feedreader_identity import canonical_url, item_identity, item_keys, podcast_cache_id
 from feedreader_core import (
     THRESHOLD_GREEN,
     THRESHOLD_YELLOW,
@@ -833,7 +833,7 @@ def main():
             episode_id = None
             has_shownotes = False
             if source_type == "podcast" and len(description) >= SHOWNOTES_MIN_LENGTH:
-                episode_id = "podcast_" + hashlib.md5(url.encode()).hexdigest()
+                episode_id = podcast_cache_id(url)
                 # Directe audio-URL uit RSS <enclosure> tag (gebruikt door attach-transcript.py)
                 encs = getattr(entry, "enclosures", []) or []
                 audio_url = encs[0].get("href", encs[0].get("url", "")) if encs else ""

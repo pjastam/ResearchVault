@@ -686,7 +686,19 @@ function renderStatusBar(counts, jobs = {}) {
   if (counts.pending  > 0) parts.push(`<span>${counts.pending} wachtend</span>`);
   if (counts.running  > 0) parts.push(`<span class="job-running">⏳ ${counts.running} bezig</span>`);
   if (counts.done     > 0) parts.push(`<span class="job-done">✅ ${counts.done} klaar</span>`);
-  if (counts.error    > 0) parts.push(`<span class="job-error">❌ ${counts.error} fout</span>`);
+  // De foutteksten er letterlijk bij. Tot 22 aug 2026 toonde de balk alleen het
+  // *aantal* fouten; het `error`-veld van de job werd nergens gerenderd (alleen in de
+  // samenvattingsweergave). Bij een bulk-Go zag je dus "❌ 7 fout" zonder één aanwijzing,
+  // terwijl de backend keurige diagnoses meestuurde ("Lege bundle (85 woorden) — …").
+  // Ontdubbeld, want bij een bulk-run is dezelfde oorzaak meestal de helft van de lijst.
+  if (counts.error    > 0) {
+    const redenen = [...new Set(Object.values(jobs)
+      .filter(j => j.status === "error" && j.error)
+      .map(j => j.error))];
+    const samenvatting = redenen.join(" · ");
+    parts.push(`<span class="job-error" title="${esc(samenvatting)}">❌ ${counts.error} fout`
+      + (samenvatting ? ` — ${esc(samenvatting)}` : "") + `</span>`);
+  }
   // De backend kent geen ingest-subprocess: bundle staat er, maar er is niets ge-ingest
   // en het item blijft in _inbox tot de gebruiker de handmatige stap doet.
   if (counts.unsupported > 0) parts.push(

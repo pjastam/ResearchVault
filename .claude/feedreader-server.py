@@ -46,6 +46,40 @@ _YOUTUBE_RE = re.compile(r'(?:v=|youtu\.be/)([A-Za-z0-9_-]{11})')
 def _is_youtube(url: str) -> bool:
     return bool(url) and bool(_YOUTUBE_RE.search(url))
 
+# Cache van de feedreader; sleutel identiek aan feedreader-score.py (`cache_podcast_shownotes`)
+# en attach-transcript.py (`_load_podcast_cache`): "podcast_" + md5(url).
+TRANSCRIPT_CACHE_DIR = SCRIPT_DIR / "transcript_cache"
+
+
+def _heeft_gecachete_audio(url: str) -> bool:
+    """True als de feedreader voor déze URL een aflevering met directe audio-URL kent.
+
+    Aanleiding (22 aug 2026): de transcript-voorstap zat uitsluitend achter itemType
+    (`videoRecording`/`podcast`) of een YouTube-URL. Een omny.fm-aflevering die als
+    `webpage` in Zotero stond glipte daarlangs, kreeg dus geen transcript, en strandde
+    daarna op een lege bundle (249 woorden show notes) — met een Go die "mislukt" meldde
+    zonder te zeggen waarom.
+
+    Een lijst met podcast-hostnamen zou dit ook oplossen, maar veroudert stilletjes.
+    Een gecachete `audio_url` is direct bewijs *dat* er audio is; een paper-met-URL
+    krijgt zo'n entry nooit, dus het valse-positief-risico (whisper starten op een
+    tekstbron) is nihil. Ontbreekt de cache, dan zegt dit niets — de bron kan nog steeds
+    audio zijn, maar dan is er op dit moment geen bewijs voor.
+    """
+    if not url:
+        return False
+    # Meerdere sleutels: de URL in Zotero komt van elders dan de link in de feed en
+    # verschilt in de praktijk op het schema. Zie feedreader_identity.podcast_cache_ids.
+    for episode_id in podcast_cache_ids(url):
+        try:
+            inhoud = json.loads((TRANSCRIPT_CACHE_DIR / f"{episode_id}.json")
+                                .read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if inhoud.get("audio_url"):
+            return True
+    return False
+
 VAULT_ROOT = Path(__file__).resolve().parent.parent
 VAULT_DIR  = VAULT_ROOT / "vault"     # symlink → ResearchVault/vault/
 PYTHON     = Path("/Users/pietstam/.local/share/uv/tools/zotero-mcp-server/bin/python3")
@@ -53,6 +87,7 @@ INBOX_DIR  = VAULT_ROOT / "vault" / ".cache"   # temp-input (fase-2 previews e.d
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import wiki_backend  # noqa: E402
+from feedreader_identity import podcast_cache_ids  # noqa: E402
 
 
 def _zotero_env(mode: str) -> dict:
@@ -197,7 +232,41 @@ def _inbox_worker():
                             if key in _job_status:
                                 _job_status[key]["removal_error"] = str(rexc)
             else:
-                err = data.get("message") or result.stderr.strip() or "onbekende fout"
+                # build-zotero-bundle kent twee faalvormen: "error" (draagt `message`) en
+                # "leeg" (< 300 woorden body, draagt `woorden` + `hint`). De oude regel las
+                # alleen `message`; bij "leeg" viel hij daardoor terug op stderr of op
+                # "onbekende fout" — terwijl de bundle een keurige diagnose meestuurde.
+                # Gemeten 22 aug 2026: zes van zeven mislukte bulk-Go's waren "leeg" en
+                # de gebruiker kreeg geen enkele aanwijzing waarom.
+                #
+                # stderr gaat bewust NIET in de jobstatus: die wordt via HTTP uitgeleverd
+                # en de stderr van build-zotero-bundle kan brontekstfragmenten dragen
+                # (fetch-fulltext meldt daar zijn extractieproblemen). Zelfde regel als bij
+                # attach-transcript hierboven: zeg *dat* het faalde en waar te kijken, niet
+                # *wat* er stond. De volledige stderr gaat alleen naar de server-log.
+                bundle_status = data.get("status")
+                if bundle_status == "leeg":
+                    err = (f"Lege bundle ({data.get('woorden', '?')} woorden) — "
+                           f"{data.get('hint') or 'geen bruikbare tekst'}")
+                    # Wees-bundle opruimen. build-zotero-bundle schrijft het bestand ook bij
+                    # "leeg", maar er wordt niets ge-ingest; blijft hij staan, dan is een lege
+                    # bundle in raw/ niet van een echte te onderscheiden.
+                    leeg_pad = data.get("path")
+                    if leeg_pad:
+                        try:
+                            (VAULT_ROOT / leeg_pad).unlink(missing_ok=True)
+                            print(f"[worker] lege bundle verwijderd: {leeg_pad}", file=sys.stderr)
+                        except OSError as uexc:
+                            print(f"[worker] kon lege bundle niet verwijderen ({leeg_pad}): {uexc}",
+                                  file=sys.stderr)
+                else:
+                    err = data.get("message") or "onbekende fout"
+                # Naar de server-log, want _job_status leeft alleen in het geheugen: na een
+                # herstart is elk spoor van de mislukking weg (vastgesteld 22 aug 2026, toen
+                # zes leeg-fouten alleen nog uit bestandsdata in raw/ te reconstrueren waren).
+                print(f"[worker] bundle-bouw faalde voor {key} (exit {result.returncode}) — "
+                      f"status={bundle_status!r} fout={err!r}\nstderr:\n{result.stderr}",
+                      file=sys.stderr)
                 with _job_lock:
                     _job_status[key] = {"status": "error", "path": None, "error": err}
         except subprocess.TimeoutExpired:
@@ -429,9 +498,18 @@ class FeedreaderHandler(http.server.SimpleHTTPRequestHandler):
         # itemType (niet op "heeft een URL"!) — anders zou attach-transcript een gewoon
         # paper-met-URL als podcast behandelen en whisper/yt-dlp starten. attach-transcript
         # routeert zelf: YouTube-URL → YouTube-pad, elke andere niet-lege URL → podcast.
+        #
+        # Derde tak sinds 22 aug 2026: een gecachete audio-URL. Zotero's itemType is de
+        # keuze van de Connector, niet van de bron — een omny.fm-aflevering komt binnen
+        # als `webpage` en glipte zo langs de eerste twee takken. De cache is bewijs in
+        # plaats van vermoeden en houdt de gate dus even streng. Wat hij níet dekt: een
+        # aflevering van een feed die niet in feedreader-list.txt staat (gemeten geval:
+        # aireport.nl). Zet daar de itemType in Zotero op `podcast` en geef opnieuw Go.
         item_type = (data.get("type") or "").strip()
         url       = (data.get("url") or "").strip()
-        needs_transcript = item_type in ("videoRecording", "podcast") or _is_youtube(url)
+        needs_transcript = (item_type in ("videoRecording", "podcast")
+                            or _is_youtube(url)
+                            or _heeft_gecachete_audio(url))
         if needs_transcript and not url:
             # Zonder URL kan geen transcript worden opgehaald → niet stil een
             # transcriptloze bundle bouwen; item blijft in _inbox (faalbeleid).

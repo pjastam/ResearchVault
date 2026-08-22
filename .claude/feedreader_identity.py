@@ -26,6 +26,7 @@ Alleen stdlib, zodat ``test_feedreader_identity.py`` in CI draait zonder
 pip-install-stap (net als ``feedreader_fetch.py``).
 """
 
+import hashlib
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 # ── Globale denylist ────────────────────────────────────────────────────────
@@ -212,3 +213,49 @@ def canonical_url(url: str) -> str:
     path = parts.path.rstrip("/") or "/"
 
     return urlunsplit((parts.scheme.lower(), host, path, urlencode(kept), ""))
+
+
+# ── Podcast-cachesleutels ─────────────────────────────────────────────────────
+# De feedreader schrijft show notes en de directe audio-URL weg als
+# `transcript_cache/podcast_{md5(url)}.json`. Die conventie stond op drie plekken
+# los van elkaar (feedreader-score.py, attach-transcript.py, feedreader-server.py);
+# hier staat hij één keer.
+
+def podcast_cache_id(url: str) -> str:
+    """De sleutel waaronder de feedreader een aflevering wégschrijft."""
+    return "podcast_" + hashlib.md5(url.encode()).hexdigest()
+
+
+def podcast_cache_ids(url: str) -> list[str]:
+    """Alle sleutels waaronder een aflevering *gevonden* mag worden.
+
+    Waarom meer dan één: de sleutel is de md5 van de rúwe link uit de feed, terwijl
+    de URL in het Zotero-item van elders komt (share sheet, Connector, podcastspeler).
+    Gemeten op 22 aug 2026 verschilden die op precies één as — het schema:
+
+        Zotero  http://www.aireport.nl/podcast/s/aireport/de_zomer_waarin_ai…
+        cache   https://www.aireport.nl/podcast/s/aireport/de_zomer_waarin_ai…
+
+    en bij BBC-item LB3VFDZK andersom (Zotero https, cache http). Alles ná het schema
+    was byte-identiek. Van de 840 gecachete afleveringen staan er 60 onder `http`, dus
+    beide richtingen komen voor.
+
+    Bewust *niet* opgelost door `canonical_url()` http en https te laten samenvallen:
+    dat is de sleutel waarop score_log.jsonl ontdubbelt, waarop de FreshRSS-signalen
+    matchen en waarop de leerloop labelt — hem verruimen laat bestaande identiteiten
+    met terugwerkende kracht samenvallen. Deze cache is daarentegen wegwerpbaar en een
+    verkeerde treffer kost er niets. Verruim dus de opzoeking, niet de identiteit.
+
+    Alleen de gemeten as wordt gedekt (denylist-beleid, net als `TRACKING_PARAMS`):
+    geen slash- of www-varianten, want die zijn hier nooit waargenomen.
+    """
+    if not url or not url.strip():
+        return []
+    url = url.strip()
+    kandidaten = [url]
+    if url.startswith("https://"):
+        kandidaten.append("http://" + url[len("https://"):])
+    elif url.startswith("http://"):
+        kandidaten.append("https://" + url[len("http://"):])
+    # dict.fromkeys houdt de volgorde: exacte treffer eerst.
+    return list(dict.fromkeys(podcast_cache_id(u) for u in kandidaten))

@@ -13,6 +13,12 @@ on:
       - '.claude/test_freshrss_utils.py'
       - '.claude/feedreader_labels.py'
       - '.claude/test_feedreader_labels.py'
+      - '.claude/feedreader-server.py'
+      - '.claude/test_feedreader_server.py'
+      - '.claude/enrich-inbox.py'
+      - '.claude/test_enrich_inbox.py'
+      - '.claude/attach-transcript.py'
+      - '.claude/test_attach_transcript.py'
       - '.github/workflows/tests.yml'
   pull_request:
     paths:
@@ -26,6 +32,12 @@ on:
       - '.claude/test_freshrss_utils.py'
       - '.claude/feedreader_labels.py'
       - '.claude/test_feedreader_labels.py'
+      - '.claude/feedreader-server.py'
+      - '.claude/test_feedreader_server.py'
+      - '.claude/enrich-inbox.py'
+      - '.claude/test_enrich_inbox.py'
+      - '.claude/attach-transcript.py'
+      - '.claude/test_attach_transcript.py'
 
 jobs:
   unittest:

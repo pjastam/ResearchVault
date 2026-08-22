@@ -63,13 +63,19 @@ Podcast transcripts are created manually via `attach-transcript.py` — whisper.
 This script:
 1. Downloads audio using the direct MP3 URL cached from the RSS `<enclosure>` tag (via `feedreader-score.py`) or falls back to yt-dlp
 2. Detects language automatically from cached show notes (Dutch show notes → `--language nl`); override with `--language` if needed
-3. Transcribes locally via `whisper-cli` (model: `large-v3-turbo`, Metal GPU, ~2–3 min per 30 min audio on M4)
+3. Converts the audio to 16 kHz mono 16-bit PCM via ffmpeg, then transcribes locally via `whisper-cli` (model: `large-v3-turbo`, Metal GPU, ~2–3 min per 30 min audio on M4)
 4. If `abstractNote` is already filled (show notes set by `enrich-inbox.py`): moves it to a child note titled "Shownotes"
 5. Generates an abstract via the local LLM; sets `abstractNote`; stores transcript as `.txt` linked-file attachment; adds tag `_enriched-transcript`
 
 After a **Go** decision, process the item the same way as papers: `build-zotero-bundle.py` → `raw/`.
 
-**If yt-dlp fails** with "Unsupported URL": add the feed to `feedreader-list.txt`. After the next `feedreader-score.py` run, the direct audio URL is cached and used automatically.
+**If yt-dlp fails** with "Unsupported URL": add the feed to `feedreader-list.txt`. After the next `feedreader-score.py` run, the direct audio URL is cached and used automatically. This is the intended route — an episode should arrive through the feed reader, where it also gets a relevance score. yt-dlp is the escape hatch for one-off episodes from feeds you do not subscribe to, and that branch cannot transcode without ffmpeg.
+
+**Why the ffmpeg step (step 3).** `whisper-cli` decodes audio with the built-in ggml/dr_libs decoders and is not linked against `libav*`, so it reads wav, mp3 and flac but not m4a/aac or opus. On an unreadable file it prints `error: failed to read audio file` and exits **0** without writing a `.txt` — indistinguishable from a failed transcription. Converting up front removes the format question entirely. If ffmpeg is absent the conversion is skipped and the original file is passed through, so ffmpeg is an improvement rather than a hard requirement.
+
+**A non-zero exit does not always mean no transcript.** If whisper demonstrably ran to completion — both end markers (`output_txt: saving output to` and `whisper_print_timings:`) present in stderr, and the `.txt` on disk — the transcript is kept and the crash is logged as a teardown failure. Without that evidence it is rejected: a partial transcript must never pass as a complete one.
+
+> **Privacy note:** whisper-cli writes transcript text to **stdout** and only engine diagnostics to **stderr**. That is why stderr may be logged and stdout may not.
 
 ---
 

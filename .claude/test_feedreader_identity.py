@@ -7,6 +7,7 @@ Draait op kale stdlib (CI heeft geen pip-install-stap):
 
 import unittest
 
+import feedreader_identity as fi
 from feedreader_identity import (
     TRACKING_PARAMS_PER_HOST,
     canonical_url,
@@ -301,6 +302,59 @@ class TestDedupeByUrl(unittest.TestCase):
     def test_alternatieve_sleutelnaam(self):
         rows = [{"link": "https://a.nl/1?ff=1"}, {"link": "https://a.nl/1?ff=2"}]
         self.assertEqual(len(dedupe_by_url(rows, url_key="link")), 1)
+
+
+
+class TestPodcastCacheIds(unittest.TestCase):
+    """Regressietests bij de gemiste cache-treffers van 22 aug 2026.
+
+    De cache-sleutel is md5 van de rúwe feed-link; de URL in het Zotero-item komt van
+    elders en verschilde op precies één as: het schema. Beide richtingen zijn gemeten.
+    """
+
+    # Item SYQRQ95N: Zotero had http, de feedreader-cache https.
+    AIREPORT_ZOTERO = ("http://www.aireport.nl/podcast/s/aireport/"
+                       "de_zomer_waarin_ai_zichzelf_uit_de_testomgeving_hackte_"
+                       "sam_altman_trapt_op_de_rem_grokbot_is_computer_use_voor_iedereen")
+    AIREPORT_CACHE = "https" + AIREPORT_ZOTERO[4:]
+
+    # Item LB3VFDZK: precies andersom.
+    BBC_ZOTERO = "https://www.bbc.co.uk/programmes/m002v19c"
+    BBC_CACHE = "http://www.bbc.co.uk/programmes/m002v19c"
+
+    def test_schrijfsleutel_blijft_de_ruwe_md5(self):
+        # De schrijfkant mag niet verschuiven, anders wordt de hele cache wees.
+        self.assertEqual(fi.podcast_cache_id(self.AIREPORT_CACHE),
+                         "podcast_d7442ffeb5ec0656336552ec6ebfbca3")
+
+    def test_http_vindt_de_https_entry(self):
+        self.assertIn(fi.podcast_cache_id(self.AIREPORT_CACHE),
+                      fi.podcast_cache_ids(self.AIREPORT_ZOTERO))
+
+    def test_https_vindt_de_http_entry(self):
+        self.assertIn(fi.podcast_cache_id(self.BBC_CACHE),
+                      fi.podcast_cache_ids(self.BBC_ZOTERO))
+
+    def test_exacte_treffer_staat_vooraan(self):
+        # Zo blijft de gangbare weg één bestandstoets, niet twee.
+        ids = fi.podcast_cache_ids(self.BBC_ZOTERO)
+        self.assertEqual(ids[0], fi.podcast_cache_id(self.BBC_ZOTERO))
+
+    def test_precies_twee_kandidaten(self):
+        # Denylist-beleid: alleen de gemeten as. Geen slash- of www-varianten.
+        self.assertEqual(len(fi.podcast_cache_ids(self.BBC_ZOTERO)), 2)
+
+    def test_niet_http_schema_geeft_een_kandidaat(self):
+        self.assertEqual(len(fi.podcast_cache_ids("ftp://voorbeeld.nl/aflevering")), 1)
+
+    def test_lege_url_geeft_niets(self):
+        self.assertEqual(fi.podcast_cache_ids(""), [])
+        self.assertEqual(fi.podcast_cache_ids("   "), [])
+
+    def test_verschillende_afleveringen_botsen_niet(self):
+        a = set(fi.podcast_cache_ids(self.AIREPORT_ZOTERO))
+        b = set(fi.podcast_cache_ids(self.BBC_ZOTERO))
+        self.assertEqual(a & b, set())
 
 
 if __name__ == "__main__":

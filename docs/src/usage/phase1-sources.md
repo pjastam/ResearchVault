@@ -8,12 +8,15 @@ Phase 1 is the collection step. Items from three sources flow into Zotero `_inbo
 
 `feedreader-score.py` runs daily via launchd. It fetches all feeds from `feedreader-list.txt`, scores each item by semantic similarity to your Zotero library, and produces:
 
-- **HTML reader** (Mac, iPhone, iPad): `http://localhost:8765/filtered.html`
-- **Atom feeds** (NetNewsWire): `http://[mac-ip]:8765/filtered-webpage.xml` · `filtered-youtube.xml` · `filtered-podcast.xml`
+- **Atom feeds** (NetNewsWire, via FreshRSS): `http://[mac-ip]:8765/filtered-webpage.xml` · `filtered-youtube.xml` · `filtered-podcast.xml`
+
+(The standalone HTML reader at `/filtered.html` was removed on 18 April 2026; NetNewsWire and FreshRSS took over the reading layer. The URL survives only as the channel home `<link>` inside the Atom feeds, because FreshRSS stores no `htmlUrl` without it.)
 
 Transient network errors are common enough to matter: a feed that cannot be fetched is retried once, under a 15-second per-feed timeout so that one unresponsive server cannot stall the whole run. Feeds that stay unreachable are listed explicitly at the end of the fetch step, so a silently missing source shows up in the run output instead of looking like a feed that simply had nothing new.
 
 Each item is shown once. That is less trivial than it sounds, because a link is a location, not an identity: PubMed appends a fresh `ff=<timestamp>` to every link on every fetch, so the same article arrived under a new URL each run and NetNewsWire kept showing it again. Items are therefore matched on a stable key — the RSS `<guid>` where the feed provides one, otherwise the link with tracking parameters stripped — both against earlier runs and within the current one, the latter catching a publication that appears in the PURE feeds of two co-authors. The reverse failure is guarded too: podcast feeds that give the show homepage as the link for every episode fall back to the guid alone, so episode 2 is not mistaken for a repeat of episode 1. The run output reports both counts (`Ontdubbeld: N al eerder gezien, M dubbel binnen deze run`).
+
+One caveat when editing `feedreader-list.txt`: the list is not de-duplicated. A feed listed twice is fetched twice per run, and — less obviously — the de-duplication key is `(feed URL, canonical link)`, so every episode is counted twice within what looks like the same feed. That trips the show-homepage fallback described above, and the items silently drop back to guid-only identity. Measured on 22 August 2026: the AI Report feed appeared under two category headings, and all 135 of its log lines carried a guid identity, never a URL form. The headings are comments only — source type is derived from the feed URL and the entry's enclosures — so a feed needs exactly one line, in whichever section fits.
 
 ### Reading the item list
 
