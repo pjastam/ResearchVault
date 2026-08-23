@@ -196,7 +196,26 @@
 <li><strong>Semantic search:</strong> you can skip this now and configure it later (see step 10)</li>
 </ul>
 <h2 id="4c-initialize-semantic-search"><a class="header" href="#4c-initialize-semantic-search">4c. Initialize semantic search</a></h2>
-<p>Build the local search database (uses the free, locally running model <code>all-MiniLM-L6-v2</code>):</p>
+<p>Build the local search database. Two backends are available, both free and fully local:</p>
+<ul>
+<li><strong><code>default</code></strong> — the bundled ONNX model <code>all-MiniLM-L6-v2</code> (384 dimensions). No extra
+install, but English-trained: on Dutch material it scores no better than chance.</li>
+<li><strong><code>ollama</code></strong> — any embedding model you have pulled, e.g. <code>nomic-embed-text-v2-moe</code>
+(768 dimensions), which is multilingual. <strong>Required if you plan to use the RSS filter
+layer</strong> (step 13): that layer embeds incoming feed items itself and can only reproduce
+the library vectors through Ollama. See <a href="./ollama.html">Ollama</a>.</li>
+</ul>
+<pre><code class="language-bash">ollama pull nomic-embed-text-v2-moe
+</code></pre>
+<p>Then put the choice in <code>~/.config/zotero-mcp/config.json</code>, under <code>semantic_search</code>:</p>
+<pre><code class="language-json">"embedding_model": "ollama",
+"embedding_config": { "model_name": "nomic-embed-text-v2-moe" }
+</code></pre>
+<blockquote>
+<p><strong><code>model_name</code> must be explicit.</strong> Without that key <code>zotero-mcp</code> falls back to
+<code>qwen3-embedding</code>, which is roughly 39x more expensive to run for no gain here.</p>
+</blockquote>
+<p>Now build the database:</p>
 <pre><code class="language-bash"># Quick version (metadata only):
 zotero-mcp update-db
 
@@ -205,6 +224,11 @@ zotero-mcp update-db --fulltext
 </code></pre>
 <blockquote>
 <p><strong>Note:</strong> The <code>--fulltext</code> option takes longer but gives much better search results. On an M4 Mac mini with an average-sized library this takes 5–20 minutes.</p>
+</blockquote>
+<blockquote>
+<p><strong>Changing the embedding model later</strong> changes the vector dimension, so the collection
+must be rebuilt from scratch: <code>zotero-mcp update-db --fulltext --force-rebuild</code>. Make a
+copy of <code>~/.config/zotero-mcp/chroma_db</code> first — that is the only way back.</p>
 </blockquote>
 <p>Check the status of the database:</p>
 <pre><code class="language-bash">zotero-mcp db-status

@@ -233,7 +233,7 @@ yt-dlp --write-auto-sub --skip-download --sub-format vtt \
 </blockquote>
 <hr />
 <h2 id="10b-better-semantic-embeddings-optional"><a class="header" href="#10b-better-semantic-embeddings-optional">10b. Better semantic embeddings (optional)</a></h2>
-<p>The default local model (<code>all-MiniLM-L6-v2</code>) is free and fast. If you want better search results and are willing to use an OpenAI API key exclusively for embeddings (not for text generation):</p>
+<p>The local models are free and fast — the bundled default (<code>all-MiniLM-L6-v2</code>) and any Ollama embedder such as <code>nomic-embed-text-v2-moe</code>. If you want better search results and are willing to use an OpenAI API key exclusively for embeddings (not for text generation):</p>
 <pre><code class="language-bash">zotero-mcp setup --semantic-config-only
 </code></pre>
 <p>Then choose <code>openai</code> as the embedding model and enter your API key. Afterwards, reinitialize the database:</p>
@@ -247,7 +247,7 @@ yt-dlp --write-auto-sub --skip-download --sub-format vtt \
 </code></pre>
 <p>For the update frequency, choose <strong>"Daily"</strong> or <strong>"Auto on startup"</strong>. With "Auto on startup" the database is updated every time Claude Code calls Zotero MCP — this is the most hands-off approach.</p>
 <blockquote>
-<p><strong>About "unknown" as model name:</strong> After running <code>zotero-mcp setup-info</code>, the embedding model name may be displayed as <code>unknown</code>. This is normal behavior: the default local model (<code>all-MiniLM-L6-v2</code>) is used, but the name is not reported back by setup-info. Your installation is working fine. Verification is done not via the terminal but via Claude Code: after running <code>zotero-mcp update-db</code>, ask Claude Code to semantically search for a term that exists in your library. If that returns results, the database is working correctly.</p>
+<p><strong>About "unknown" as model name:</strong> After running <code>zotero-mcp setup-info</code>, the embedding model name may be displayed as <code>unknown</code>. This is normal behavior: the configured local model is used, but the name is not reported back by setup-info. Your installation is working fine. Verification is done not via the terminal but via Claude Code: after running <code>zotero-mcp update-db</code>, ask Claude Code to semantically search for a term that exists in your library. If that returns results, the database is working correctly.</p>
 </blockquote>
 <h3 id="option-2-handy-alias-in-your-shell-profile"><a class="header" href="#option-2-handy-alias-in-your-shell-profile">Option 2: Handy alias in your shell profile</a></h3>
 <p>Add an alias so you can update the database with a single command:</p>

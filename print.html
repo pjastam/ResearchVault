@@ -309,6 +309,7 @@
 <pre><code class="language-python">THRESHOLD_GREEN  = ...   # from the recommendation
 THRESHOLD_YELLOW = ...   # from the recommendation
 </code></pre>
+<p><strong>Changing the embedding model resets comparability.</strong> The raw score is a cosine, and a cosine only means something inside the model that produced it. Each log line therefore records an <code>embedder</code> field alongside <code>star_threshold</code> and <code>prior</code>; lines written before 23 August 2026 carry no such field and come from <code>all-MiniLM-L6-v2</code>. A threshold calibrated on one model is not calibrated for the next — after a switch, <code>THRESHOLD_STAR</code> carries no calibration until enough lines under the new model have accumulated human signals. Expect that to take weeks, not one run: the recommendation rests on Zotero matches and stars, which arrive at the pace you read.</p>
 <p><strong>Learning is continuous.</strong> After the initial threshold is set, every Zotero addition keeps reshaping the recommendation as the positives accumulate — and it also enters the preference profile the scorer builds from your library, so adding a paper changes how the next batch is scored. 👎 signals do neither yet: they are recorded in <code>skip_queue.jsonl</code>, labelled in the log and reported in the summary, but no calculation reads them. Keep giving them anyway — they are the only unambiguous rejections on record, and they are what negative weighting will be built on. Occasional browsing in NetNewsWire and sharing items to Zotero remains useful even in autonomous mode.</p>
 <h3 id="hiding-read-and-skipped-items"><a class="header" href="#hiding-read-and-skipped-items">Hiding read and skipped items</a></h3>
 <p>Click <strong>verberg gelezen / overgeslagen</strong> in the header to hide processed items.</p>
@@ -356,7 +357,7 @@ THRESHOLD_YELLOW = ...   # from the recommendation
 <p>Optionally, run <code>index-score.py</code> first to pre-rank items:</p>
 <pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/index-score.py
 </code></pre>
-<p>This scores each <code>_inbox</code> item by semantic similarity to your existing Zotero library (0–100) and prints a sorted list. Claude Code uses these scores during the review session.</p>
+<p>This scores each <code>_inbox</code> item by semantic similarity to your existing Zotero library (0–100) and prints a sorted list. Both sides come from ChromaDB, so it works with whichever embedding model <code>zotero-mcp</code> is configured with. Claude Code uses these scores during the review session.</p>
 <hr />
 <h2 id="how-claude-code-reviews-each-item"><a class="header" href="#how-claude-code-reviews-each-item">How Claude Code reviews each item</a></h2>
 <p>The treatment depends on the item's Zotero tag and its relevance score.</p>
@@ -370,11 +371,16 @@ THRESHOLD_YELLOW = ...   # from the recommendation
 <p><strong>The <code>📖</code> tag</strong> is set in Phase 1 when you need more information before deciding. In Phase 2, <code>summarize_item.py</code> generates a compact summary (Introduction · Key findings · Relevance) locally via the fallback model <code>qwen3.5:9b</code> and writes it to <code>inbox/_summary_ITEMKEY.md</code>. Claude Code shows you the path; you read the file and give your decision. No summary text reaches the Anthropic API.</p>
 <h3 id="score-based-treatment-for-untagged-items"><a class="header" href="#score-based-treatment-for-untagged-items">Score-based treatment (for untagged items)</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>Score</th><th>Treatment</th></tr></thead><tbody>
-<tr><td>🟢 ≥70</td><td>Show title + score; ask Go/No-go directly — strong match, no summary needed</td></tr>
-<tr><td>🟡 40–69</td><td>Generate a 2–3 sentence summary via <code>summarize_item.py</code> (local fallback model <code>qwen3.5:9b</code>); ask Go/No-go</td></tr>
+<tr><td>🟢 ≥50</td><td>Show title + score; ask Go/No-go directly — strong match, no summary needed</td></tr>
+<tr><td>🟡 40–49</td><td>Generate a 2–3 sentence summary via <code>summarize_item.py</code> (local fallback model <code>qwen3.5:9b</code>); ask Go/No-go</td></tr>
 <tr><td>🔴 &lt;40</td><td>Propose No-go ("Score: X — low match with your library. No-go?"); you can still choose Go</td></tr>
 </tbody></table>
 </div>
+<blockquote>
+<p>The two cut-offs are <code>THRESHOLD_GREEN</code> and <code>THRESHOLD_YELLOW</code> in <code>feedreader_core.py</code>; that
+file is the source of truth. Nothing checks this table against those constants, so it is worth
+re-reading them when a threshold moves.</p>
+</blockquote>
 <p>Claude Code asks for one Go/No-go decision at a time, giving you space to decide per item.</p>
 <hr />
 <h2 id="go"><a class="header" href="#go">Go</a></h2>
@@ -838,7 +844,26 @@ locality   = "local"
 <li><strong>Semantic search:</strong> you can skip this now and configure it later (see step 10)</li>
 </ul>
 <h2 id="4c-initialize-semantic-search"><a class="header" href="#4c-initialize-semantic-search">4c. Initialize semantic search</a></h2>
-<p>Build the local search database (uses the free, locally running model <code>all-MiniLM-L6-v2</code>):</p>
+<p>Build the local search database. Two backends are available, both free and fully local:</p>
+<ul>
+<li><strong><code>default</code></strong> — the bundled ONNX model <code>all-MiniLM-L6-v2</code> (384 dimensions). No extra
+install, but English-trained: on Dutch material it scores no better than chance.</li>
+<li><strong><code>ollama</code></strong> — any embedding model you have pulled, e.g. <code>nomic-embed-text-v2-moe</code>
+(768 dimensions), which is multilingual. <strong>Required if you plan to use the RSS filter
+layer</strong> (step 13): that layer embeds incoming feed items itself and can only reproduce
+the library vectors through Ollama. See <a href="installation/./ollama.html">Ollama</a>.</li>
+</ul>
+<pre><code class="language-bash">ollama pull nomic-embed-text-v2-moe
+</code></pre>
+<p>Then put the choice in <code>~/.config/zotero-mcp/config.json</code>, under <code>semantic_search</code>:</p>
+<pre><code class="language-json">"embedding_model": "ollama",
+"embedding_config": { "model_name": "nomic-embed-text-v2-moe" }
+</code></pre>
+<blockquote>
+<p><strong><code>model_name</code> must be explicit.</strong> Without that key <code>zotero-mcp</code> falls back to
+<code>qwen3-embedding</code>, which is roughly 39x more expensive to run for no gain here.</p>
+</blockquote>
+<p>Now build the database:</p>
 <pre><code class="language-bash"># Quick version (metadata only):
 zotero-mcp update-db
 
@@ -847,6 +872,11 @@ zotero-mcp update-db --fulltext
 </code></pre>
 <blockquote>
 <p><strong>Note:</strong> The <code>--fulltext</code> option takes longer but gives much better search results. On an M4 Mac mini with an average-sized library this takes 5–20 minutes.</p>
+</blockquote>
+<blockquote>
+<p><strong>Changing the embedding model later</strong> changes the vector dimension, so the collection
+must be rebuilt from scratch: <code>zotero-mcp update-db --fulltext --force-rebuild</code>. Make a
+copy of <code>~/.config/zotero-mcp/chroma_db</code> first — that is the only way back.</p>
 </blockquote>
 <p>Check the status of the database:</p>
 <pre><code class="language-bash">zotero-mcp db-status
@@ -1166,7 +1196,7 @@ yt-dlp --write-auto-sub --skip-download --sub-format vtt \
 </blockquote>
 <hr />
 <h2 id="10b-better-semantic-embeddings-optional"><a class="header" href="#10b-better-semantic-embeddings-optional">10b. Better semantic embeddings (optional)</a></h2>
-<p>The default local model (<code>all-MiniLM-L6-v2</code>) is free and fast. If you want better search results and are willing to use an OpenAI API key exclusively for embeddings (not for text generation):</p>
+<p>The local models are free and fast — the bundled default (<code>all-MiniLM-L6-v2</code>) and any Ollama embedder such as <code>nomic-embed-text-v2-moe</code>. If you want better search results and are willing to use an OpenAI API key exclusively for embeddings (not for text generation):</p>
 <pre><code class="language-bash">zotero-mcp setup --semantic-config-only
 </code></pre>
 <p>Then choose <code>openai</code> as the embedding model and enter your API key. Afterwards, reinitialize the database:</p>
@@ -1180,7 +1210,7 @@ yt-dlp --write-auto-sub --skip-download --sub-format vtt \
 </code></pre>
 <p>For the update frequency, choose <strong>"Daily"</strong> or <strong>"Auto on startup"</strong>. With "Auto on startup" the database is updated every time Claude Code calls Zotero MCP — this is the most hands-off approach.</p>
 <blockquote>
-<p><strong>About "unknown" as model name:</strong> After running <code>zotero-mcp setup-info</code>, the embedding model name may be displayed as <code>unknown</code>. This is normal behavior: the default local model (<code>all-MiniLM-L6-v2</code>) is used, but the name is not reported back by setup-info. Your installation is working fine. Verification is done not via the terminal but via Claude Code: after running <code>zotero-mcp update-db</code>, ask Claude Code to semantically search for a term that exists in your library. If that returns results, the database is working correctly.</p>
+<p><strong>About "unknown" as model name:</strong> After running <code>zotero-mcp setup-info</code>, the embedding model name may be displayed as <code>unknown</code>. This is normal behavior: the configured local model is used, but the name is not reported back by setup-info. Your installation is working fine. Verification is done not via the terminal but via Claude Code: after running <code>zotero-mcp update-db</code>, ask Claude Code to semantically search for a term that exists in your library. If that returns results, the database is working correctly.</p>
 </blockquote>
 <h3 id="option-2-handy-alias-in-your-shell-profile"><a class="header" href="#option-2-handy-alias-in-your-shell-profile">Option 2: Handy alias in your shell profile</a></h3>
 <p>Add an alias so you can update the database with a single command:</p>
@@ -1291,9 +1321,18 @@ bundle in raw/ with summary, key points, and timestamped quotes.
 <div style="break-before: page; page-break-before: always;"></div><h1 id="step-12-rss-integration--feedreader-filtering"><a class="header" href="#step-12-rss-integration--feedreader-filtering">Step 12: RSS integration + feedreader filtering</a></h1>
 <p>In the 3-phase model, RSS feeds are pre-filtered automatically before you see them — the feedreader (<code>feedreader-score.py</code>) is part of phase 1, not a separate phase. It scores feeds daily so that your feed reader only shows items that are likely relevant to your research. You then browse this curated selection and send interesting items to Zotero <code>_inbox</code>. Only in phase 2 do you decide what goes into the vault.</p>
 <h2 id="12a-feedreader--automatic-relevance-filtering"><a class="header" href="#12a-feedreader--automatic-relevance-filtering">12a. Feedreader — Automatic relevance filtering</a></h2>
-<p><code>feedreader-score.py</code> runs daily via launchd and produces a filtered, scored Atom feed and HTML reader from your RSS subscriptions. It uses the same ChromaDB preference profile as <code>index-score.py</code> — items are scored by semantic similarity to your existing library.</p>
+<p><code>feedreader-score.py</code> runs daily via launchd and produces a filtered, scored Atom feed from your RSS subscriptions. It uses the same ChromaDB preference profile as <code>index-score.py</code> — items are scored by semantic similarity to your existing library.</p>
+<blockquote>
+<p><strong>Requires the Ollama embedding backend.</strong> Unlike <code>index-score.py</code>, which reads both sides
+from ChromaDB, this layer embeds <em>incoming feed items</em> at scoring time and must reproduce the
+library's vectors exactly. It therefore reads the model from <code>~/.config/zotero-mcp/config.json</code>
+and refuses to run against the bundled <code>default</code> backend rather than silently comparing 384
+dimensions with 768. Configure it as described in
+<a href="extensions/../installation/zotero-mcp.html">zotero-mcp</a>; Ollama is already required here for article
+generation.</p>
+</blockquote>
 <p><strong>Install dependencies</strong> (if not already present from step 10):</p>
-<pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/pip install feedparser sentence-transformers youtube-transcript-api
+<pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/pip install feedparser youtube-transcript-api
 </code></pre>
 <blockquote>
 <p><code>youtube-transcript-api</code> is used to fetch transcripts for YouTube items in your feeds. These transcripts enrich the relevance score (instead of scoring on the title alone) and are cached in <code>.claude/transcript_cache/</code> so they are only fetched once per video.</p>
@@ -1654,7 +1693,7 @@ SORT year DESC, file.name ASC
 <p>Before starting the Go/No-go review, you can run <code>index-score.py</code> to get a ranked list of inbox items sorted by semantic similarity to your existing library:</p>
 <pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/index-score.py
 </code></pre>
-<p>The script uses ChromaDB embeddings (all-MiniLM-L6-v2, same model as zotero-mcp) to compute a relevance score (0–100) per item. Items with PDF annotations in Zotero weigh more heavily in the preference profile. Output labels: 🟢 strong match (≥70) · 🟡 possibly relevant (40–69) · 🔴 weak match (&lt;40).</p>
+<p>The script uses ChromaDB embeddings (whatever model <code>zotero-mcp</code> is configured with — see <a href="extensions/../installation/zotero-mcp.html">zotero-mcp</a>) to compute a relevance score (0–100) per item. It reads <em>both</em> sides from ChromaDB and carries no embedder of its own, so it works with either backend. Items with PDF annotations in Zotero weigh more heavily in the preference profile (weight 3 versus 1). Output labels: 🟢 strong match (≥50) · 🟡 possibly relevant (40–49) · 🔴 weak match (&lt;40) — the thresholds are <code>THRESHOLD_GREEN</code> and <code>THRESHOLD_YELLOW</code> in <code>feedreader_core.py</code>.</p>
 <h3 id="summary-requests"><a class="header" href="#summary-requests">Summary requests</a></h3>
 <p>Claude Code can help you with the evaluation — ask for a summary of items in <code>_inbox</code>:</p>
 <pre><code>Give me an overview of the items in my Zotero _inbox collection with a 2–3 sentence
