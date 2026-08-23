@@ -23,6 +23,8 @@ on:
       - '.claude/test_fetch_fulltext.py'
       - '.claude/build-zotero-bundle.py'
       - '.claude/test_build_zotero_bundle.py'
+      - '.claude/zotero_utils.py'
+      - '.claude/test_zotero_utils.py'
       - '.github/workflows/tests.yml'
   pull_request:
     paths:
@@ -46,6 +48,8 @@ on:
       - '.claude/test_fetch_fulltext.py'
       - '.claude/build-zotero-bundle.py'
       - '.claude/test_build_zotero_bundle.py'
+      - '.claude/zotero_utils.py'
+      - '.claude/test_zotero_utils.py'
 
 jobs:
   unittest:

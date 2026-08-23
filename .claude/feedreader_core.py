@@ -18,7 +18,14 @@ THRESHOLD_STAR   = 75  # items met score ≥ dit worden auto-gestefd in FreshRSS
                        # van dekking (31,0% → 20,5%). Een gemiste ster is goedkoop — er
                        # wordt niets weggefilterd, het item staat in de gesorteerde feed.
 
-PRIOR_RELEVANCE = 0.80  # a priori kans dat een item uit de geselecteerde feeds relevant is — tijdelijk 0.80 voor testdoeleinden (was 0.70)
+PRIOR_RELEVANCE = 0.80  # a priori kans dat een item uit de geselecteerde feeds relevant is.
+                        # 0.70 → 0.80 op 2 mei 2026 (33f968c), toen gemarkeerd als "tijdelijk
+                        # voor testdoeleinden"; bevestigd op 23 aug 2026. Reden om te bevestigen
+                        # en niet terug te draaien: THRESHOLD_STAR = 75 is op 19 aug 2026
+                        # empirisch geijkt met een lift-analyse, en die draaide op scores die
+                        # onder 0.80 zijn geproduceerd. Terugzetten maakt die ijking stil
+                        # ongeldig. Het kantelpunt van bayesian_score() ligt op
+                        # raw = (1-prior)*100, dus raw 20 in plaats van raw 30.
 
 # Items with PDF annotations are treated as strong positive signals (3× weight vs. unannotated)
 WEIGHT_DEFAULT     = 1

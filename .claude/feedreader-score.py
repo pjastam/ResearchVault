@@ -57,7 +57,6 @@ from feedreader_core import (
     THRESHOLD_STAR,
     PRIOR_RELEVANCE,
     WEIGHT_DEFAULT,
-    WEIGHT_ANNOTATIONS,
     cosine_similarity,
     compute_weighted_profile,
     bayesian_score,
@@ -979,6 +978,13 @@ def main():
             # bestaande regels verschuiven, en zouden handmatige sterren in de
             # band [oude drempel, nieuwe drempel) als zelfbevestiging gaan gelden.
             "star_threshold":  THRESHOLD_STAR,
+            # De prior die op dit moment gold, om dezelfde reden als star_threshold:
+            # bayesian_score() legt elke ruwe cosine erdoorheen, dus een priorwissel
+            # verschuift de betekenis van elke bestaande regel. Regels zónder dit veld
+            # dateren van vóór 23 aug 2026 en zijn niet met één constante te duiden:
+            # PRIOR_RELEVANCE ging op 2 mei 2026 van 0.70 naar 0.80. Lees zo'n regel dus
+            # bij zijn eigen timestamp — vóór die datum 0.70, erna 0.80.
+            "prior":           PRIOR_RELEVANCE,
             "added_to_zotero": None,
         }
         for item in all_items

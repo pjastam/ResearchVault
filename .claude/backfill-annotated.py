@@ -61,7 +61,7 @@ def annotated_keys() -> list[str]:
         conn.close()
     finally:
         Path(tmp).unlink(missing_ok=True)
-    # gewicht > WEIGHT_DEFAULT ⇒ item heeft annotaties (WEIGHT_ANNOTATIONS opgeteld)
+    # gewicht > WEIGHT_DEFAULT ⇒ item heeft annotaties (dan geldt WEIGHT_ANNOTATIONS)
     keys = [k for k, w in weights.items() if w > WEIGHT_DEFAULT]
     return sorted(keys)  # stabiele volgorde → reproduceerbare --limit-selectie
 
