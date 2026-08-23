@@ -52,7 +52,7 @@ Before starting the Go/No-go review, you can run `index-score.py` to get a ranke
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/index-score.py
 ```
 
-The script uses ChromaDB embeddings (all-MiniLM-L6-v2, same model as zotero-mcp) to compute a relevance score (0–100) per item. Items with PDF annotations in Zotero weigh more heavily in the preference profile. Output labels: 🟢 strong match (≥70) · 🟡 possibly relevant (40–69) · 🔴 weak match (<40).
+The script uses ChromaDB embeddings (whatever model `zotero-mcp` is configured with — see [zotero-mcp](../installation/zotero-mcp.md)) to compute a relevance score (0–100) per item. It reads *both* sides from ChromaDB and carries no embedder of its own, so it works with either backend. Items with PDF annotations in Zotero weigh more heavily in the preference profile (weight 3 versus 1). Output labels: 🟢 strong match (≥50) · 🟡 possibly relevant (40–49) · 🔴 weak match (<40) — the thresholds are `THRESHOLD_GREEN` and `THRESHOLD_YELLOW` in `feedreader_core.py`.
 
 ### Summary requests
 

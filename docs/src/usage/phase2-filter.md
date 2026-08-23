@@ -30,7 +30,7 @@ Optionally, run `index-score.py` first to pre-rank items:
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/index-score.py
 ```
 
-This scores each `_inbox` item by semantic similarity to your existing Zotero library (0–100) and prints a sorted list. Claude Code uses these scores during the review session.
+This scores each `_inbox` item by semantic similarity to your existing Zotero library (0–100) and prints a sorted list. Both sides come from ChromaDB, so it works with whichever embedding model `zotero-mcp` is configured with. Claude Code uses these scores during the review session.
 
 ---
 
@@ -52,9 +52,13 @@ The treatment depends on the item's Zotero tag and its relevance score.
 
 | Score | Treatment |
 |---|---|
-| 🟢 ≥70 | Show title + score; ask Go/No-go directly — strong match, no summary needed |
-| 🟡 40–69 | Generate a 2–3 sentence summary via `summarize_item.py` (local fallback model `qwen3.5:9b`); ask Go/No-go |
+| 🟢 ≥50 | Show title + score; ask Go/No-go directly — strong match, no summary needed |
+| 🟡 40–49 | Generate a 2–3 sentence summary via `summarize_item.py` (local fallback model `qwen3.5:9b`); ask Go/No-go |
 | 🔴 <40 | Propose No-go ("Score: X — low match with your library. No-go?"); you can still choose Go |
+
+> The two cut-offs are `THRESHOLD_GREEN` and `THRESHOLD_YELLOW` in `feedreader_core.py`; that
+> file is the source of truth. Nothing checks this table against those constants, so it is worth
+> re-reading them when a threshold moves.
 
 Claude Code asks for one Go/No-go decision at a time, giving you space to decide per item.
 

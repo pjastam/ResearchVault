@@ -26,7 +26,30 @@ The wizard asks you a number of questions:
 
 ## 4c. Initialize semantic search
 
-Build the local search database (uses the free, locally running model `all-MiniLM-L6-v2`):
+Build the local search database. Two backends are available, both free and fully local:
+
+- **`default`** — the bundled ONNX model `all-MiniLM-L6-v2` (384 dimensions). No extra
+  install, but English-trained: on Dutch material it scores no better than chance.
+- **`ollama`** — any embedding model you have pulled, e.g. `nomic-embed-text-v2-moe`
+  (768 dimensions), which is multilingual. **Required if you plan to use the RSS filter
+  layer** (step 13): that layer embeds incoming feed items itself and can only reproduce
+  the library vectors through Ollama. See [Ollama](./ollama.md).
+
+```bash
+ollama pull nomic-embed-text-v2-moe
+```
+
+Then put the choice in `~/.config/zotero-mcp/config.json`, under `semantic_search`:
+
+```json
+"embedding_model": "ollama",
+"embedding_config": { "model_name": "nomic-embed-text-v2-moe" }
+```
+
+> **`model_name` must be explicit.** Without that key `zotero-mcp` falls back to
+> `qwen3-embedding`, which is roughly 39x more expensive to run for no gain here.
+
+Now build the database:
 
 ```bash
 # Quick version (metadata only):
@@ -37,6 +60,10 @@ zotero-mcp update-db --fulltext
 ```
 
 > **Note:** The `--fulltext` option takes longer but gives much better search results. On an M4 Mac mini with an average-sized library this takes 5–20 minutes.
+
+> **Changing the embedding model later** changes the vector dimension, so the collection
+> must be rebuilt from scratch: `zotero-mcp update-db --fulltext --force-rebuild`. Make a
+> copy of `~/.config/zotero-mcp/chroma_db` first — that is the only way back.
 
 Check the status of the database:
 

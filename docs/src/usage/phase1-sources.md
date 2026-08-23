@@ -74,6 +74,8 @@ THRESHOLD_GREEN  = ...   # from the recommendation
 THRESHOLD_YELLOW = ...   # from the recommendation
 ```
 
+**Changing the embedding model resets comparability.** The raw score is a cosine, and a cosine only means something inside the model that produced it. Each log line therefore records an `embedder` field alongside `star_threshold` and `prior`; lines written before 23 August 2026 carry no such field and come from `all-MiniLM-L6-v2`. A threshold calibrated on one model is not calibrated for the next — after a switch, `THRESHOLD_STAR` carries no calibration until enough lines under the new model have accumulated human signals. Expect that to take weeks, not one run: the recommendation rests on Zotero matches and stars, which arrive at the pace you read.
+
 **Learning is continuous.** After the initial threshold is set, every Zotero addition keeps reshaping the recommendation as the positives accumulate — and it also enters the preference profile the scorer builds from your library, so adding a paper changes how the next batch is scored. 👎 signals do neither yet: they are recorded in `skip_queue.jsonl`, labelled in the log and reported in the summary, but no calculation reads them. Keep giving them anyway — they are the only unambiguous rejections on record, and they are what negative weighting will be built on. Occasional browsing in NetNewsWire and sharing items to Zotero remains useful even in autonomous mode.
 
 ### Hiding read and skipped items

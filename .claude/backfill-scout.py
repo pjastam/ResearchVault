@@ -464,7 +464,9 @@ def main() -> None:
 
     log("[1/3] Voorkeursprofiel laden uit ChromaDB...")
     profile = build_profile(fr)
-    model = fr.SentenceTransformer("all-MiniLM-L6-v2")
+    # Derde plaats waar het model stond hardgecodeerd (ADR-0007 noemde er twee).
+    # Erft nu dezelfde bron als het profiel hierboven: config.json.
+    model = fr.maak_embedder()
     existing = fr.load_existing_log(fr.LOG_FILE)
     gen_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     block_flag = {"blocked": False}

@@ -4,12 +4,20 @@ In the 3-phase model, RSS feeds are pre-filtered automatically before you see th
 
 ## 12a. Feedreader — Automatic relevance filtering
 
-`feedreader-score.py` runs daily via launchd and produces a filtered, scored Atom feed and HTML reader from your RSS subscriptions. It uses the same ChromaDB preference profile as `index-score.py` — items are scored by semantic similarity to your existing library.
+`feedreader-score.py` runs daily via launchd and produces a filtered, scored Atom feed from your RSS subscriptions. It uses the same ChromaDB preference profile as `index-score.py` — items are scored by semantic similarity to your existing library.
+
+> **Requires the Ollama embedding backend.** Unlike `index-score.py`, which reads both sides
+> from ChromaDB, this layer embeds *incoming feed items* at scoring time and must reproduce the
+> library's vectors exactly. It therefore reads the model from `~/.config/zotero-mcp/config.json`
+> and refuses to run against the bundled `default` backend rather than silently comparing 384
+> dimensions with 768. Configure it as described in
+> [zotero-mcp](../installation/zotero-mcp.md); Ollama is already required here for article
+> generation.
 
 **Install dependencies** (if not already present from step 10):
 
 ```bash
-~/.local/share/uv/tools/zotero-mcp-server/bin/pip install feedparser sentence-transformers youtube-transcript-api
+~/.local/share/uv/tools/zotero-mcp-server/bin/pip install feedparser youtube-transcript-api
 ```
 
 > `youtube-transcript-api` is used to fetch transcripts for YouTube items in your feeds. These transcripts enrich the relevance score (instead of scoring on the title alone) and are cached in `.claude/transcript_cache/` so they are only fetched once per video.

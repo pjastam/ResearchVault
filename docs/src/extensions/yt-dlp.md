@@ -85,7 +85,7 @@ yt-dlp --write-auto-sub --skip-download --sub-format vtt \
 
 ## 10b. Better semantic embeddings (optional)
 
-The default local model (`all-MiniLM-L6-v2`) is free and fast. If you want better search results and are willing to use an OpenAI API key exclusively for embeddings (not for text generation):
+The local models are free and fast — the bundled default (`all-MiniLM-L6-v2`) and any Ollama embedder such as `nomic-embed-text-v2-moe`. If you want better search results and are willing to use an OpenAI API key exclusively for embeddings (not for text generation):
 
 ```bash
 zotero-mcp setup --semantic-config-only
@@ -111,7 +111,7 @@ zotero-mcp setup --semantic-config-only
 
 For the update frequency, choose **"Daily"** or **"Auto on startup"**. With "Auto on startup" the database is updated every time Claude Code calls Zotero MCP — this is the most hands-off approach.
 
-> **About "unknown" as model name:** After running `zotero-mcp setup-info`, the embedding model name may be displayed as `unknown`. This is normal behavior: the default local model (`all-MiniLM-L6-v2`) is used, but the name is not reported back by setup-info. Your installation is working fine. Verification is done not via the terminal but via Claude Code: after running `zotero-mcp update-db`, ask Claude Code to semantically search for a term that exists in your library. If that returns results, the database is working correctly.
+> **About "unknown" as model name:** After running `zotero-mcp setup-info`, the embedding model name may be displayed as `unknown`. This is normal behavior: the configured local model is used, but the name is not reported back by setup-info. Your installation is working fine. Verification is done not via the terminal but via Claude Code: after running `zotero-mcp update-db`, ask Claude Code to semantically search for a term that exists in your library. If that returns results, the database is working correctly.
 
 ### Option 2: Handy alias in your shell profile
 

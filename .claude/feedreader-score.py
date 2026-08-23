@@ -10,7 +10,7 @@ Gebruik:
     python3 feedreader-score.py
 
 Vereisten:
-    feedparser, chromadb, numpy, sentence_transformers
+    feedparser, chromadb, numpy (de itemzijde embedt via Ollama)
 
 Configuratie (pas aan indien nodig):
     FEEDS_FILE      — pad naar de lijst van feed-URLs
@@ -42,13 +42,8 @@ from pathlib import Path
 import chromadb
 import feedparser  # niet lokaal gebruikt: backfill-scout.py benadert het via `fr.feedparser`
 import numpy as np
-import logging
-os.environ.setdefault("HF_HUB_OFFLINE", "1")
-logging.getLogger("transformers").setLevel(logging.ERROR)
-logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
-logging.getLogger("sentence_transformers").setLevel(logging.ERROR)
-from sentence_transformers import SentenceTransformer
 
+from feedreader_embed import maak_embedder
 from feedreader_fetch import fetch_feed
 from feedreader_identity import canonical_url, item_identity, item_keys, podcast_cache_id
 from feedreader_core import (
@@ -764,7 +759,9 @@ def main():
 
     # 3. Feeds ophalen en items verzamelen
     print("[3/5] Feeds ophalen...")
-    model = SentenceTransformer("all-MiniLM-L6-v2")
+    # Model uit ~/.config/zotero-mcp/config.json — dezelfde bron als de collectie
+    # waar `profile` hierboven uit komt. Zie feedreader_embed.py voor het waarom.
+    model = maak_embedder()
     existing_identities = load_existing_log(LOG_FILE)
     all_items = []
 
@@ -891,6 +888,17 @@ def main():
     texts = [item["score_text"] for item in all_items]
     embeddings = model.encode(texts, batch_size=32, show_progress_bar=False)
 
+    # Item- en bibliotheekzijde moeten uit hetzelfde model komen. Ze doen dat ook,
+    # want beide leiden hun model af uit config.json — maar als de collectie nog met
+    # een vorig model gebouwd is, valt dat pas hier op. Zonder deze controle geeft
+    # cosine_similarity() een vormfout diep in numpy, ver van de oorzaak.
+    if embeddings.shape[1] != profile.shape[0]:
+        print(f"❌  Dimensies lopen uiteen: items {embeddings.shape[1]}, profiel "
+              f"{profile.shape[0]}. De ChromaDB-collectie is met een ander model "
+              f"gebouwd dan {model.model_name!r} — herindexeer met "
+              f"'zotero-mcp update-db --fulltext --force-rebuild'.")
+        return
+
     now = datetime.now(timezone.utc)
     for item, emb in zip(all_items, embeddings):
         sim             = cosine_similarity(np.array(emb, dtype=np.float32), profile)
@@ -985,6 +993,13 @@ def main():
             # PRIOR_RELEVANCE ging op 2 mei 2026 van 0.70 naar 0.80. Lees zo'n regel dus
             # bij zijn eigen timestamp — vóór die datum 0.70, erna 0.80.
             "prior":           PRIOR_RELEVANCE,
+            # Het embeddingmodel dat deze score voortbracht, om dezelfde reden als
+            # star_threshold en prior: een ruwe cosine is alleen te duiden binnen het
+            # model dat hem berekende. De wissel van all-MiniLM-L6-v2 naar
+            # nomic-embed-text-v2-moe (23 aug 2026, ADR-0007) maakt score_raw
+            # onvergelijkbaar over die datum heen. Regels zónder dit veld dateren van
+            # vóór de wissel en komen dus uit all-MiniLM-L6-v2.
+            "embedder":        model.model_name,
             "added_to_zotero": None,
         }
         for item in all_items
