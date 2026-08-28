@@ -1,66 +1,39 @@
 name: tests
 
+# De paden stonden hier tot 28 aug 2026 als een handmatige lijst van 24 bestanden. Die
+# liep achter: feedreader_core.py stond er niet in (juist het bestand dat de suite brak),
+# en na het hernoemen van test_attach_transcript.py wees een regel naar een bestand dat
+# niet meer bestond. Een glob over alle Python in .claude/ kan niet verlopen; logs, HTML
+# en JSON blijven er buiten, zodat een gewijzigd score_log.jsonl geen run uitlokt.
 on:
   push:
     paths:
-      - '.claude/wiki_backend.py'
-      - '.claude/test_wiki_backend.py'
-      - '.claude/feedreader_embed.py'
-      - '.claude/test_feedreader_embed.py'
-      - '.claude/feedreader_fetch.py'
-      - '.claude/test_feedreader_fetch.py'
-      - '.claude/feedreader_identity.py'
-      - '.claude/test_feedreader_identity.py'
-      - '.claude/freshrss_utils.py'
-      - '.claude/test_freshrss_utils.py'
-      - '.claude/feedreader_labels.py'
-      - '.claude/test_feedreader_labels.py'
-      - '.claude/feedreader-server.py'
-      - '.claude/test_feedreader_server.py'
-      - '.claude/enrich-inbox.py'
-      - '.claude/test_enrich_inbox.py'
-      - '.claude/attach-transcript.py'
-      - '.claude/test_attach_transcript.py'
-      - '.claude/fetch-fulltext.py'
-      - '.claude/test_fetch_fulltext.py'
-      - '.claude/build-zotero-bundle.py'
-      - '.claude/test_build_zotero_bundle.py'
-      - '.claude/zotero_utils.py'
-      - '.claude/test_zotero_utils.py'
+      - '.claude/**/*.py'
       - '.github/workflows/tests.yml'
   pull_request:
     paths:
-      - '.claude/wiki_backend.py'
-      - '.claude/test_wiki_backend.py'
-      - '.claude/feedreader_embed.py'
-      - '.claude/test_feedreader_embed.py'
-      - '.claude/feedreader_fetch.py'
-      - '.claude/test_feedreader_fetch.py'
-      - '.claude/feedreader_identity.py'
-      - '.claude/test_feedreader_identity.py'
-      - '.claude/freshrss_utils.py'
-      - '.claude/test_freshrss_utils.py'
-      - '.claude/feedreader_labels.py'
-      - '.claude/test_feedreader_labels.py'
-      - '.claude/feedreader-server.py'
-      - '.claude/test_feedreader_server.py'
-      - '.claude/enrich-inbox.py'
-      - '.claude/test_enrich_inbox.py'
-      - '.claude/attach-transcript.py'
-      - '.claude/test_attach_transcript.py'
-      - '.claude/fetch-fulltext.py'
-      - '.claude/test_fetch_fulltext.py'
-      - '.claude/build-zotero-bundle.py'
-      - '.claude/test_build_zotero_bundle.py'
-      - '.claude/zotero_utils.py'
-      - '.claude/test_zotero_utils.py'
+      - '.claude/**/*.py'
+      - '.github/workflows/tests.yml'
 
 jobs:
   unittest:
     runs-on: ubuntu-latest
+    strategy:
+      # Beide versies draaien echt op de Mac Mini: 3.14 is de Homebrew-python die de
+      # scripts standaard krijgen, 3.12 die van de zotero-mcp-server-venv waaronder
+      # attach-transcript.py zijn subprocessen start. De CI stond tot 28 aug 2026 op
+      # 3.11 — een versie die nergens draait, terwijl 3.14 ongetest bleef.
+      #
+      # Het verschil is niet theoretisch: Python 3.14 stelt sinds PEP 649 de evaluatie
+      # van annotaties uit. Een annotatie die op 3.12 een ontbrekende module aanraakt,
+      # blijft op 3.14 onopgemerkt. Precies zo bleef een kapotte import vijf dagen
+      # onzichtbaar op de ontwikkelmachine.
+      fail-fast: false
+      matrix:
+        python-version: ['3.12', '3.14']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: ${{ matrix.python-version }}
       - run: python3 -m unittest discover -s .claude -p 'test_*.py' -v

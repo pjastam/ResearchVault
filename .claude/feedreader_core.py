@@ -4,7 +4,16 @@ feedreader_core.py — Gedeelde rekenkern voor de feedreader
 Bevat puur rekenkundige hulpfuncties zonder I/O of feedparser-afhankelijkheden,
 zodat ze herbruikbaar zijn vanuit feedreader-score.py, feedreader-learn.py en
 toekomstige scripts.
+
+De annotaties worden bewust niet op importtijd geëvalueerd (`from __future__ import
+annotations`). Dit bestand noemt numpy in zijn signaturen, maar de meeste functies hier
+rekenen zonder numpy — en test_zotero_utils.py leunt daarop met een lege nep-numpy om op
+kale stdlib te kunnen draaien. Zonder deze regel evalueert Python ≤3.13 `np.ndarray` bij
+het inlezen van de module en klapt die import eruit; Python 3.14 doet dat uit zichzelf al
+niet meer (PEP 649), waardoor de fout lokaal onzichtbaar bleef en alleen in CI opdook.
 """
+
+from __future__ import annotations
 
 import re
 
