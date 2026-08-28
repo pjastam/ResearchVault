@@ -12,6 +12,7 @@ zotero_api meetrok.
 import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -141,6 +142,55 @@ class TestNaarWav(unittest.TestCase):
         self.assertEqual(int.from_bytes(kop[24:28], "little"), 16000)
         self.assertEqual(int.from_bytes(kop[22:24], "little"), 1)
         uit.unlink()
+
+
+class FormatsVlaggen(unittest.TestCase):
+    """De formats-parameter bepaalt welke uitvoerbestanden whisper wegschrijft.
+
+    whisper-cli wordt hier niet echt gedraaid — het gaat om de opdrachtregel die eruit
+    rolt. De duurdere paden (echte transcriptie, Metal) zijn elders al gedekt.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.audio = Path(self.tmp.name) / "opname.wav"
+        self.audio.write_bytes(b"")
+        self.model = Path(self.tmp.name) / "ggml-test.bin"
+        self.model.write_bytes(b"")
+        self.opdrachten = []
+        self._echte_run = wl.subprocess.run
+
+        def nep_run(cmd, **kwargs):
+            self.opdrachten.append(cmd)
+            Path(str(self.audio) + ".txt").write_text("tekst", encoding="utf-8")
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+        wl.subprocess.run = nep_run
+
+    def tearDown(self):
+        wl.subprocess.run = self._echte_run
+        self.tmp.cleanup()
+
+    def test_default_vraagt_alleen_om_txt(self):
+        wl._draai_whisper(self.audio, self.model, "")
+        self.assertIn("-otxt", self.opdrachten[0])
+        self.assertNotIn("-oj", self.opdrachten[0])
+
+    def test_json_kan_erbij(self):
+        wl._draai_whisper(self.audio, self.model, "", ("-otxt", "-oj"))
+        self.assertIn("-otxt", self.opdrachten[0])
+        self.assertIn("-oj", self.opdrachten[0])
+
+    def test_zonder_txt_is_een_fout(self):
+        # Zonder -otxt zou de functie bij een geslaagde run stilzwijgend None geven:
+        # de eindmarkering ontbreekt en het retourpad bestaat niet.
+        with self.assertRaises(ValueError):
+            wl._draai_whisper(self.audio, self.model, "", ("-oj",))
+
+    def test_taal_blijft_meegaan(self):
+        wl._draai_whisper(self.audio, self.model, "nl", ("-otxt", "-oj"))
+        cmd = self.opdrachten[0]
+        self.assertEqual(cmd[cmd.index("--language") + 1], "nl")
 
 
 if __name__ == "__main__":

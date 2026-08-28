@@ -96,8 +96,15 @@ def _naar_wav(audio_path: Path) -> Path | None:
     return wav_path
 
 
-def transcribe_audio(audio_path: Path, model: str, language: str = "") -> Path | None:
-    """Transcribert audio via whisper-cli; retourneert pad naar .txt output."""
+def transcribe_audio(audio_path: Path, model: str, language: str = "",
+                     formats: tuple[str, ...] = ("-otxt",)) -> Path | None:
+    """Transcribert audio via whisper-cli; retourneert pad naar .txt output.
+
+    `formats` bepaalt welke uitvoerbestanden whisper wegschrijft. De default is precies
+    het oude gedrag. Wie ook tijdcodes nodig heeft — bijvoorbeeld om sprekerlabels aan
+    segmenten te koppelen — geeft ("-otxt", "-oj") mee; whisper zet de JSON dan naast
+    de .txt. Het retourpad blijft de .txt, de aanroeper leidt de rest daaruit af.
+    """
     model_path = WHISPER_MODELS_DIR / f"ggml-{model}.bin"
     if not model_path.exists():
         print(f"  Whisper-model niet gevonden: {model_path}", file=sys.stderr)
@@ -109,7 +116,7 @@ def transcribe_audio(audio_path: Path, model: str, language: str = "") -> Path |
     wav_path = _naar_wav(audio_path)
     bron = wav_path or audio_path
     try:
-        return _draai_whisper(bron, model_path, language)
+        return _draai_whisper(bron, model_path, language, formats)
     finally:
         # De omgezette WAV is werkmateriaal van deze functie; de .txt niet — die leest
         # de aanroeper nog en ruimt hij zelf op.
@@ -117,9 +124,17 @@ def transcribe_audio(audio_path: Path, model: str, language: str = "") -> Path |
             wav_path.unlink(missing_ok=True)
 
 
-def _draai_whisper(audio_path: Path, model_path: Path, language: str) -> Path | None:
-    """Roept whisper-cli aan en beslist of de uitkomst bruikbaar is."""
-    cmd = ["/opt/homebrew/bin/whisper-cli", "-m", str(model_path), "-otxt", str(audio_path)]
+def _draai_whisper(audio_path: Path, model_path: Path, language: str,
+                   formats: tuple[str, ...] = ("-otxt",)) -> Path | None:
+    """Roept whisper-cli aan en beslist of de uitkomst bruikbaar is.
+
+    `-otxt` moet erbij zitten: de controle of whisper zijn werk afmaakte hangt aan de
+    markering die hij afdrukt bij het wegschrijven van de .txt, en het retourpad is die
+    .txt. Zonder dat zou deze functie stilzwijgend None gaan geven bij een geslaagde run.
+    """
+    if "-otxt" not in formats:
+        raise ValueError(f"formats moet -otxt bevatten, kreeg: {formats}")
+    cmd = ["/opt/homebrew/bin/whisper-cli", "-m", str(model_path), *formats, str(audio_path)]
     if language:
         cmd += ["--language", language]
     result = subprocess.run(cmd, capture_output=True, text=True)
