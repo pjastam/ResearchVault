@@ -7,7 +7,7 @@
 - **Stel eerst vragen, neem niets aan.** Bij probleemanalyse en diagnose: stel gerichte vragen vóór je oorzaken of oplossingen formuleert. Werk iteratief: één hypothese tegelijk toetsen. Neem nooit situationele feiten aan (Ollama bereikbaar, Zotero draait, scriptpad klopt, config correct) zonder die eerst te verifiëren.
 - **Plan eerst, voer pas uit na goedkeuring.** Presenteer bij elke voorgestelde wijziging (scripts, configuratie, bestanden) eerst het plan. Stel vragen als er keuzes te maken zijn. Voer pas iets door na expliciet akkoord.
 - **Eén hypothese tegelijk.** Bij bugs of onverwacht gedrag: toets één oorzaak per stap. Maak niet meerdere wijzigingen tegelijk — dat maakt de oorzaak onherleidbaar.
-- **"Update github" = wrap-up eerst.** Wanneer de gebruiker vraagt om naar GitHub te pushen ("update github", "push naar github", "commit en push" of soortgelijk), activeer dan altijd eerst `.claude/skills/wrap-up/SKILL.md` vóórdat je git-commando's uitvoert.
+- **"Update github" = wrap-up eerst.** Wanneer de gebruiker vraagt om naar GitHub te pushen ("update github", "push naar github", "commit en push" of soortgelijk), activeer dan altijd eerst de workspace-brede skill `~/.claude/skills/wrap-up/SKILL.md` vóórdat je git-commando's uitvoert. (Stond tot 30 aug 2026 in deze repo; verhuisd naar workspace-niveau omdat een sessie die niet vanuit deze repo start hem anders niet laadt.)
 
 ## Sessie-startup
 
@@ -466,7 +466,7 @@ De per-compartiment guardrails staan in elk `~/Confidential/<naam>/_COMPARTMENT.
 ## Architectuurprincipes (niet onderhandelbaar)
 
 - **Privacy-grens**: source content (volledige tekst van papers, podcasts, video's) gaat NOOIT naar de Anthropic API. Alleen JSON status-objecten en metadata mogen Claude Code bereiken vanuit de subagents.
-- **Systeem vs. instance**: deze repo is **publiek** en bevat het *systeem* — code, tests, mapstructuur, configuratiesjablonen, documentatie. Alles wat van deze specifieke vault is (broninhoud in `raw/`, gegenereerde pagina's in `wiki/`, persoonlijke domeinoordelen in `vault/canon/`, runtime-state, logs) is *instance* en blijft buiten git. Bij twijfel: instance — een publieke push is niet terug te draaien, een gitignore-regel wel. **Gitignore en backup zijn ontkoppeld**: `~/bin/proton-backup.sh` synct expliciete paden, niet "alles wat niet in git zit", dus elke nieuwe gitignore-regel voor instance-data vereist een bijbehorende `rclone sync`-regel — anders valt het in geen enkele backuplaag. De zichtbaarheidstoets staat als stap 2b in `.claude/skills/wrap-up/SKILL.md`.
+- **Systeem vs. instance**: deze repo is **publiek** en bevat het *systeem* — code, tests, mapstructuur, configuratiesjablonen, documentatie. Alles wat van deze specifieke vault is (broninhoud in `raw/`, gegenereerde pagina's in `wiki/`, persoonlijke domeinoordelen in `vault/canon/`, runtime-state, logs) is *instance* en blijft buiten git. Bij twijfel: instance — een publieke push is niet terug te draaien, een gitignore-regel wel. **Gitignore en backup zijn ontkoppeld**: `~/bin/proton-backup.sh` synct expliciete paden, niet "alles wat niet in git zit", dus elke nieuwe gitignore-regel voor instance-data vereist een bijbehorende `rclone sync`-regel — anders valt het in geen enkele backuplaag. De zichtbaarheidstoets staat als stap 2b in `~/.claude/skills/wrap-up/SKILL.md`.
 - **Subagent-patroon**: `build-zotero-bundle.py`, `promote-to-raw.py` en **olw** (ingest/compile/review) worden aangeroepen als lokale (sub)processen die alleen JSON-status of tellingen teruggeven. `summarize_item.py` (fase-2-previews) volgt hetzelfde patroon. Claude Code stuurt ze aan maar voert zelf geen inhoudsverwerking uit — draai-uitvoer van olw altijd naar een log, lees alleen exit-code/tellingen, nooit draft-/conceptinhoud.
 - **olw-model**: olw (concept-extractie + synthese) draait op `mistral-small:22b` (fast=heavy) via de vault-lokale `wiki.toml`; `olw review`/`olw compare`/`olw lint` zijn de kwaliteits-backstops. Zie de vault-`CLAUDE.md`-projectdocumentatie voor scoring en daemons.
 - **`--hd` flag**: activeert Claude Sonnet 4.6 in plaats van Qwen3.5:9b. Vereist altijd expliciete bevestiging van de gebruiker vóór verzending naar de API.
@@ -519,5 +519,5 @@ Dit geldt ook voor snapshot-HTML, VTT-transcripten en podcast-transcripten: nooi
 
 ## Actieve skills
 - Lees en volg `.claude/skills/SKILL.md` bij elke research-sessie.
-- `.claude/skills/wrap-up/SKILL.md` — activeer bij "update github" of `/wrap-up`.
+- `~/.claude/skills/wrap-up/SKILL.md` — workspace-breed; activeer bij "update github" of `/wrap-up`.
 - `.claude/skills/model-evaluatie/SKILL.md` — activeer bij "model bake-off", "welk model voor olw", "modellen vergelijken" of `/model-evaluatie`. Protocol in rondes met de metrieken en hun valkuilen; afgeleid uit de bake-off van 14–16 aug 2026 (ADR-0004). Het openstaande meetwerk staat in `ResearchVault-plans/plans/olw-config-optimalisatie.md`.
