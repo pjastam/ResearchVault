@@ -288,11 +288,30 @@ def main():
                     print(f"     ⚠️  star-queue MISLUKT: reading-list niet op te halen; "
                           f"{len(queue_urls)} item(s) niet gesterd — queue blijft staan "
                           f"voor de volgende run.")
-                else:
+                elif starred == len(queue_urls):
                     print(f"     ⭐ {starred}/{len(queue_urls)} item(s) gestefd via star-queue.")
                     # Pas legen ná succes. Tot 19 aug 2026 gebeurde dat
                     # onvoorwaardelijk, dus een mislukte run gooide de kandidaten weg.
                     STAR_QUEUE.unlink(missing_ok=True)
+                else:
+                    # Deelresultaat is géén succes. `freshrss_star_by_urls` slaat een
+                    # URL stil over als hij niet in de reading-list staat — precies wat
+                    # er gebeurt als de batch de queue leest vóórdat FreshRSS de feeds
+                    # heeft opgehaald. Tot 31 aug 2026 viel dat onder de else-tak en
+                    # werd de queue alsnog gewist: de auto-sterkandidaten van die dag
+                    # waren dan onherroepelijk weg, inclusief hun bijdrage aan het
+                    # THRESHOLD_STAR-advies. De queue blijft nu staan tot alles zit.
+                    #
+                    # Keerzijde: een URL die nooit meer in de reading-list verschijnt
+                    # (item uit het venster gelopen) blijft de queue bezetten. Dat is
+                    # bewust geaccepteerd — ontdubbelen gebeurt in read_star_queue() en
+                    # opnieuw sterren is idempotent. Wie dit exact wil, laat
+                    # freshrss_star_by_urls() de niet-geresolvede URLs teruggeven en
+                    # schrijft die terug; dat raakt freshrss_utils.py en valt buiten
+                    # deze reparatie.
+                    print(f"     ⚠️  star-queue DEELS: {starred}/{len(queue_urls)} item(s) "
+                          f"gestefd; de rest stond (nog) niet in de reading-list — "
+                          f"queue blijft staan voor de volgende run.")
             elif STAR_QUEUE.exists():
                 STAR_QUEUE.unlink(missing_ok=True)
             # Canonicaliseren omdat de logkant dat ook wordt. FreshRSS levert de
