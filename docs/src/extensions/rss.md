@@ -74,14 +74,14 @@ The nightly batch jobs run via `~/bin/nachtelijke-taken.sh`, called from a Launc
 A second LaunchDaemon (`nl.<jouwnaam>.overdagtaken`) runs the same steps 1–4 (Zotero → feedreader-score → FreshRSS actualize → feedreader-learn) at 09:00, 12:00, 15:00, 18:00, and 21:00, keeping feeds fresh throughout the day. After the 21:00 run the Mac also shuts down — but only if no user is logged in at the console. If you have manually turned on the Mac and are logged in (even with the screen locked), shutdown is skipped and a message is logged. The check uses `stat -f%Su /dev/console`: if it returns anything other than `root`, a user session is active. If the Mac was off when a scheduled time passed, launchd fires the missed job **once** immediately at next boot — not once per missed interval. The remaining scheduled times then run normally.
 
 ```xml
-<!-- /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist -->
+<!-- /Library/LaunchDaemons/com.example.nachtelijke-taken.plist -->
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>nl.pietstam.nachtelijke-taken</string>
+  <string>com.example.nachtelijke-taken</string>
   <key>EnvironmentVariables</key>
   <dict>
     <key>HOME</key>
@@ -121,10 +121,10 @@ sudo chmod 644 /Library/LaunchDaemons/nl.researchvault.feedreader-server.plist
 sudo launchctl load /Library/LaunchDaemons/nl.researchvault.feedreader-server.plist
 
 # nachtelijke-taken
-sudo cp /path/to/nl.pietstam.nachtelijke-taken.plist /Library/LaunchDaemons/
-sudo chown root:wheel /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
-sudo chmod 644 /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
-sudo launchctl load /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist
+sudo cp /path/to/com.example.nachtelijke-taken.plist /Library/LaunchDaemons/
+sudo chown root:wheel /Library/LaunchDaemons/com.example.nachtelijke-taken.plist
+sudo chmod 644 /Library/LaunchDaemons/com.example.nachtelijke-taken.plist
+sudo launchctl load /Library/LaunchDaemons/com.example.nachtelijke-taken.plist
 ```
 
 **macOS sleep/wake settings** — configure a scheduled wake so the Mac powers on automatically before the 06:00 batch run:
