@@ -49,16 +49,17 @@ The treatment depends on the item's Zotero tag and its relevance score.
 **The `📖` tag** is set in Phase 1 when you need more information before deciding. In Phase 2, `summarize_item.py` generates a compact summary (Introduction · Key findings · Relevance) locally via the fallback model `qwen3.5:9b` and writes it to `inbox/_summary_ITEMKEY.md`. Claude Code shows you the path; you read the file and give your decision. No summary text reaches the Anthropic API.
 
 ### Score-based treatment (for untagged items)
+<!--verify: describes=.claude/index-score.py-->
 
 | Score | Treatment |
 |---|---|
-| 🟢 ≥50 | Show title + score; ask Go/No-go directly — strong match, no summary needed |
-| 🟡 40–49 | Generate a 2–3 sentence summary via `summarize_item.py` (local fallback model `qwen3.5:9b`); ask Go/No-go |
+| 🟢 ≥70 <!--verify: const=:THRESHOLD_GREEN--> | Show title + score; ask Go/No-go directly — strong match, no summary needed |
+| 🟡 40 <!--verify: const=:THRESHOLD_YELLOW-->–69 | Generate a 2–3 sentence summary via `summarize_item.py` (local fallback model `qwen3.5:9b`); ask Go/No-go |
 | 🔴 <40 | Propose No-go ("Score: X — low match with your library. No-go?"); you can still choose Go |
 
-> The two cut-offs are `THRESHOLD_GREEN` and `THRESHOLD_YELLOW` in `feedreader_core.py`; that
-> file is the source of truth. Nothing checks this table against those constants, so it is worth
-> re-reading them when a threshold moves.
+> The two cut-offs are `THRESHOLD_GREEN` and `THRESHOLD_YELLOW` in `index-score.py`.
+> They are checked automatically by `docs-verify`; the annotations above bind this
+> table to that file.
 
 Claude Code asks for one Go/No-go decision at a time, giving you space to decide per item.
 

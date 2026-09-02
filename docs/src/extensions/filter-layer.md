@@ -45,6 +45,7 @@ SORT year DESC, file.name ASC
 > **Note:** frontmatter tags must be written without `#` (e.g. `tags: [beleid, zorg]`). Obsidian adds the `#` in the UI automatically. Using `#` inside a YAML array breaks frontmatter parsing.
 
 ### Relevance scoring with index-score.py
+<!--verify: describes=.claude/index-score.py-->
 
 Before starting the Go/No-go review, you can run `index-score.py` to get a ranked list of inbox items sorted by semantic similarity to your existing library:
 
@@ -52,7 +53,7 @@ Before starting the Go/No-go review, you can run `index-score.py` to get a ranke
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/index-score.py
 ```
 
-The script uses ChromaDB embeddings (whatever model `zotero-mcp` is configured with — see [zotero-mcp](../installation/zotero-mcp.md)) to compute a relevance score (0–100) per item. It reads *both* sides from ChromaDB and carries no embedder of its own, so it works with either backend. Items with PDF annotations in Zotero weigh more heavily in the preference profile (weight 3 versus 1). Output labels: 🟢 strong match (≥50) · 🟡 possibly relevant (40–49) · 🔴 weak match (<40) — the thresholds are `THRESHOLD_GREEN` and `THRESHOLD_YELLOW` in `feedreader_core.py`.
+The script uses ChromaDB embeddings (whatever model `zotero-mcp` is configured with — see [zotero-mcp](../installation/zotero-mcp.md)) to compute a relevance score (0–100) per item. It reads *both* sides from ChromaDB and carries no embedder of its own, so it works with either backend. Items with PDF annotations in Zotero weigh more heavily in the preference profile (weight 3 versus 1). Output labels: 🟢 strong match (≥70<!--verify: const=:THRESHOLD_GREEN-->) · 🟡 possibly relevant (40<!--verify: const=:THRESHOLD_YELLOW-->–69) · 🔴 weak match (<40) — the thresholds are `THRESHOLD_GREEN` and `THRESHOLD_YELLOW` in `index-score.py`.
 
 ### Summary requests
 
