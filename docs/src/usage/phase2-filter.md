@@ -49,7 +49,7 @@ The treatment depends on the item's Zotero tag and its relevance score.
 **The `📖` tag** is set in Phase 1 when you need more information before deciding. In Phase 2, `summarize_item.py` generates a compact summary (Introduction · Key findings · Relevance) locally via the fallback model `qwen3.5:9b` and writes it to `inbox/_summary_ITEMKEY.md`. Claude Code shows you the path; you read the file and give your decision. No summary text reaches the Anthropic API.
 
 ### Score-based treatment (for untagged items)
-<!--verify: describes=.claude/index-score.py-->
+<!--verify: describes=.claude/index-score.py bevestigd-->
 
 | Score | Treatment |
 |---|---|

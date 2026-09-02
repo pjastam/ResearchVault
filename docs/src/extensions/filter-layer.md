@@ -45,7 +45,7 @@ SORT year DESC, file.name ASC
 > **Note:** frontmatter tags must be written without `#` (e.g. `tags: [beleid, zorg]`). Obsidian adds the `#` in the UI automatically. Using `#` inside a YAML array breaks frontmatter parsing.
 
 ### Relevance scoring with index-score.py
-<!--verify: describes=.claude/index-score.py-->
+<!--verify: describes=.claude/index-score.py bevestigd-->
 
 Before starting the Go/No-go review, you can run `index-score.py` to get a ranked list of inbox items sorted by semantic similarity to your existing library:
 
