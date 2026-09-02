@@ -565,7 +565,7 @@ claude
 <p>For each <strong>No-go</strong>: Claude Code removes the item from <code>_inbox</code> (after your confirmation).</p>
 </li>
 <li>
-<p>At the end of the session, Claude Code shows a summary: X approved, Y removed. The Zotero semantic search database is updated automatically each day as part of the login-triggered morning batch job (<code>nl.pietstam.nachtelijke-taken</code> daemon) — no manual action needed before a session. If you process items later in the day and want the database to reflect them immediately, run:</p>
+<p>At the end of the session, Claude Code shows a summary: X approved, Y removed. The Zotero semantic search database is updated automatically each day as part of the login-triggered morning batch job (<code>nl.&lt;jouwnaam&gt;.nachtelijke-taken</code> daemon) — no manual action needed before a session. If you process items later in the day and want the database to reflect them immediately, run:</p>
 <pre><code class="language-bash">zotero-mcp update-db --fulltext # recommended (includes full text, 5–20 min on Apple Silicon)
 </code></pre>
 <p>Or use the alias: <code>update-zotero</code>. Check database status with <code>zotero-mcp db-status</code>.</p>
@@ -1379,7 +1379,7 @@ http://onlinelibrary.wiley.com/rss/journal/10.1002/(ISSN)1099-1050
 <p><strong>Note:</strong> the daemon runs as root (no <code>UserName</code> key). The <code>HOME</code> environment variable must point to your user's home directory so that Python tools can find their configuration files. Without <code>HOME</code>, tools like <code>rclone</code> and <code>zotero-mcp</code> will fail to locate their config paths during headless runs.</p>
 </blockquote>
 <p>The nightly batch jobs run via <code>~/bin/nachtelijke-taken.sh</code>, called from a LaunchDaemon in <code>/Library/LaunchDaemons/</code>. Because it is a system-level daemon running as root, it fires at 06:00 even without an active user session — which is required when the Mac wakes from a scheduled <code>pmset</code> power-on. The script runs sequentially in 6 steps: Zotero DB update → feedreader-score → FreshRSS actualize → feedreader-learn → proton-backup → proton-mirror → shutdown. The FreshRSS actualize step runs immediately after feedreader-score so that FreshRSS fetches the freshly generated feeds before the Mac shuts down. Without this step, FreshRSS would not update until the next time the Mac is awake and the FreshRSS actualize is triggered again. See <a href="extensions/rss.html#12c-freshrss--readunread-sync-across-devices">Step 12c</a> for how the actualize step differs between setup options.</p>
-<p>A second LaunchDaemon (<code>nl.pietstam.overdagtaken</code>) runs the same steps 1–4 (Zotero → feedreader-score → FreshRSS actualize → feedreader-learn) at 09:00, 12:00, 15:00, 18:00, and 21:00, keeping feeds fresh throughout the day. After the 21:00 run the Mac also shuts down — but only if no user is logged in at the console. If you have manually turned on the Mac and are logged in (even with the screen locked), shutdown is skipped and a message is logged. The check uses <code>stat -f%Su /dev/console</code>: if it returns anything other than <code>root</code>, a user session is active. If the Mac was off when a scheduled time passed, launchd fires the missed job <strong>once</strong> immediately at next boot — not once per missed interval. The remaining scheduled times then run normally.</p>
+<p>A second LaunchDaemon (<code>nl.&lt;jouwnaam&gt;.overdagtaken</code>) runs the same steps 1–4 (Zotero → feedreader-score → FreshRSS actualize → feedreader-learn) at 09:00, 12:00, 15:00, 18:00, and 21:00, keeping feeds fresh throughout the day. After the 21:00 run the Mac also shuts down — but only if no user is logged in at the console. If you have manually turned on the Mac and are logged in (even with the screen locked), shutdown is skipped and a message is logged. The check uses <code>stat -f%Su /dev/console</code>: if it returns anything other than <code>root</code>, a user session is active. If the Mac was off when a scheduled time passed, launchd fires the missed job <strong>once</strong> immediately at next boot — not once per missed interval. The remaining scheduled times then run normally.</p>
 <pre><code class="language-xml">&lt;!-- /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist --&gt;
 &lt;?xml version="1.0" encoding="UTF-8"?&gt;
 &lt;!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
@@ -1598,7 +1598,7 @@ sudo docker restart addon_c80c7555_freshrss
 # Per-feed actualize (bypasses TTL check):
 for _id in 7 8 12; do
   curl -s --max-time 30 \
-    "http://100.113.121.73:7077/i/?c=feed&amp;a=actualize&amp;id=${_id}&amp;user=${FRESHRSS_USER}&amp;token=${FRESHRSS_TOKEN}"
+    "http://&lt;HA-GREEN-TAILNET-IP&gt;:7077/i/?c=feed&amp;a=actualize&amp;id=${_id}&amp;user=${FRESHRSS_USER}&amp;token=${FRESHRSS_TOKEN}"
 done
 </code></pre>
 <p>The flow has two directions. First, the Mac mini initiates: it sends a curl request to FreshRSS on HA Green ("please actualize"). Then the direction reverses: FreshRSS on HA Green pulls the XML feeds from the Mac mini's feedreader server (port 8765, reachable via Tailscale Funnel). The Mac mini must therefore still be running when the actualize step fires — and it is, because shutdown only happens after all pipeline steps complete.</p>
@@ -1606,7 +1606,7 @@ done
 <p><strong>Connect NetNewsWire</strong> on each device — use the HA Green's Tailscale IP:</p>
 <p>NetNewsWire → Settings → Accounts → <strong>+</strong> → FreshRSS</p>
 <ul>
-<li>API URL: <code>http://100.113.121.73:7077/api/greader.php</code></li>
+<li>API URL: <code>http://&lt;HA-GREEN-TAILNET-IP&gt;:7077/api/greader.php</code></li>
 <li>Username + API password from above</li>
 </ul>
 <p>Tailscale must be installed and active on iPhone and iPad for the Tailscale IP to be reachable outside the home network.</p>
@@ -1948,13 +1948,13 @@ claude
 <tr><td>Ollama not responding</td><td>Service not started</td><td>Run <code>ollama serve</code> or <code>brew services start ollama</code></td></tr>
 <tr><td>yt-dlp returns no subtitles</td><td>Video has no (auto-)subtitles</td><td>Try <code>--sub-lang en</code> or check whether the video has subtitles at all</td></tr>
 <tr><td>launchd update not running</td><td>Nightly daemon did not fire (check <code>~/Library/Logs/nachtelijke-taken.log</code>)</td><td>Run <code>update-zotero</code> manually; verify the daemon is loaded with <code>sudo launchctl list | grep nachtelijke</code>; if empty after reboot, see "Daemons not loading after reboot" below</td></tr>
-<tr><td>Daemons not loading after reboot</td><td>macOS Background Task Management (BTM) blocking bash processes</td><td>Go to System Settings → General → Login Items &amp; Extensions → Allow in the Background → enable <code>bash (4×)</code>, <code>sh (1×)</code>, <code>ollama (1×)</code>; diagnose with: <code>log show --predicate 'eventMessage contains "pietstam"' --last boot | grep disallowed</code></td></tr>
+<tr><td>Daemons not loading after reboot</td><td>macOS Background Task Management (BTM) blocking bash processes</td><td>Go to System Settings → General → Login Items &amp; Extensions → Allow in the Background → enable <code>bash (4×)</code>, <code>sh (1×)</code>, <code>ollama (1×)</code>; diagnose with: <code>log show --predicate 'eventMessage contains "nl.pietstam"' --last boot | grep disallowed</code></td></tr>
 <tr><td>Nightly daemon skipped despite Mac being on</td><td>Race condition: Mac woke up less than 5 minutes before the 06:00 trigger — <code>UserEventAgent-System</code> was not ready in time, launchd silently skipped the event</td><td>Verify wake is set to 05:55: <code>sudo pmset -g sched</code>; if missing, run <code>sudo pmset repeat wakeorpoweron MTWRFSU 05:55:00</code>; kick off manually with <code>sudo launchctl kickstart system/nl.pietstam.nachtelijke-taken</code></td></tr>
 <tr><td><code>rclone</code> meldt <code>0 B transferred</code> bij backup</td><td>macOS TCC blokkeert toegang tot beschermde mappen (<code>~/Documents</code>, <code>~/.ssh</code>, etc.) tijdens headless daemon-run — de dialoog kan dan niet worden getoond</td><td>Geef rclone Full Disk Access: Systeeminstellingen → Privacy en beveiliging → Volledige schijftoegang → <code>+</code> → <code>/opt/homebrew/bin/rclone</code></td></tr>
 <tr><td>whisper-cpp gives an error</td><td>Model not yet downloaded</td><td>Wait for the first download, or check disk space</td></tr>
 <tr><td>Whisper transcription is inaccurate</td><td>Low audio quality or incorrect language detection</td><td>Use <code>--model medium</code> for better quality, or specify the language explicitly with <code>--language nl</code> or <code>--language en</code> if automatic detection picks the wrong language</td></tr>
 <tr><td>NetNewsWire not syncing across devices</td><td>FreshRSS account not connected</td><td>Add FreshRSS account in NetNewsWire → Settings → Accounts → FreshRSS; use API URL <code>http://[mac-ip]:8080/api/greader.php</code> and the API password from FreshRSS Profile → API Management</td></tr>
-<tr><td>FreshRSS container not running</td><td>Container stopped on HA Green</td><td>SSH in: <code>ssh hassio@100.113.121.73 "docker restart freshrss"</code>; verify with <code>ssh hassio@100.113.121.73 "docker ps | grep freshrss"</code></td></tr>
+<tr><td>FreshRSS container not running</td><td>Container stopped on HA Green</td><td>SSH in: <code>ssh hassio@&lt;HA-GREEN-TAILNET-IP&gt; "docker restart freshrss"</code>; verify with <code>ssh hassio@&lt;HA-GREEN-TAILNET-IP&gt; "docker ps | grep freshrss"</code></td></tr>
 <tr><td>feedreader HTML reader not loading</td><td>feedreader-server.py not running</td><td>Check with <code>sudo launchctl list | grep feedreader</code>; restart with <code>sudo launchctl kickstart system/nl.researchvault.feedreader-server</code></td></tr>
 <tr><td>👎 button in NNW doesn't work</td><td>JavaScript not enabled</td><td>NetNewsWire → Settings → Article Content → enable "Enable JavaScript"</td></tr>
 <tr><td>ttyd terminal button not working</td><td>ttyd not running or BTM blocking</td><td>Check with <code>sudo launchctl list | grep ttyd</code>; if empty after reboot, go to System Settings → General → Login Items &amp; Extensions → Allow in the Background → enable <code>sh</code>; verify port 7681 is open</td></tr>
