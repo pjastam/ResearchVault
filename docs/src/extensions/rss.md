@@ -71,7 +71,7 @@ Create the HTTP server daemon in `/Library/LaunchDaemons/`:
 
 The nightly batch jobs run via `~/bin/nachtelijke-taken.sh`, called from a LaunchDaemon in `/Library/LaunchDaemons/`. Because it is a system-level daemon running as root, it fires at 06:00 even without an active user session — which is required when the Mac wakes from a scheduled `pmset` power-on. The script runs sequentially in 6 steps: Zotero DB update → feedreader-score → FreshRSS actualize → feedreader-learn → proton-backup → proton-mirror → shutdown. The FreshRSS actualize step runs immediately after feedreader-score so that FreshRSS fetches the freshly generated feeds before the Mac shuts down. Without this step, FreshRSS would not update until the next time the Mac is awake and the FreshRSS actualize is triggered again. See [Step 12c](#12c-freshrss--readunread-sync-across-devices) for how the actualize step differs between setup options.
 
-A second LaunchDaemon (`nl.pietstam.overdagtaken`) runs the same steps 1–4 (Zotero → feedreader-score → FreshRSS actualize → feedreader-learn) at 09:00, 12:00, 15:00, 18:00, and 21:00, keeping feeds fresh throughout the day. After the 21:00 run the Mac also shuts down — but only if no user is logged in at the console. If you have manually turned on the Mac and are logged in (even with the screen locked), shutdown is skipped and a message is logged. The check uses `stat -f%Su /dev/console`: if it returns anything other than `root`, a user session is active. If the Mac was off when a scheduled time passed, launchd fires the missed job **once** immediately at next boot — not once per missed interval. The remaining scheduled times then run normally.
+A second LaunchDaemon (`nl.<jouwnaam>.overdagtaken`) runs the same steps 1–4 (Zotero → feedreader-score → FreshRSS actualize → feedreader-learn) at 09:00, 12:00, 15:00, 18:00, and 21:00, keeping feeds fresh throughout the day. After the 21:00 run the Mac also shuts down — but only if no user is logged in at the console. If you have manually turned on the Mac and are logged in (even with the screen locked), shutdown is skipped and a message is logged. The check uses `stat -f%Su /dev/console`: if it returns anything other than `root`, a user session is active. If the Mac was off when a scheduled time passed, launchd fires the missed job **once** immediately at next boot — not once per missed interval. The remaining scheduled times then run normally.
 
 ```xml
 <!-- /Library/LaunchDaemons/nl.pietstam.nachtelijke-taken.plist -->
@@ -349,7 +349,7 @@ source ~/bin/.researchvault-env   # contains FRESHRSS_USER, FRESHRSS_TOKEN, FRES
 # Per-feed actualize (bypasses TTL check):
 for _id in 7 8 12; do
   curl -s --max-time 30 \
-    "http://100.113.121.73:7077/i/?c=feed&a=actualize&id=${_id}&user=${FRESHRSS_USER}&token=${FRESHRSS_TOKEN}"
+    "http://<HA-GREEN-TAILNET-IP>:7077/i/?c=feed&a=actualize&id=${_id}&user=${FRESHRSS_USER}&token=${FRESHRSS_TOKEN}"
 done
 ```
 
@@ -361,7 +361,7 @@ The full sequence: feedreader-score generates the XML files → Mac mini's HTTP 
 
 NetNewsWire → Settings → Accounts → **+** → FreshRSS
 
-- API URL: `http://100.113.121.73:7077/api/greader.php`
+- API URL: `http://<HA-GREEN-TAILNET-IP>:7077/api/greader.php`
 - Username + API password from above
 
 Tailscale must be installed and active on iPhone and iPad for the Tailscale IP to be reachable outside the home network.

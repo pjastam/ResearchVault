@@ -174,7 +174,7 @@ Twee voorwaarden, allebei gemakkelijk over het hoofd te zien. Het adres moet **`
 - Na ≥30 positieven verschijnt een initieel drempeladvies; pas `THRESHOLD_GREEN` en `THRESHOLD_YELLOW` aan in `feedreader_core.py`
 - Het leren gaat daarna continu door: ook na de initiële instelling draagt elke Zotero-toevoeging bij aan de kalibratie. **Let op:** sterren op of boven `THRESHOLD_STAR` zet de pijplijn zélf, en die tellen sinds 19 aug 2026 niet mee in het advies — anders bevestigt de lus zijn eigen drempel. Alleen jouw handmatige signalen sturen hem
 
-**NNW + FreshRSS:** NetNewsWire op alle apparaten verbindt met FreshRSS (`http://100.113.121.73:7077/api/greader.php`). Leesstatus synchroniseert automatisch tussen Mac Mini, iPad en iPhone. FreshRSS bewaart ongelezen items ook nadat de feedreader een nieuwe ronde heeft gedraaid — artikelen verdwijnen pas uit de ongelezen-teller als je ze markeert. De drie feeds in FreshRSS: `filtered-webpage.xml`, `filtered-youtube.xml`, `filtered-podcast.xml` (via de Tailscale-Funnel op poort 8443, lokaal poort 8765).
+**NNW + FreshRSS:** NetNewsWire op alle apparaten verbindt met FreshRSS (`http://<HA-GREEN-TAILNET-IP>:7077/api/greader.php`). Leesstatus synchroniseert automatisch tussen Mac Mini, iPad en iPhone. FreshRSS bewaart ongelezen items ook nadat de feedreader een nieuwe ronde heeft gedraaid — artikelen verdwijnen pas uit de ongelezen-teller als je ze markeert. De drie feeds in FreshRSS: `filtered-webpage.xml`, `filtered-youtube.xml`, `filtered-podcast.xml` (via de Tailscale-Funnel op poort 8443, lokaal poort 8765).
 
 ---
 

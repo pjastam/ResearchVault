@@ -66,7 +66,7 @@ You do not need to know exactly what you are looking for — the skill is design
    Turning bundles into a wiki is handled by whichever backend is configured for the vault — see [Choosing a backend](../backends/choosing.md).
 
 7. For each **No-go**: Claude Code removes the item from `_inbox` (after your confirmation).
-8. At the end of the session, Claude Code shows a summary: X approved, Y removed. The Zotero semantic search database is updated automatically each day as part of the login-triggered morning batch job (`nl.pietstam.nachtelijke-taken` daemon) — no manual action needed before a session. If you process items later in the day and want the database to reflect them immediately, run:
+8. At the end of the session, Claude Code shows a summary: X approved, Y removed. The Zotero semantic search database is updated automatically each day as part of the login-triggered morning batch job (`nl.<jouwnaam>.nachtelijke-taken` daemon) — no manual action needed before a session. If you process items later in the day and want the database to reflect them immediately, run:
 
    ```bash
    zotero-mcp update-db --fulltext # recommended (includes full text, 5–20 min on Apple Silicon)
