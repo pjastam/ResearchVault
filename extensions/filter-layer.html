@@ -216,10 +216,11 @@ SORT year DESC, file.name ASC
 <p><strong>Note:</strong> frontmatter tags must be written without <code>#</code> (e.g. <code>tags: [beleid, zorg]</code>). Obsidian adds the <code>#</code> in the UI automatically. Using <code>#</code> inside a YAML array breaks frontmatter parsing.</p>
 </blockquote>
 <h3 id="relevance-scoring-with-index-scorepy"><a class="header" href="#relevance-scoring-with-index-scorepy">Relevance scoring with index-score.py</a></h3>
+<!--verify: describes=.claude/index-score.py bevestigd-->
 <p>Before starting the Go/No-go review, you can run <code>index-score.py</code> to get a ranked list of inbox items sorted by semantic similarity to your existing library:</p>
 <pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/index-score.py
 </code></pre>
-<p>The script uses ChromaDB embeddings (whatever model <code>zotero-mcp</code> is configured with — see <a href="../installation/zotero-mcp.html">zotero-mcp</a>) to compute a relevance score (0–100) per item. It reads <em>both</em> sides from ChromaDB and carries no embedder of its own, so it works with either backend. Items with PDF annotations in Zotero weigh more heavily in the preference profile (weight 3 versus 1). Output labels: 🟢 strong match (≥50) · 🟡 possibly relevant (40–49) · 🔴 weak match (&lt;40) — the thresholds are <code>THRESHOLD_GREEN</code> and <code>THRESHOLD_YELLOW</code> in <code>feedreader_core.py</code>.</p>
+<p>The script uses ChromaDB embeddings (whatever model <code>zotero-mcp</code> is configured with — see <a href="../installation/zotero-mcp.html">zotero-mcp</a>) to compute a relevance score (0–100) per item. It reads <em>both</em> sides from ChromaDB and carries no embedder of its own, so it works with either backend. Items with PDF annotations in Zotero weigh more heavily in the preference profile (weight 3 versus 1). Output labels: 🟢 strong match (≥70<!--verify: const=:THRESHOLD_GREEN-->) · 🟡 possibly relevant (40<!--verify: const=:THRESHOLD_YELLOW-->–69) · 🔴 weak match (&lt;40) — the thresholds are <code>THRESHOLD_GREEN</code> and <code>THRESHOLD_YELLOW</code> in <code>index-score.py</code>.</p>
 <h3 id="summary-requests"><a class="header" href="#summary-requests">Summary requests</a></h3>
 <p>Claude Code can help you with the evaluation — ask for a summary of items in <code>_inbox</code>:</p>
 <pre><code>Give me an overview of the items in my Zotero _inbox collection with a 2–3 sentence
