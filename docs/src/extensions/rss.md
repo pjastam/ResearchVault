@@ -163,7 +163,9 @@ The article page (for both YouTube and podcast) injects the full article text as
 
 > **Serve directory:** the HTTP server serves files from `~/.local/share/feedreader-serve/`, not from `~/Documents/`, because macOS TCC prevents system Python from accessing the Documents folder when launched via launchd.
 
-**Learning loop** — `feedreader-learn.py` runs daily as part of the nightly batch job. It reads NNW stars and read items from FreshRSS, matches Zotero additions by URL and title, and processes the 👎 skip queue — labelling each item in `score_log.jsonl` as positive or negative. After ≥30 positives it prints a threshold recommendation. Once the threshold is stable, activate score filtering in `feedreader-score.py` by adjusting `THRESHOLD_GREEN` and `THRESHOLD_YELLOW`.
+**Learning loop** — `feedreader-learn.py` runs daily as part of the nightly batch job. It reads NNW stars and read items from FreshRSS, matches Zotero additions by URL and title, and processes the 👎 skip queue — labelling each item in `score_log.jsonl` as positive or negative. After ≥30 positives it prints an evidence table for `THRESHOLD_STAR` — the only threshold in the pipeline with consequences, since it decides what gets auto-starred. See [phase1-sources](../usage/phase1-sources.md) for how to read that table.
+
+All three thresholds are defined in `feedreader_core.py`; `feedreader-score.py` imports them, so that is not where you change them.
 
 > **Privacy note:** `feedreader-score.py` runs entirely locally. Feed URLs are fetched directly from the source; no feed content is sent to any cloud service.
 
