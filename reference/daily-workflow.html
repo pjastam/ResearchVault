@@ -258,7 +258,8 @@ claude
 <li><strong>ollama</strong> (default): Ollama REST API on localhost:11434</li>
 <li><strong>mlx</strong>: mlx_lm OpenAI-compatible server on localhost:8080</li>
 </ul>
-<p>Backend is selected via <code>--backend ollama|mlx</code> or the <code>LLM_BACKEND</code> env var in <code>ResearchVault/.env</code>. Prepends <code>/no_think</code> to suppress the reasoning step. Prints only status lines.</p>
+<p>Backend is selected via <code>--backend ollama|mlx</code> or the <code>LLM_BACKEND</code> env var in <code>ResearchVault/.env</code>. Prints only status lines.</p>
+<p>By default the reasoning step is suppressed: <code>/no_think</code> is prepended to the instruction and <code>think: false</code> goes into the Ollama payload. Pass <code>--denk</code> to keep reasoning on. Note that <code>--no-think</code> is a no-op left over from an earlier version — it is a <code>store_true</code> flag whose default is already <code>True</code>, so it cannot switch anything off; <code>--denk</code> is the counterpart that actually does. Reasoning is markedly slower, so whether it is on belongs in any report that compares model output.</p>
 <pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
   --input  inbox/bron.txt \
   --output raw/notitie.md \
