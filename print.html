@@ -1462,7 +1462,8 @@ sudo launchctl load /Library/LaunchDaemons/com.example.nachtelijke-taken.plist
 <blockquote>
 <p><strong>Serve directory:</strong> the HTTP server serves files from <code>~/.local/share/feedreader-serve/</code>, not from <code>~/Documents/</code>, because macOS TCC prevents system Python from accessing the Documents folder when launched via launchd.</p>
 </blockquote>
-<p><strong>Learning loop</strong> — <code>feedreader-learn.py</code> runs daily as part of the nightly batch job. It reads NNW stars and read items from FreshRSS, matches Zotero additions by URL and title, and processes the 👎 skip queue — labelling each item in <code>score_log.jsonl</code> as positive or negative. After ≥30 positives it prints a threshold recommendation. Once the threshold is stable, activate score filtering in <code>feedreader-score.py</code> by adjusting <code>THRESHOLD_GREEN</code> and <code>THRESHOLD_YELLOW</code>.</p>
+<p><strong>Learning loop</strong> — <code>feedreader-learn.py</code> runs daily as part of the nightly batch job. It reads NNW stars and read items from FreshRSS, matches Zotero additions by URL and title, and processes the 👎 skip queue — labelling each item in <code>score_log.jsonl</code> as positive or negative. After ≥30 positives it prints an evidence table for <code>THRESHOLD_STAR</code> — the only threshold in the pipeline with consequences, since it decides what gets auto-starred. See <a href="extensions/../usage/phase1-sources.html">phase1-sources</a> for how to read that table.</p>
+<p>All three thresholds are defined in <code>feedreader_core.py</code>; <code>feedreader-score.py</code> imports them, so that is not where you change them.</p>
 <blockquote>
 <p><strong>Privacy note:</strong> <code>feedreader-score.py</code> runs entirely locally. Feed URLs are fetched directly from the source; no feed content is sent to any cloud service.</p>
 </blockquote>
