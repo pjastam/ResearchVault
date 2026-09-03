@@ -14,6 +14,7 @@ Gebruik:
         --prompt "Schrijf een literatuurnotitie in het Nederlands..."
         [--model qwen3.5:9b]
         [--no-think]  (standaard aan)
+        [--denk]      (tegenhanger van --no-think: zet de redeneerfase AAN)
         [--backend ollama|mlx]
 """
 
@@ -146,6 +147,13 @@ def main():
     parser.add_argument("--prompt",   required=True, help="Instructieprompt voor het model")
     parser.add_argument("--model",    default=DEFAULT_MODEL)
     parser.add_argument("--no-think", dest="no_think", action="store_true", default=True)
+    # Tegenhanger van --no-think. Zuiver additief: de default blijft True, dus
+    # elke bestaande aanroep gedraagt zich exact zoals voorheen. Zonder deze
+    # vlag was redeneren niet aan te zetten — --no-think is een store_true met
+    # default True en verandert dus niets, waardoor élke aanroep ongemerkt
+    # zonder redeneerfase draaide.
+    parser.add_argument("--denk", dest="no_think", action="store_false",
+                        help="zet de redeneerfase AAN (geen /no_think, geen think=False)")
     parser.add_argument("--backend",  default=os.environ.get("LLM_BACKEND", "ollama"),
                         choices=["ollama", "mlx"],
                         help="LLM-backend: ollama of mlx. Standaard via LLM_BACKEND env var of 'ollama'.")
