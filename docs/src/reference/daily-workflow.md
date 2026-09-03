@@ -97,7 +97,9 @@ Calls a local LLM REST API directly (no CLI, no ANSI codes). Supports two backen
 - **ollama** (default): Ollama REST API on localhost:11434
 - **mlx**: mlx_lm OpenAI-compatible server on localhost:8080
 
-Backend is selected via `--backend ollama|mlx` or the `LLM_BACKEND` env var in `ResearchVault/.env`. Prepends `/no_think` to suppress the reasoning step. Prints only status lines.
+Backend is selected via `--backend ollama|mlx` or the `LLM_BACKEND` env var in `ResearchVault/.env`. Prints only status lines.
+
+By default the reasoning step is suppressed: `/no_think` is prepended to the instruction and `think: false` goes into the Ollama payload. Pass `--denk` to keep reasoning on. Note that `--no-think` is a no-op left over from an earlier version — it is a `store_true` flag whose default is already `True`, so it cannot switch anything off; `--denk` is the counterpart that actually does. Reasoning is markedly slower, so whether it is on belongs in any report that compares model output.
 
 ```bash
 ~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/ollama-generate.py \
