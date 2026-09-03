@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-inbox-score.py — Relevantiescore voor Zotero _inbox items
+index-score.py — Relevantiescore voor Zotero _inbox items
 =========================================================
 Vergelijkt elk item in de _inbox collectie met je bestaande Zotero-bibliotheek
 en geeft een score (0–100) die aangeeft hoe goed het item past bij je voorkeuren.
 
 Gebruik:
-    python3 inbox-score.py
+    python3 index-score.py
 
 Vereisten:
     - Zotero draait NIET (script maakt een veilige kopie van de SQLite database)
@@ -143,7 +143,7 @@ def main():
     args = parser.parse_args()
 
     if not args.json:
-        print("\n📚 inbox-score — Zotero _inbox relevantiescore")
+        print("\n📚 index-score — Zotero _inbox relevantiescore")
         print("=" * 52)
 
     # 1. Veilige SQLite-kopie maken
