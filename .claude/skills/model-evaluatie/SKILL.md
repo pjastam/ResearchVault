@@ -40,7 +40,12 @@ Modellen die hier nul concepten opleveren vallen af vóór ze uren kosten.
 **Controleer `ollama show <model>` op de capability `thinking`.** Thinking-modellen
 (qwen3.5) leveren onder `format=json` een denkblok en stoppen daarna —
 "model returned no usable content (finish_reason=stop)", nul concepten. Oplossing: de proxy
-die `"think": false` injecteert, met `olw --provider-url http://localhost:11435`.
+`nothink_proxy.py` naast deze skill, die `"think": false` injecteert:
+
+```
+python3 .claude/skills/model-evaluatie/nothink_proxy.py 11435
+olw --provider-url http://localhost:11435 ...
+```
 
 **Meet prefill en generatie apart.** Eén getal "seconden per 1000 woorden" verbergt dat de
 twee fasen aan verschillende grenzen hangen. Generatie is bandbreedte-gebonden en schaalt
@@ -111,14 +116,36 @@ samenstellingen** — `poliskenmerken`, `doelmatigheidsprikkel`. Gebruik substri
 de canon-woordenschat. En `in` is in beide talen een functiewoord; die hoort in geen enkele
 markerlijst.
 
-## Meetopzet bewaren, gereedschap weggooien
+## Een meting is een project, geen bijproduct van de vault
 
-    vault/canon/     equivalenties.toml, bundels.toml, queries.toml   ← blijft, in backup
-    .claude/bakeoff/ run.py, score.py, taal.py, smoke.py              ← wegwerp, gitignored
+Deze sectie schreef tot 5 sep 2026 het omgekeerde voor: bewaar de meetopzet bij de instance,
+gooi het gereedschap weg. Dat bleek fout, en de manier waarop het fout ging is de les.
 
-Wat een uitslag *interpreteerbaar* maakt hoort bij de instance en in de backup; wat hem
-*produceert* is herschrijfbaar. Let op: `.claude/` valt buiten `proton-backup.sh`, dus alles
-wat je daar gitignored neerzet staat in geen enkele backuplaag.
+Het harnas leefde als wegwerpmap in de vault, de meetopzet ernaast in een instance-map, en de
+ruwe runs weer ergens anders — drie regimes voor één meting, geen daarvan met een backuplaag.
+In vier weken verhuisde dat materiaal vier keer, en elke verhuizing riep dezelfde vraag opnieuw
+op. De oorzaak was niet de indeling maar de aanname: dat een meting een bijproduct van de vault
+is. Dat is ze niet. Ze **gebruikt** de vault als meetobject, zoals andere projecten de
+bibliotheek als bron gebruiken.
+
+Vuistregels die daaruit volgen:
+
+- **Eén repo per onderzoeksvraag**, met de vraag, de methode en het verdict in de `README`. De
+  meetopzet hoort daar ook in: zonder de bundelselectie en de query-set is een uitslag niet na
+  te vertellen.
+- **Code importeert, kopieert niet.** Meet je wat de productie doet, gebruik dan de
+  productieconstanten uit de vault — een kopie meet vanaf dat moment een systeem dat niet meer
+  bestaat.
+- **Broninhoud blijft buiten elke remote**, ook een privé. Gelabelde grondwaarheid met titels en
+  abstracts hoort in een gitignored `data/` met een eigen backupregel.
+- **Gitignored is geen backup.** Een nieuwe gitignore-regel voor afgeleide data is een stil gat
+  tot er een expliciete `rclone`-regel bij staat.
+- **Bouw een poort.** Een script dat een eerder bekende uitslag reproduceert is een
+  regressietest op het meetinstrument, en de goedkoopste manier om te merken dat een
+  verplaatsing of een constante iets heeft verschoven.
+
+De uitwerking voor deze vault staat in de privé-repo `ResearchVault-metingen`; het besluit in
+`ResearchVault-plans`, ADR-0011.
 
 ## Bekende valkuilen bij het schrijven van de runner
 

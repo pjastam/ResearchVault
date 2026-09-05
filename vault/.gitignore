@@ -24,13 +24,6 @@ wiki/syntheses/*
 wiki/.drafts/*
 !wiki/.drafts/.gitkeep
 
-# canon/ = terminologische canon van DEZE instance (NL↔EN-equivalenties, begrips-
-# taxonomieën, canon-beslissingen). Persoonlijke domeinoordelen, geen systeemcode —
-# hoort dus bij de instance-inhoud en niet in een repo die anderen klonen.
-# Onder backup via proton-backup.sh (eigen rclone-regel), net als raw/ en wiki/.
-canon/*
-!canon/.gitkeep
-
 # volledig buiten git
 .cache/
 .olw/
