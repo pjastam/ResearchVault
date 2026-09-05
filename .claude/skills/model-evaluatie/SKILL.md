@@ -42,6 +42,25 @@ Modellen die hier nul concepten opleveren vallen af vóór ze uren kosten.
 "model returned no usable content (finish_reason=stop)", nul concepten. Oplossing: de proxy
 die `"think": false` injecteert, met `olw --provider-url http://localhost:11435`.
 
+**Meet prefill en generatie apart.** Eén getal "seconden per 1000 woorden" verbergt dat de
+twee fasen aan verschillende grenzen hangen. Generatie is bandbreedte-gebonden en schaalt
+lineair met de residente modelgrootte; prefill is compute-gebonden en zakt veel sneller weg
+naarmate het model groeit. Bij bundelverwerking, waar de invoer lang is en de uitvoer kort,
+bepaalt prefill de looptijd — precies de fase die een generatie-benchmark niet ziet.
+
+Neem de cijfers uit de engine zelf, niet uit een stopwatch. `/api/generate` met
+`stream=false` geeft `prompt_eval_count`/`prompt_eval_duration` en
+`eval_count`/`eval_duration`; daaruit volgen beide snelheden los van elkaar. Doe per model
+eerst een koude load (`ollama stop`, dan één token genereren) zodat laadtijd niet in de
+meting lekt, en controleer met `ollama ps` dat `PROCESSOR` 100% GPU is — een model dat
+gedeeltelijk naar de CPU uitwijkt levert een getal dat nergens op slaat.
+
+Reken de effectieve bandbreedte terug: `generatie_t/s × residente_GB`. Ligt die over alle
+modellen binnen een smalle band, dan is de machine bandbreedte-gebonden en voorspelt
+`generatie_t/s ≈ effectieve_bandbreedte / residente_GB` de modellen die je niet hebt getest.
+Dat scheelt een ronde. De gemeten waarden voor deze installatie staan in
+`ResearchVault-plans/RUNBOOK.md`; ze zijn machine-specifiek en horen niet in dit handboek.
+
 ### Ronde 1 — screening (ingest-only)
 Alle kandidaten, één run. **Geen compile**: metriek A2, F, G en H komen uit de
 `concepts`-tabel die `ingest` vult. Compile kost 60–70% van de looptijd en levert de
