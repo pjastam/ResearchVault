@@ -59,6 +59,7 @@ from feedreader_core import (
     detect_source_type,
     extract_snippet,
     make_item_summary,
+    splits_uitval,
 )
 from zotero_utils import make_sqlite_copy, get_library_keys_with_weights
 
@@ -772,7 +773,7 @@ def main():
         entries = result.entries
 
         if result.failed:
-            failed_feeds.append((feed_url, result.status))
+            failed_feeds.append((feed_url, result.status, result.error))
             reason = f" — {result.error}" if result.error else ""
             print(f"     ⚠️  {result.status.upper()} na {result.attempts} poging(en): {feed_url}{reason}")
             continue
@@ -872,9 +873,18 @@ def main():
             })
 
     if failed_feeds:
-        print(f"     ⚠️  {len(failed_feeds)} van {len(feed_urls)} feeds onbereikbaar na herkansing:")
-        for url, status in failed_feeds:
-            print(f"         [{status}] {url}")
+        # YouTube's RSS-endpoint weigert dagelijks tot 09:00 met een 404, ongeacht het
+        # IP (ADR-0012). Die uitval apart tellen: een waarschuwing die elke ochtend
+        # onterecht afgaat, leert je hem te negeren.
+        bekend, onverwacht = splits_uitval(failed_feeds, datetime.now())
+        if bekend:
+            print(f"     ⓘ  {len(bekend)} van {len(feed_urls)}: YouTube-404-venster "
+                  f"(bekend, dagrun 09:00 haalt ze op)")
+        if onverwacht:
+            print(f"     ⚠️  {len(onverwacht)} van {len(feed_urls)} feeds onverwacht "
+                  f"onbereikbaar na herkansing:")
+            for url, status, _fout in onverwacht:
+                print(f"         [{status}] {url}")
 
     if not all_items:
         print("⚠️  Geen items gevonden in de feeds.")

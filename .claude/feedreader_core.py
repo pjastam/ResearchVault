@@ -133,3 +133,46 @@ def detect_source_type(feed_url: str, entry: dict) -> str:
     if any(e.get("type", "").startswith("audio/") for e in enclosures):
         return "podcast"
     return "web"
+
+
+# Einde van het dagelijkse 404-venster op het YouTube-RSS-endpoint, in lokale tijd.
+# Gemeten op 12 sep 2026 vanaf drie hosts — waarvan één op een publiek IP buiten ons
+# netwerk — liep het venster van 04:03 tot 08:55; buiten het venster faalde geen van de
+# 80 controleverzoeken. Het einde valt samen met middernacht Pacific. Zie ADR-0012 in
+# ResearchVault-plans en Faalpatroon 34 in ~/bin/RUNBOOK.md.
+#
+# Deze grens is een aanname over het rooster van een ander en kan dus roesten. Ze
+# verraadt zichzelf: loopt het venster ooit dóór tot ná 09:00, dan gaat de dagrun van
+# 09:00 feeds melden — hetzelfde signaal waarmee dit verschijnsel oorspronkelijk boven
+# kwam. Daarom staat hier geen slimmigheid met tijdzones omheen.
+VENSTER_EINDE_UUR = 9
+
+
+def splits_uitval(failed_feeds, nu):
+    """Splitst mislukte feeds in (bekend 404-venster, onverwacht).
+
+    `failed_feeds` is een lijst `(url, status, fouttekst)`; de volgorde blijft in beide
+    uitkomsten behouden. `nu` wordt meegegeven in plaats van hier opgehaald, zodat de
+    regel te testen is zonder de klok te manipuleren.
+
+    Een feed telt alleen als bekend venster wanneer alle vier gelden: het is een
+    YouTube-feed, de status is `mislukt`, de fouttekst noemt een 404, en de run draait
+    vóór VENSTER_EINDE_UUR. Elk van die voorwaarden houdt een echte storing binnen het
+    alarm: een time-out is geen weigering, een DNS-fout om 07:00 noemt geen 404, en een
+    404 om 14:00 hoort niet bij dit venster.
+    """
+    bekend = []
+    onverwacht = []
+    in_venster = nu.hour < VENSTER_EINDE_UUR
+
+    for uitval in failed_feeds:
+        url, status, fout = uitval
+        if (in_venster
+                and status == "mislukt"
+                and "404" in (fout or "")
+                and detect_source_type(url, {}) == "youtube"):
+            bekend.append(uitval)
+        else:
+            onverwacht.append(uitval)
+
+    return bekend, onverwacht
