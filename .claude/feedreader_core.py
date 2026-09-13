@@ -148,10 +148,31 @@ def detect_source_type(feed_url: str, entry: dict) -> str:
 VENSTER_EINDE_UUR = 9
 
 
+def _is_404(fout):
+    """Herkent een HTTP 404 in de fout van een mislukte fetch.
+
+    `FetchResult.error` draagt het exception-object, niet zijn tekst. Daar liep de
+    eerste versie van deze regel op stuk. `"404" in fout` wierp géén TypeError bij
+    een `urllib.error.HTTPError`: dat object is file-achtig en dus itereerbaar, dus
+    de uitdrukking liep stil de HTML-foutpagina af en gaf False — de ochtendbatch
+    van 13 sep 2026 zette daardoor alle zestien feeds in de verkeerde emmer. Bij een
+    `URLError` (DNS, TLS) wierp dezelfde regel juist wél een TypeError, en die had
+    de hele samenvattingsstap meegenomen.
+
+    Vandaar twee expliciete stappen. De statuscode is het gestructureerde signaal en
+    staat bij urllib in `.code`; de gerenderde tekst is de terugval voor een fout die
+    in iets anders verpakt zit of die een aanroeper als string meegeeft.
+    """
+    if getattr(fout, "code", None) == 404:
+        return True
+    return "404" in str(fout or "")
+
+
 def splits_uitval(failed_feeds, nu):
     """Splitst mislukte feeds in (bekend 404-venster, onverwacht).
 
-    `failed_feeds` is een lijst `(url, status, fouttekst)`; de volgorde blijft in beide
+    `failed_feeds` is een lijst `(url, status, fout)` — waarbij `fout` het exception-
+    object uit `FetchResult.error` is, niet zijn tekst; de volgorde blijft in beide
     uitkomsten behouden. `nu` wordt meegegeven in plaats van hier opgehaald, zodat de
     regel te testen is zonder de klok te manipuleren.
 
@@ -169,7 +190,7 @@ def splits_uitval(failed_feeds, nu):
         url, status, fout = uitval
         if (in_venster
                 and status == "mislukt"
-                and "404" in (fout or "")
+                and _is_404(fout)
                 and detect_source_type(url, {}) == "youtube"):
             bekend.append(uitval)
         else:

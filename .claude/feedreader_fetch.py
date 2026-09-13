@@ -53,9 +53,17 @@ _ZLIB_GZIP_WBITS = 31  # zlib-vlag voor "verwacht een gzip-header"
 class FetchResult:
     """Uitkomst van één feed-ophaalpoging.
 
-    name    — feed-titel, of de URL als die niet te achterhalen was
-    entries — de items (afgekapt op max_entries)
-    status  — FETCH_OK | FETCH_LEEG | FETCH_MISLUKT | FETCH_TIMEOUT
+    name     — feed-titel, of de URL als die niet te achterhalen was
+    entries  — de items (afgekapt op max_entries)
+    status   — FETCH_OK | FETCH_LEEG | FETCH_MISLUKT | FETCH_TIMEOUT
+    attempts — aantal pogingen dat is gedaan (1 = geslaagd zonder herkansing)
+    error    — het **exception-object** van de laatste mislukte poging, niet zijn
+               tekst, en None bij een geslaagde fetch. Wie erop wil filteren moet
+               dus `str()` of een attribuut als `.code` gebruiken: `"404" in error`
+               werpt bij een `URLError` een TypeError en geeft bij een `HTTPError`
+               stil False, want dat object is file-achtig en dus itereerbaar. Die
+               val kostte de 404-venstersplitsing een dag (zie `_is_404()` in
+               feedreader_core.py).
     """
 
     __slots__ = ("name", "entries", "status", "attempts", "error")
