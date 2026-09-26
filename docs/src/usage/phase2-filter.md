@@ -32,6 +32,25 @@ Optionally, run `index-score.py` first to pre-rank items:
 
 This scores each `_inbox` item by semantic similarity to your existing Zotero library (0–100) and prints a sorted list. Both sides come from ChromaDB, so it works with whichever embedding model `zotero-mcp` is configured with. Claude Code uses these scores during the review session.
 
+### The web review page reads a snapshot, not a live run
+
+The browser-based review page (`/inbox`) does **not** score on demand. The scheduled batch runs
+`index-score.py --snapshot <vault>/.cache/inbox-scores.json` right after the ChromaDB update, and
+the server only reads that file.
+
+The reason is worth knowing if you run the server under its own service account, which is
+advisable when it is publicly reachable: **ChromaDB opens its store read-write even for a
+query**, so an account with read-only access cannot score at all. Scoring therefore belongs in
+the batch, which runs with the privileges it needs.
+
+Two consequences for how you use the page:
+
+- An item you add to `_inbox` *after* the last batch run has no score yet. It still appears, at
+  the bottom of the list, and the page says how many items are in that state — it is never
+  silently dropped.
+- The page shows when the scores were computed. If the snapshot is missing or damaged, it says
+  so instead of presenting an unsorted list as if it were ranked.
+
 ---
 
 ## How Claude Code reviews each item

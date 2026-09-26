@@ -141,6 +141,34 @@ olw legt cross-links en syntheses aan tijdens `compile`; `olw lint` / `olw maint
 - Uitvoeren: `~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/index-score.py`
 - Output: gesorteerde lijst met scores 0–100, labels 🟢 (≥70) · 🟡 (40–69) · 🔴 (<40)
 
+**`--snapshot PAD` — de batch scoort, de server leest (sinds 26 sep 2026).** De inbox-reviewpagina
+draaide dit script tot die datum *live* bij elk bezoek. Dat brak stil toen `feedreader-server.py`
+naar het service-account `_feedreader` ging: ChromaDB opent de collectie **read-write**
+(`chromadb.errors.InternalError ... attempt to write a readonly database`), en dat account heeft
+alleen leesrecht. `_handle_inbox_items` toetste `returncode == 0` en liet de scoretabel anders
+leeg — de pagina gaf dus een keurige HTTP 200 met 156 items zónder score, ruim vier uur lang, en
+niets in het log wees erop.
+
+De scoring hoort daarom in de **root**-batch, die dat rechtenprobleem niet heeft: `nachtelijke-taken.sh`
+en `overdagtaken.sh` draaien de stap direct na `zotero update-db` (want index-score leest beide
+zijden uit de collectie die daar wordt bijgewerkt) en schrijven naar
+`vault/.cache/inbox-scores.json`. De server leest alleen nog dat bestand.
+
+Drie eigenschappen die geen van alle cosmetisch zijn:
+- **Atomair** (`.tmp` + `replace()`, mode `644`) — de server kan elk moment lezen; een half
+  geschreven bestand komt daar aan als corrupte JSON.
+- **Bij een storing wordt er niets geschreven** (`_faal()` doet `sys.exit(1)` zonder schrijven). Een
+  bestaande, goede snapshot overschrijven met een lege lijst zou een storing laten lezen als "de
+  `_inbox` is leeg". Een lege `_inbox` is dát wél en wordt dus *wel* weggeschreven.
+- **Vorm is een object, geen lijst**: `{"generated_at": <ISO8601 met offset>, "items": [...]}`. De
+  tijdstempel is nodig omdat de pagina anders "nog niet berekend" niet kan onderscheiden van "geen
+  score"; `lees_score_snapshot()` in de server wijst een kale lijst (het oude `--json`-formaat)
+  daarom expliciet af als `onleesbaar`.
+
+`--json` naar stdout is ongewijzigd gebleven voor handmatig gebruik. **Niet** in `SERVE_DIR`
+wegschrijven: die map wordt statisch uitgeleverd en hangt via de Funnel aan het publieke internet.
+Tests: `test_feedreader_server.py::TestScoreSnapshot` (6 stuks, kale stdlib).
+
 ## Zotero-hulpscripts
 - `.claude/zotero-inbox.py` — leest alle items uit de Zotero `_inbox` collectie via de lokale REST API (localhost:23119); gebruik voor overzicht of scripting: `python3 zotero-inbox.py --json`; vereist dat Zotero draait
 - `.claude/zotero-remove-from-inbox.py` — verwijdert een item uit de `_inbox` na verwerking via `zotero_api.py` (default: local API, vereist Zotero desktop):
@@ -332,7 +360,7 @@ De feedreader scoort RSS/YouTube/podcast-feeds automatisch op relevantie en prod
   **Let op bij het beoordelen:** de knop filtert de `items`-array die bij het *laden* van de pagina is opgehaald. Tag je op de iPad in Zotero terwijl de pagina al open staat, dan ziet de knop die items niet — herlaad dan eerst. En de `✅`-tag wordt na verwerking niet verwijderd: filter je in de Zotero-app op die tag zónder de `_inbox`-collectie te selecteren, dan zie je de hele historie (22 aug 2026: 708 items met `✅`, waarvan 701 buiten `_inbox`)
 
 **Inbox-review REST API (POST vereist `Content-Type: application/json`):**
-- `GET  /api/inbox/items` — gecombineerde score + Zotero metadata per `_inbox`-item (JSON)
+- `GET  /api/inbox/items` — gecombineerde score + Zotero metadata per `_inbox`-item. **Antwoordt sinds 26 sep 2026 met een object, niet met een kale lijst:** `{"generated_at": <ISO8601|null>, "scores_status": "ok"|"ontbreekt"|"onleesbaar", "items": [...]}`. De scores komen uit `vault/.cache/inbox-scores.json` (zie § _inbox prioritering); `scores_status` is er zodat een ontbrekende of stukke snapshot als **melding** op de pagina landt in plaats van als een lijst die er gewoon ongesorteerd uitziet. Items zonder score houden `score: null` en sorteren achteraan — precies goed voor een item dat ná de laatste batchrun in de `_inbox` kwam
 - `GET  /api/inbox/jobs` — status van alle achtergrond-jobs (`pending`/`running`/`done`/`error`)
 - `GET  /api/inbox/summary/{key}` — leest `.cache/_summary_{key}.md` als die bestaat
 - `POST /api/inbox/go` — /research-pariteit: voor `videoRecording`/`podcast`/YouTube-items (gate op `type`, met `url` in body) eerst `attach-transcript.py` (web-modus), dan `build-zotero-bundle.py` + `olw ingest` (asynchroon); vereist `title` in body. Removal na succes via de web-API (de lokale API :23119 is read-only). Faalt de transcript-stap → job `error`, item blijft in `_inbox`

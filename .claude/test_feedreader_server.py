@@ -150,5 +150,77 @@ class TestGecachteAudio(unittest.TestCase):
         self.assertFalse(srv._heeft_gecachete_audio("https://doi.org/10.1234/abcd"))
 
 
+class TestScoreSnapshot(unittest.TestCase):
+    """Tests bij de stille mislukking van 26 sep 2026.
+
+    De server draaide `index-score.py` zelf, maar draait sinds die dag als `_feedreader`
+    en kan ChromaDB niet openen (die wordt read-write geopend). De oude code toetste
+    `returncode == 0` en liet de scoretabel anders leeg — de pagina gaf dus HTTP 200 met
+    156 ongescoorde items en niemand merkte het. Deze tests bewaken dat elke faalvorm een
+    eigen, herkenbare status oplevert in plaats van "stilletjes geen scores".
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.pad = Path(self.tmp.name) / "inbox-scores.json"
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _schrijf(self, payload):
+        self.pad.write_text(json.dumps(payload), encoding="utf-8")
+
+    def test_geldige_snapshot(self):
+        self._schrijf({
+            "generated_at": "2026-09-26T15:11:54+00:00",
+            "items": [
+                {"key": "AAAA1111", "score": 73, "label": "🟢"},
+                {"key": "BBBB2222", "score": 41, "label": "🟡"},
+            ],
+        })
+        scores, wanneer, status = srv.lees_score_snapshot(self.pad)
+        self.assertEqual(status, "ok")
+        self.assertEqual(wanneer, "2026-09-26T15:11:54+00:00")
+        self.assertEqual(scores["AAAA1111"]["score"], 73)
+        self.assertEqual(set(scores), {"AAAA1111", "BBBB2222"})
+
+    def test_ontbrekend_bestand_is_geen_lege_scoretabel(self):
+        # Het onderscheid dat de oude code niet maakte: "nog geen snapshot" is iets
+        # anders dan "alle items scoren nul".
+        scores, wanneer, status = srv.lees_score_snapshot(self.pad)
+        self.assertEqual(status, "ontbreekt")
+        self.assertEqual(scores, {})
+        self.assertIsNone(wanneer)
+
+    def test_corrupte_json(self):
+        self.pad.write_text("{items: [", encoding="utf-8")
+        _, _, status = srv.lees_score_snapshot(self.pad)
+        self.assertEqual(status, "onleesbaar")
+
+    def test_json_zonder_items_sleutel(self):
+        # Een half geschreven of oud-formaat bestand mag niet als geldig doorgaan.
+        self._schrijf({"generated_at": "2026-09-26T15:11:54+00:00"})
+        _, _, status = srv.lees_score_snapshot(self.pad)
+        self.assertEqual(status, "onleesbaar")
+
+    def test_kale_lijst_is_het_oude_formaat_en_telt_niet(self):
+        # Vóór 26 sep 2026 gaf index-score --json een kale lijst. Die vorm hoort hier
+        # als onleesbaar te gelden, niet stilzwijgend als nul scores.
+        self._schrijf([{"key": "AAAA1111", "score": 73}])
+        _, _, status = srv.lees_score_snapshot(self.pad)
+        self.assertEqual(status, "onleesbaar")
+
+    def test_item_zonder_score_blijft_in_de_tabel(self):
+        # index-score neemt items zonder embedding op met score None; die horen mee te
+        # komen, zodat de pagina ze onderaan kan tonen in plaats van ze te verzwijgen.
+        self._schrijf({
+            "generated_at": "2026-09-26T15:11:54+00:00",
+            "items": [{"key": "CCCC3333", "score": None, "label": None}],
+        })
+        scores, _, status = srv.lees_score_snapshot(self.pad)
+        self.assertEqual(status, "ok")
+        self.assertIsNone(scores["CCCC3333"]["score"])
+
+
 if __name__ == "__main__":
     unittest.main()

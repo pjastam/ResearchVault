@@ -7,6 +7,8 @@ en geeft een score (0–100) die aangeeft hoe goed het item past bij je voorkeur
 
 Gebruik:
     python3 index-score.py
+    python3 index-score.py --json                     # machineleesbaar naar stdout
+    python3 index-score.py --snapshot <pad>.json      # voor de batch; zie hieronder
 
 Vereisten:
     - Zotero draait NIET (script maakt een veilige kopie van de SQLite database)
@@ -24,6 +26,8 @@ import argparse
 import json
 import os
 import sqlite3
+import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import chromadb
@@ -135,12 +139,64 @@ def get_item_years(conn: sqlite3.Connection, keys: list[str]) -> dict[str, str]:
     return {row[0]: row[1] for row in cur.fetchall()}
 
 
+# ── Snapshot voor feedreader-server.py ────────────────────────────────────────
+
+def schrijf_snapshot(pad: Path, items: list) -> None:
+    """Leg de scores vast in `pad`, atomair en wereld-leesbaar.
+
+    Bestaat omdat `feedreader-server.py` sinds 26 sep 2026 als `_feedreader` draait en
+    ChromaDB de collectie read-write opent: dat account kan dit script dus niet zelf
+    draaien (`attempt to write a readonly database`). De inbox-pagina las die mislukking
+    stil als "geen scores". De batch draait als root en heeft dat probleem niet, dus de
+    scoring gebeurt daar en de server leest alleen nog het resultaat.
+
+    Atomair via `.tmp` + `replace()`, want de server kan elk moment lezen; een half
+    geschreven bestand komt daar aan als corrupte JSON. `0o644` omdat de batch als root
+    schrijft en `_feedreader` moet kunnen lezen.
+    """
+    payload = {
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "items": items,
+    }
+    tmp = pad.with_name(pad.name + ".tmp")
+    tmp.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    tmp.chmod(0o644)
+    tmp.replace(pad)
+
+
+def _faal(bericht: str, *, hint: str = "", json_uit: bool = False, snapshot: str | None = None):
+    """Meld een storing en beëindig het programma.
+
+    In snapshot-modus wordt er **niets** geschreven: een bestaande, goede snapshot
+    overschrijven met een lege lijst zou een storing laten lezen als "de _inbox is leeg".
+    De exitcode maakt hem zichtbaar voor de batch.
+    """
+    if snapshot:
+        print(bericht, file=sys.stderr)
+        sys.exit(1)
+    if json_uit:
+        print(json.dumps({"error": bericht}))
+    else:
+        print(f"❌  {bericht}")
+        if hint:
+            print(f"    {hint}")
+    sys.exit(1)
+
+
 # ── Hoofdprogramma ────────────────────────────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser(description="Zotero _inbox relevantiescore")
     parser.add_argument("--json", action="store_true", help="Output als JSON (onderdrukt progress)")
+    parser.add_argument("--snapshot", metavar="PAD",
+                        help="Schrijf de scores atomair naar PAD i.p.v. naar stdout "
+                             "(voor de batch; feedreader-server.py leest dit bestand)")
     args = parser.parse_args()
+
+    # --snapshot impliceert machineleesbaar: de voortgangsregels horen niet in een batchlog
+    # en de vertakkingen hieronder hangen alle aan args.json.
+    if args.snapshot:
+        args.json = True
 
     if not args.json:
         print("\n📚 index-score — Zotero _inbox relevantiescore")
@@ -150,11 +206,8 @@ def main():
     if not args.json:
         print("\n[1/5] SQLite database kopiëren...")
     if not ZOTERO_SQLITE.exists():
-        if args.json:
-            print(json.dumps({"error": f"Zotero database niet gevonden: {ZOTERO_SQLITE}"}))
-        else:
-            print(f"❌  Zotero database niet gevonden: {ZOTERO_SQLITE}")
-        return
+        _faal(f"Zotero database niet gevonden: {ZOTERO_SQLITE}",
+              json_uit=args.json, snapshot=args.snapshot)
     tmp_db = make_sqlite_copy(ZOTERO_SQLITE)
     conn = sqlite3.connect(tmp_db)
 
@@ -164,7 +217,12 @@ def main():
             print("[2/5] _inbox items ophalen...")
         inbox_keys = get_inbox_keys(conn, INBOX_ID)
         if not inbox_keys:
-            if args.json:
+            if args.snapshot:
+                # Een lege _inbox is een geldige uitkomst, geen storing — dus wél
+                # wegschrijven. Zou je dat overslaan, dan blijft de server een oude
+                # lijst tonen van items die allang verwerkt zijn.
+                schrijf_snapshot(Path(args.snapshot), [])
+            elif args.json:
                 print(json.dumps([]))
             else:
                 print(f"✅  _inbox (ID {INBOX_ID}) is leeg — niets te scoren.")
@@ -189,12 +247,9 @@ def main():
         lib_embeddings   = get_embeddings_for_keys(chroma_col, list(lib_weights.keys()))
 
         if not lib_embeddings:
-            if args.json:
-                print(json.dumps({"error": "Geen bibliotheek-embeddings in ChromaDB"}))
-            else:
-                print("❌  Geen bibliotheek-embeddings gevonden in ChromaDB.")
-                print("    Voer eerst 'zotero-mcp update-db --fulltext' uit.")
-            return
+            _faal("Geen bibliotheek-embeddings in ChromaDB",
+                  hint="Voer eerst 'zotero-mcp update-db --fulltext' uit.",
+                  json_uit=args.json, snapshot=args.snapshot)
 
         if not args.json:
             missing = len(inbox_keys) - len(inbox_embeddings)
@@ -245,7 +300,10 @@ def main():
                         "title": titles.get(key, ""), "author": creators.get(key, ""),
                         "year": years.get(key, ""),
                     })
-            print(json.dumps(result, ensure_ascii=False))
+            if args.snapshot:
+                schrijf_snapshot(Path(args.snapshot), result)
+            else:
+                print(json.dumps(result, ensure_ascii=False))
             return
 
         # ── Leesbare output ───────────────────────────────────────────────────

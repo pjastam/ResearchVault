@@ -82,6 +82,13 @@
     display: flex; gap: 12px; flex-wrap: wrap;
   }
   #statusbar span { white-space: nowrap; }
+  /* Eigen balk, niet #statusbar: die wordt door pollJobs() volledig herschreven en
+     zou deze melding bij de eerste job-poll wissen. */
+  #scorestatus {
+    font-size: 12px; padding: 4px 16px; display: none;
+  }
+  #scorestatus.vers  { background: #0f172a; color: #64748b; display: block; }
+  #scorestatus.stuk  { background: #7f1d1d; color: #fecaca; display: block; }
   .job-running { color: var(--yellow); }
   .job-done    { color: var(--green); }
   .job-error   { color: var(--red); }
@@ -248,6 +255,7 @@
 </header>
 
 <div id="statusbar"></div>
+<div id="scorestatus"></div>
 <div id="progress-bar"><div id="progress-fill" style="width:0%"></div></div>
 
 <main id="main">
@@ -277,7 +285,10 @@ async function boot() {
       showError(data.error || "Server fout");
       return;
     }
-    items = data;
+    // Sinds 26 sep 2026 antwoordt /api/inbox/items met een object i.p.v. een kale lijst:
+    // de scores komen uit een batch-snapshot en de ouderdom daarvan hoort zichtbaar te zijn.
+    items = data.items || [];
+    toonScoreStatus(data);
     if (!items.length) {
       showEmpty();
       return;
@@ -732,6 +743,33 @@ function updateCounter() {
 }
 
 // ── State screens ─────────────────────────────────────────────────────────────
+
+// Maakt zichtbaar waar de scores vandaan komen en hoe oud ze zijn. Zonder deze melding is
+// "alle items ongescoord" niet te onderscheiden van "niets is relevant" — precies het
+// verschil dat op 26 sep 2026 vier uur onopgemerkt bleef.
+function toonScoreStatus(data) {
+  const el = document.getElementById("scorestatus");
+  if (!el) return;
+
+  if (data.scores_status !== "ok") {
+    const reden = data.scores_status === "ontbreekt"
+      ? "de batch heeft nog geen snapshot geschreven"
+      : "de snapshot is onleesbaar of beschadigd";
+    el.className   = "stuk";
+    el.textContent = `⚠️ Geen relevantiescores — ${reden}. De lijst staat in willekeurige volgorde.`;
+    return;
+  }
+
+  // generated_at draagt een UTC-offset, dus toLocaleString() toont hem in jouw eigen tijd.
+  const tijd = data.generated_at
+    ? new Date(data.generated_at).toLocaleString("nl-NL", { dateStyle: "short", timeStyle: "short" })
+    : "onbekend tijdstip";
+  const zonder = items.filter(i => i.score === null || i.score === undefined).length;
+  el.className   = "vers";
+  el.textContent = zonder
+    ? `Scores van ${tijd} · ${zonder} item(s) nog niet gescoord — die staan onderaan`
+    : `Scores van ${tijd}`;
+}
 
 function showEmpty() {
   document.getElementById("counter").textContent = "0 items";

@@ -85,9 +85,51 @@ VAULT_DIR  = VAULT_ROOT / "vault"     # symlink → ResearchVault/vault/
 PYTHON     = Path("/Users/pietstam/.local/share/uv/tools/zotero-mcp-server/bin/python3")
 INBOX_DIR  = VAULT_ROOT / "vault" / ".cache"   # temp-input (fase-2 previews e.d.); gitignored
 
+# Score-snapshot voor de inbox-pagina, geschreven door `index-score.py --snapshot` in de
+# batch. Deze server draait als `_feedreader` en kan ChromaDB niet zelf openen (die wordt
+# read-write geopend), dus scoren gebeurt in de root-batch en hier wordt alleen gelezen.
+# Bewust NIET in SERVE_DIR: die map wordt statisch uitgeleverd en hangt via de Funnel aan
+# het publieke internet — Zotero-titels en abstracts horen daar niet opvraagbaar te zijn.
+SCORES_SNAPSHOT = INBOX_DIR / "inbox-scores.json"
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import wiki_backend  # noqa: E402
 from feedreader_identity import podcast_cache_ids  # noqa: E402
+
+
+def lees_score_snapshot(pad: Path | None = None):
+    """Lees de score-snapshot. Geeft `(scores_by_key, generated_at, status)`.
+
+    Status is `ok`, `ontbreekt` of `onleesbaar`. Een storing wordt hier bewust **niet**
+    opgeslokt: tot 26 sep 2026 startte deze route `index-score.py` zelf en viel bij een
+    non-zero exit stil terug op een lege scoretabel, waarna de pagina een keurige 200 gaf
+    met 156 ongescoorde items. Dat bleef vier uur onopgemerkt. Sindsdien gaat elke faalvorm
+    naar stderr — en die gaat via de plist naar de serverlog — én naar de client, die er een
+    zichtbare melding van maakt.
+
+    Staat op modulehoogte en niet in de handler omdat er niets aan `self` hangt; zo is hij
+    los te testen zonder een HTTP-request na te bootsen.
+    """
+    pad = pad or SCORES_SNAPSHOT
+    try:
+        rauw = Path(pad).read_text(encoding="utf-8")
+    except FileNotFoundError:
+        print(f"[inbox] score-snapshot ontbreekt: {pad} — "
+              f"draait de batchstap 'index-score.py --snapshot' wel?", file=sys.stderr)
+        return {}, None, "ontbreekt"
+    except OSError as exc:
+        print(f"[inbox] score-snapshot onleesbaar: {exc}", file=sys.stderr)
+        return {}, None, "onleesbaar"
+
+    try:
+        data = json.loads(rauw)
+        items = data["items"]
+        scores = {item["key"]: item for item in items}
+    except (json.JSONDecodeError, KeyError, TypeError) as exc:
+        print(f"[inbox] score-snapshot corrupt: {exc}", file=sys.stderr)
+        return {}, None, "onleesbaar"
+
+    return scores, data.get("generated_at"), "ok"
 
 
 def _zotero_env(mode: str) -> dict:
@@ -399,17 +441,9 @@ class FeedreaderHandler(http.server.SimpleHTTPRequestHandler):
     # ── Inbox API ─────────────────────────────────────────────────────────────
 
     def _handle_inbox_items(self):
-        """Combineert index-score --json met zotero-inbox --json output."""
+        """Combineert de score-snapshot met zotero-inbox --json output."""
         try:
-            # Scores ophalen (werkt zonder Zotero desktop via SQLite-kopie)
-            score_result = subprocess.run(
-                [str(PYTHON), str(SCRIPT_DIR / "index-score.py"), "--json"],
-                capture_output=True, text=True, timeout=60,
-            )
-            scores_by_key = {}
-            if score_result.returncode == 0 and score_result.stdout.strip():
-                for item in json.loads(score_result.stdout):
-                    scores_by_key[item["key"]] = item
+            scores_by_key, scores_generated_at, scores_status = lees_score_snapshot()
 
             # Metadata ophalen (vereist Zotero desktop; auto-start via ZOTERO_ACCESS=auto)
             inbox_result = subprocess.run(
@@ -443,9 +477,15 @@ class FeedreaderHandler(http.server.SimpleHTTPRequestHandler):
                     "label":      score_data.get("label"),
                 })
 
-            # Sorteer: gescoorde items eerste (op score desc), dan ongescoorde
+            # Sorteer: gescoorde items eerste (op score desc), dan ongescoorde. Dat is
+            # precies het juiste gedrag voor een item dat ná de laatste batchrun in de
+            # _inbox belandde: het staat er wél, onderaan, zonder verzonnen score.
             combined.sort(key=lambda x: (x["score"] is None, -(x["score"] or 0)))
-            self._respond_json(200, combined)
+            self._respond_json(200, {
+                "generated_at":  scores_generated_at,
+                "scores_status": scores_status,
+                "items":         combined,
+            })
 
         except subprocess.TimeoutExpired:
             self._respond_json(504, {"error": "Timeout bij ophalen inbox"})
