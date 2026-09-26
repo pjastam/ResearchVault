@@ -196,6 +196,22 @@
 <pre><code class="language-bash">~/.local/share/uv/tools/zotero-mcp-server/bin/python3 .claude/index-score.py
 </code></pre>
 <p>This scores each <code>_inbox</code> item by semantic similarity to your existing Zotero library (0–100) and prints a sorted list. Both sides come from ChromaDB, so it works with whichever embedding model <code>zotero-mcp</code> is configured with. Claude Code uses these scores during the review session.</p>
+<h3 id="the-web-review-page-reads-a-snapshot-not-a-live-run"><a class="header" href="#the-web-review-page-reads-a-snapshot-not-a-live-run">The web review page reads a snapshot, not a live run</a></h3>
+<p>The browser-based review page (<code>/inbox</code>) does <strong>not</strong> score on demand. The scheduled batch runs
+<code>index-score.py --snapshot &lt;vault&gt;/.cache/inbox-scores.json</code> right after the ChromaDB update, and
+the server only reads that file.</p>
+<p>The reason is worth knowing if you run the server under its own service account, which is
+advisable when it is publicly reachable: <strong>ChromaDB opens its store read-write even for a
+query</strong>, so an account with read-only access cannot score at all. Scoring therefore belongs in
+the batch, which runs with the privileges it needs.</p>
+<p>Two consequences for how you use the page:</p>
+<ul>
+<li>An item you add to <code>_inbox</code> <em>after</em> the last batch run has no score yet. It still appears, at
+the bottom of the list, and the page says how many items are in that state — it is never
+silently dropped.</li>
+<li>The page shows when the scores were computed. If the snapshot is missing or damaged, it says
+so instead of presenting an unsorted list as if it were ranked.</li>
+</ul>
 <hr />
 <h2 id="how-claude-code-reviews-each-item"><a class="header" href="#how-claude-code-reviews-each-item">How Claude Code reviews each item</a></h2>
 <p>The treatment depends on the item's Zotero tag and its relevance score.</p>
