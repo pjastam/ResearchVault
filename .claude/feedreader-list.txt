@@ -100,7 +100,7 @@ https://api.substack.com/feed/podcast/2351791.rss  # AI Report
 # ── Health & Care ─────────────────────────────────────────────────────────────
 https://app.springcast.fm/podcast-xml/18870  # Voorzorg
 https://www.omnycontent.com/d/playlist/8257a063-6be9-42fa-b892-acd4013b1255/c298c0cf-15f9-498d-8cd3-adc100b53291/7dc27dbe-2529-41b3-a76a-adc100b5b53f/podcast.rss  # Beter | BNR
-https://anchor.fm/s/1061d9fa0/podcast/rss  # Van Zorg Verzekerd
+# https://anchor.fm/s/1061d9fa0/podcast/rss  # Van Zorg Verzekerd — via living-evidence (besluit 13, 18 okt 2026)
 
 # ── Privacy & Security ────────────────────────────────────────────────────────
 https://feeds.megaphone.fm/LDBBV1329330265  # Ik weet je wachtwoord
@@ -138,7 +138,7 @@ https://www.youtube.com/feeds/videos.xml?channel_id=UCNJK6_DZvcMqNSzQdEkzvzA  # 
 
 # ── Academia & AI ─────────────────────────────────────────────────────────────
 https://www.youtube.com/feeds/videos.xml?channel_id=UCFqXmQ56-Gp1rIKa-GoAJvQ  # Andy Stapleton
-https://www.youtube.com/feeds/videos.xml?channel_id=UChP5v-RPeEQP27rzIHnHu7w  # Prof. David Stuckler
+# https://www.youtube.com/feeds/videos.xml?channel_id=UChP5v-RPeEQP27rzIHnHu7w  # Prof. David Stuckler — via living-evidence (besluit 13, 18 okt 2026)
 
 # ── Privacy ───────────────────────────────────────────────────────────────────
 https://www.youtube.com/feeds/videos.xml?channel_id=UCVThyXNYXDC9UhDbI8LtghQ  # Proton Guides & Updates
