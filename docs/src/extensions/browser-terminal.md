@@ -87,7 +87,23 @@ Now every connection to the terminal panel attaches to the same persistent `phas
 
 ## 17e. Security note
 
-ttyd listens on all network interfaces (`0.0.0.0`) by default, which is what makes it reachable from an iPad. This also means any device on your local network can open a terminal on your Mac mini. This is acceptable for a trusted home network — if you use public or shared networks, stop the daemon before connecting:
+ttyd listens on all network interfaces (`0.0.0.0`) by default, and it has no password. Anyone who can reach the port gets a writable shell as your user, so on any network you do not fully trust this is too open.
+
+The recommended setup binds ttyd to loopback only and publishes it on your tailnet with Tailscale Serve. Add `--interface 127.0.0.1` to the `ttyd` command in the plist:
+
+```xml
+<string>/opt/homebrew/bin/tmux new-session -d -s phase2 2>/dev/null; exec /opt/homebrew/bin/ttyd --interface 127.0.0.1 --port 7681 --writable /opt/homebrew/bin/tmux attach -t phase2</string>
+```
+
+Reload the daemon (`bootout`, then `bootstrap`), then publish the port on the tailnet:
+
+```bash
+tailscale serve --bg --http=7681 http://127.0.0.1:7681
+```
+
+Open the terminal at `http://<machine>.<tailnet>.ts.net:7681` from a device with Tailscale on. Plain LAN access no longer works. Never use `tailscale funnel` for this port, because Funnel publishes it to the internet. To undo the publication, run `tailscale serve --http=7681 http://127.0.0.1:7681 off`. Do not use `tailscale serve reset`, which removes every Serve handler.
+
+If you keep the default binding, stop the daemon before you connect to a public or shared network:
 
 ```bash
 sudo launchctl unload /Library/LaunchDaemons/nl.researchvault.ttyd.plist
