@@ -694,7 +694,7 @@ def generate_atom(items: list[dict], generated_at: datetime,
     if PUBLIC_BASE_URL:
         links = (
             f'\n  <link rel="alternate" type="text/html" '
-            f'href="{atom_escape(PUBLIC_BASE_URL)}/filtered.html"/>'
+            f'href="{atom_escape(PUBLIC_BASE_URL)}/inbox"/>'
         )
         if feed_slug:
             links += (

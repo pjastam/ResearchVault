@@ -10,7 +10,7 @@ Phase 1 is the collection step. Items from three sources flow into Zotero `_inbo
 
 - **Atom feeds** (NetNewsWire, via FreshRSS): `http://[mac-ip]:8765/filtered-webpage.xml` · `filtered-youtube.xml` · `filtered-podcast.xml`
 
-(The standalone HTML reader at `/filtered.html` was removed on 18 April 2026; NetNewsWire and FreshRSS took over the reading layer. The URL survives only as the channel home `<link>` inside the Atom feeds, because FreshRSS stores no `htmlUrl` without it.)
+(The standalone HTML reader at `/filtered.html` was removed on 18 April 2026; NetNewsWire and FreshRSS took over the reading layer. Until 28 October 2026 the URL survived as the channel home `<link>` inside the Atom feeds, which left readers on a 404; that link now points to `/inbox`, because FreshRSS stores no `htmlUrl` without one.)
 
 Transient network errors are common enough to matter: a feed that cannot be fetched is retried once, under a 15-second per-feed timeout so that one unresponsive server cannot stall the whole run. Feeds that stay unreachable are listed explicitly at the end of the fetch step, so a silently missing source shows up in the run output instead of looking like a feed that simply had nothing new. YouTube's RSS endpoint is a known exception: it returns 404 for every request until roughly 09:00 local time, from any address, and the day runs pick those feeds up afterwards. Those failures are counted separately (`ⓘ`) so that the `⚠️` list keeps meaning “something is actually wrong”.
 
