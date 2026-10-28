@@ -223,7 +223,9 @@ def run(verb: str, vault, **args) -> dict:
     log_path = Path(plan["log"])
     try:
         log_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-        os.chmod(log_path.parent, 0o700)
+        # chmod mag alleen de eigenaar doen; _feedreader schrijft via de ACL.
+        if log_path.parent.stat().st_uid == os.getuid():
+            os.chmod(log_path.parent, 0o700)
     except OSError as exc:
         return _err(f"kon logmap niet aanmaken: {exc}")
 
@@ -238,7 +240,8 @@ def run(verb: str, vault, **args) -> dict:
         # houdt opeenvolgende runs uit elkaar. Flush vóór subprocess.run, anders
         # belandt de header ná de uitvoer die het kind naar dezelfde fd schrijft.
         with open(log_path, "a", encoding="utf-8") as lf:
-            os.chmod(log_path, 0o600)
+            if os.fstat(lf.fileno()).st_uid == os.getuid():
+                os.chmod(log_path, 0o600)
             stamp = datetime.now().astimezone().isoformat(timespec="seconds")
             lf.write(f"\n===== {verb} · {stamp} =====\n")
             lf.flush()

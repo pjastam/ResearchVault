@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Tests voor wiki_backend.py — stdlib unittest, geen dependencies."""
 
+import os
 import sys
 import tempfile
 import unittest
@@ -427,6 +428,19 @@ class TestRun(unittest.TestCase):
             self.assertEqual(log.parent, Path(t).resolve() / ".wiki-backend")
             self.assertEqual(log.parent.stat().st_mode & 0o777, 0o700)
             self.assertEqual(log.stat().st_mode & 0o777, 0o600)
+
+    def test_non_owner_skips_chmod_and_still_runs(self):
+        """feedreader-server draait als _feedreader en schrijft via een ACL in de logmap
+        van pietstam; chmod mag alleen de eigenaar en gaf daar EPERM (25 okt 2026)."""
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as t:
+            v = make_vault(t)
+            with mock.patch.object(wiki_backend.os, "getuid", return_value=os.getuid() + 1), \
+                 mock.patch.object(wiki_backend.os, "chmod",
+                                   side_effect=PermissionError(1, "Operation not permitted")) as ch:
+                res = wiki_backend.run("compile", v)
+            self.assertEqual(res["status"], "ok")
+            ch.assert_not_called()
 
     def test_failure_reports_returncode_and_log_but_no_output(self):
         with tempfile.TemporaryDirectory() as t:
