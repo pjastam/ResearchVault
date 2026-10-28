@@ -73,7 +73,7 @@ Edit `/Library/LaunchDaemons/nl.researchvault.ttyd.plist` and replace the `Progr
 <array>
   <string>/bin/sh</string>
   <string>-c</string>
-  <string>/opt/homebrew/bin/tmux new-session -d -s phase2 2>/dev/null; exec /opt/homebrew/bin/ttyd --port 7681 --writable /opt/homebrew/bin/tmux attach -t phase2</string>
+  <string>/opt/homebrew/bin/tmux new-session -d -s phase2 2>/dev/null; exec /opt/homebrew/bin/ttyd --port 7681 --writable /opt/homebrew/bin/tmux new-session -A -s phase2</string>
 </array>
 ```
 
@@ -83,7 +83,7 @@ Then reload:
 sudo launchctl bootstrap system /Library/LaunchDaemons/nl.researchvault.ttyd.plist
 ```
 
-Now every connection to the terminal panel attaches to the same persistent `phase2` session. A Claude Code conversation that was running when you closed the panel will still be there when you reopen it.
+Now every connection to the terminal panel attaches to the same persistent `phase2` session. A Claude Code conversation that was running when you closed the panel will still be there when you reopen it. If you type `exit` in the last shell, the next connection starts a fresh session (`-A` attaches or creates).
 
 ## 17e. Security note
 
@@ -92,7 +92,7 @@ ttyd listens on all network interfaces (`0.0.0.0`) by default, and it has no pas
 The recommended setup binds ttyd to loopback only and publishes it on your tailnet with Tailscale Serve. Add `--interface 127.0.0.1` to the `ttyd` command in the plist:
 
 ```xml
-<string>/opt/homebrew/bin/tmux new-session -d -s phase2 2>/dev/null; exec /opt/homebrew/bin/ttyd --interface 127.0.0.1 --port 7681 --writable /opt/homebrew/bin/tmux attach -t phase2</string>
+<string>/opt/homebrew/bin/tmux new-session -d -s phase2 2>/dev/null; exec /opt/homebrew/bin/ttyd --interface 127.0.0.1 --port 7681 --writable /opt/homebrew/bin/tmux new-session -A -s phase2</string>
 ```
 
 Reload the daemon (`bootout`, then `bootstrap`), then publish the port on the tailnet:
