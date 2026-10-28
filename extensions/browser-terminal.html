@@ -224,17 +224,17 @@ claude
 &lt;array&gt;
   &lt;string&gt;/bin/sh&lt;/string&gt;
   &lt;string&gt;-c&lt;/string&gt;
-  &lt;string&gt;/opt/homebrew/bin/tmux new-session -d -s phase2 2&gt;/dev/null; exec /opt/homebrew/bin/ttyd --port 7681 --writable /opt/homebrew/bin/tmux attach -t phase2&lt;/string&gt;
+  &lt;string&gt;/opt/homebrew/bin/tmux new-session -d -s phase2 2&gt;/dev/null; exec /opt/homebrew/bin/ttyd --port 7681 --writable /opt/homebrew/bin/tmux new-session -A -s phase2&lt;/string&gt;
 &lt;/array&gt;
 </code></pre>
 <p>Then reload:</p>
 <pre><code class="language-bash">sudo launchctl bootstrap system /Library/LaunchDaemons/nl.researchvault.ttyd.plist
 </code></pre>
-<p>Now every connection to the terminal panel attaches to the same persistent <code>phase2</code> session. A Claude Code conversation that was running when you closed the panel will still be there when you reopen it.</p>
+<p>Now every connection to the terminal panel attaches to the same persistent <code>phase2</code> session. A Claude Code conversation that was running when you closed the panel will still be there when you reopen it. If you type <code>exit</code> in the last shell, the next connection starts a fresh session (<code>-A</code> attaches or creates).</p>
 <h2 id="17e-security-note"><a class="header" href="#17e-security-note">17e. Security note</a></h2>
 <p>ttyd listens on all network interfaces (<code>0.0.0.0</code>) by default, and it has no password. Anyone who can reach the port gets a writable shell as your user, so on any network you do not fully trust this is too open.</p>
 <p>The recommended setup binds ttyd to loopback only and publishes it on your tailnet with Tailscale Serve. Add <code>--interface 127.0.0.1</code> to the <code>ttyd</code> command in the plist:</p>
-<pre><code class="language-xml">&lt;string&gt;/opt/homebrew/bin/tmux new-session -d -s phase2 2&gt;/dev/null; exec /opt/homebrew/bin/ttyd --interface 127.0.0.1 --port 7681 --writable /opt/homebrew/bin/tmux attach -t phase2&lt;/string&gt;
+<pre><code class="language-xml">&lt;string&gt;/opt/homebrew/bin/tmux new-session -d -s phase2 2&gt;/dev/null; exec /opt/homebrew/bin/ttyd --interface 127.0.0.1 --port 7681 --writable /opt/homebrew/bin/tmux new-session -A -s phase2&lt;/string&gt;
 </code></pre>
 <p>Reload the daemon (<code>bootout</code>, then <code>bootstrap</code>), then publish the port on the tailnet:</p>
 <pre><code class="language-bash">tailscale serve --bg --http=7681 http://127.0.0.1:7681
