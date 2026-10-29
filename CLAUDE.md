@@ -489,7 +489,7 @@ Naast de persoonlijke vault kan vertrouwelijk materiaal (bijv. per organisatie/c
 
 **Principes:**
 - **Privacy-grens (As B):** vertrouwelijke inhoud komt nooit als tool-output in Claude's context; alle olw-operaties via lokale subagents. De agent-grens voor *authoring* is nog open — vertrouwelijk schrijven vereist t.z.t. lokale agents.
-- **Backup:** opt-in per compartiment (`.backup-enabled`) naar een aparte, E2E-versleutelde Proton-locatie (`~/bin/compartment-backup.sh`); niet naar de lokale mirror tot die schijf versleuteld is.
+- **Backup:** geen cloudlaag — vertrouwelijke inhoud gaat nooit naar een cloud, ook niet versleuteld (`compartment-backup.sh` is op 29 okt 2026 verwijderd). Compartimenten staan op de Mac en in de versleutelde Time Machine; een losgekoppelde roulatieschijf volgt als derde laag.
 - **Toegang:** Obsidian alleen op de Mac; op iPad/iPhone uitsluitend via de thin-client (gerenderde HTML); compartimenten worden nooit naar mobiel gesynct.
 
 De per-compartiment guardrails staan in elk `~/Confidential/<naam>/_COMPARTMENT.md`.
