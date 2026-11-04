@@ -23,7 +23,7 @@ from feedreader_embed import (
 
 try:
     import numpy  # noqa: F401
-    HEEFT_NUMPY = True
+    HEEFT_NUMPY = hasattr(numpy, "array")  # een stub uit test_feedreader_core telt niet
 except ImportError:  # pragma: no cover - alleen op een kale runner
     HEEFT_NUMPY = False
 
