@@ -27,6 +27,9 @@ pip-install-stap (net als ``feedreader_fetch.py``).
 """
 
 import hashlib
+import json
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 # ── Globale denylist ────────────────────────────────────────────────────────
@@ -174,6 +177,75 @@ def item_keys(link: str, guid: str | None = None,
         if cu and cu not in keys:
             keys.append(cu)
     return tuple(keys)
+
+
+def logboek_onterecht_leeg(identiteiten, serve_dir, environ) -> bool:
+    """True als het logboek leeg is op een installatie die al eerder draaide.
+
+    Een leeg logboek laat de ontdubbeling niets tegenhouden: elk item in het
+    leeftijdsvenster gaat dan opnieuw de feeds in. Op 6 nov 2026 zette een
+    handmatige test ``score_log.jsonl`` even weg; de batch die daarin viel
+    leverde 505 oude items af die NetNewsWire als nieuw toonde. Op een verse
+    installatie zijn er nog geen feeds, en daar is een leeg logboek normaal.
+
+    shortcut: vangt geen gedeeltelijk afgekapt logboek, upgraden als dat ooit voorkomt
+    """
+    if identiteiten or environ.get("FEEDREADER_ALLOW_EMPTY_LOG"):
+        return False
+    # Niet filtered-*.xml: filtered-tv.xml komt van epg-top en zegt niets over deze run.
+    return any(
+        (Path(serve_dir) / f"filtered-{naam}.xml").exists()
+        for naam in ("webpage", "youtube", "podcast")
+    )
+
+
+def recente_identiteiten(path, now: datetime, dagen: int) -> set[str]:
+    """Sleutels van logregels uit de laatste ``dagen`` dagen.
+
+    Dezelfde twee sleutelvormen als ``load_existing_log()`` in
+    ``feedreader-score.py``. Regels zonder leesbare tijdstempel tellen niet mee.
+    """
+    path = Path(path)
+    if not path.exists():
+        return set()
+    grens = now - timedelta(days=dagen)
+    sleutels: set[str] = set()
+    for line in path.read_text(encoding="utf-8").splitlines():
+        try:
+            entry = json.loads(line)
+            moment = datetime.fromisoformat(entry["timestamp"].replace("Z", "+00:00"))
+        except (json.JSONDecodeError, KeyError, ValueError, AttributeError, TypeError):
+            continue
+        if moment.tzinfo is None:
+            moment = moment.replace(tzinfo=timezone.utc)
+        if moment < grens:
+            continue
+        for sleutel in (entry.get("identity", ""), canonical_url(entry.get("url", ""))):
+            if sleutel:
+                sleutels.add(sleutel)
+    return sleutels
+
+
+def digest_selectie(items: list[dict], eerder_gezien, recent) -> list[dict]:
+    """Items voor de weekdigest: nieuw in deze run, of recent gelogd.
+
+    Staat los van de ontdubbeling voor de feeds. Die laat alleen nieuwe items
+    door, waardoor een digest daarop alleen de laatste run bevat; zo ontstond de
+    truc om het logboek weg te zetten. De volgorde van ``items`` blijft behouden
+    en een item dat binnen deze run dubbel voorkomt, telt één keer.
+
+    shortcut: alleen items die nog in de feed staan, upgraden als de briefing items mist
+    """
+    gezien: set[str] = set()
+    selectie = []
+    for item in items:
+        keys = item["keys"]
+        if keys and any(k in gezien for k in keys):
+            continue
+        gezien.update(keys)
+        if not any(k in eerder_gezien for k in keys) or any(k in recent for k in keys):
+            selectie.append(item)
+    return selectie
 
 
 def canonical_url(url: str) -> str:

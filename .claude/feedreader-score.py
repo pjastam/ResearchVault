@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-feedreader-score.py — RSS-feeds scoren en gefilterde Atom-feed genereren
-=========================================================================
+feedreader-score.py — RSS-feeds scoren, gefilterde Atom-feed genereren en digest bestand maken
+=================================================================================================
 Haalt alle feeds op uit feedreader-list.txt, scoort elk item op relevantie
-aan de hand van het ChromaDB-voorkeursprofiel, en schrijft gesorteerde
-Atom-feeds naar feedreader-serve/ (per type: webpage, youtube, podcast).
+aan de hand van het ChromaDB-voorkeursprofiel, schrijft gesorteerde
+Atom-feeds naar feedreader-serve/ (per type: webpage, youtube, podcast),
+ en genereert een digest-markdown bestand voor de Mistral projectbibliotheek.
 
 Gebruik:
     python3 feedreader-score.py
@@ -45,7 +46,15 @@ import numpy as np
 
 from feedreader_embed import maak_embedder
 from feedreader_fetch import fetch_feed
-from feedreader_identity import canonical_url, item_identity, item_keys, podcast_cache_id
+from feedreader_identity import (
+    canonical_url,
+    digest_selectie,
+    item_identity,
+    item_keys,
+    logboek_onterecht_leeg,
+    podcast_cache_id,
+    recente_identiteiten,
+)
 from feedreader_core import (
     THRESHOLD_GREEN,
     THRESHOLD_YELLOW,
@@ -108,6 +117,8 @@ PUBLIC_BASE_URL = _public_base_url()
 
 FEED_TIMEOUT = 15  # seconden per feed
 MAX_FEED_ITEMS = 300  # max items per type in de Atom-feed (sortering op score, dus top-N)
+DIGEST_VENSTER_DAGEN = 7  # hoever de weekdigest terugkijkt in score_log.jsonl
+EXIT_LOGBOEK = 3  # de batchscripts sturen hierop een pushmelding
 MAX_AGE_DAYS_DEFAULT  = 30   # max leeftijd voor web/podcast/YouTube-items
 MAX_AGE_DAYS_ACADEMIC = 365  # max leeftijd voor academische publicaties
 
@@ -713,6 +724,175 @@ def generate_atom(items: list[dict], generated_at: datetime,
 """
 
 
+def detect_region(feed_url: str, url: str = "") -> str:
+    """
+    Detecteert de regio van een item op basis van feed_url of item URL.
+    Returns: NL, DE, CH, VS, of "" (onbekend)
+    """
+    # NL domeinen en patronen
+    nl_patterns = [
+        "esb.nu", "skipr.nl", "mejudice.nl", "nza.nl", "zinl.nl", "cbs.nl",
+        "vcggz.nl", "nvz.org", "knmg.nl", "zorggroep", "zorgverzekeraar",
+        ".nl/", "//nl.", "amsterdam", "rotterdam", "utrecht", "eindhoven",
+        "denhaag", "groningen", "maastricht", "leiden", "nijmegen"
+    ]
+    # DE/CH domeinen
+    de_ch_patterns = [
+        ".de/", "//de.", ".ch/", "//ch.", "berlin", "munich", "hamburg",
+        "zurich", "geneva", "basel", " swiss", "schweiz", "deutsch"
+    ]
+    # VS/UK domeinen
+    vs_uk_patterns = [
+        "healthaffairs.org", "healthpolicy", "kff.org", "commonwealthfund.org",
+        "brookings.edu", "cms.gov", "nih.gov", "cdc.gov", "medicare.gov",
+        "nhs.uk", "bmj.com", "thelancet.com", "nejm.org", "jama.net",
+        ".us/", "//us.", ".gov/", ".org/", ".edu/"
+    ]
+    
+    check_url = (feed_url + " " + url).lower()
+    
+    for pattern in nl_patterns:
+        if pattern.lower() in check_url:
+            return "NL"
+    for pattern in de_ch_patterns:
+        if pattern.lower() in check_url:
+            return "DE/CH"
+    for pattern in vs_uk_patterns:
+        if pattern.lower() in check_url:
+            return "VS/NHS"
+    
+    return ""
+
+
+def generate_digest(path: Path, all_items: list, star_candidates: list, week_str: str,
+                    ontbrekende_feeds: int = 0):
+    """
+    Genereer digest-markdown bestand met top-N=50 + alle 👍 items.
+
+    Args:
+        path: Output pad voor het digest-bestand
+        all_items: Lijst van alle gescorde items
+        star_candidates: Lijst van URLs van items met score >= THRESHOLD_STAR (👍)
+        week_str: Weekidentificatie (bijv. "2026-week45")
+        ontbrekende_feeds: YouTube-feeds die deze run in het 404-venster uitvielen
+    """
+    from feedreader_core import score_label
+    
+    # Selecteer top-50 items
+    top_n = 50
+    selected_items = all_items[:top_n]
+    
+    # Voeg alle star-candidates toe (👍 items)
+    star_urls = set(star_candidates)
+    for item in all_items[top_n:]:  # Voeg toe uit de rest
+        if item.get("url") in star_urls:
+            selected_items.append(item)
+    
+    # Deduplicatie (top-N en star_candidates kunnen overlappen)
+    seen_urls = set()
+    unique_items = []
+    for item in selected_items:
+        url = item.get("url", "")
+        if url and url not in seen_urls:
+            seen_urls.add(url)
+            unique_items.append(item)
+    
+    # Genereer Markdown
+    lines = []
+    lines.append(f"# ResearchVault Digest — {week_str}")
+    lines.append("")
+    lines.append(f"*Automatisch gegenereerd op {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}*")
+    if ontbrekende_feeds:
+        lines.append(f"*Let op: {ontbrekende_feeds} YouTube-feeds ontbreken in deze digest "
+                     "(404-venster van YouTube in de ochtendrun).*")
+    lines.append("")
+    lines.append("## Top Items")
+    lines.append("")
+    
+    for i, item in enumerate(unique_items, 1):
+        title = item.get("title", "(geen titel)")
+        url = item.get("url", "")
+        source_type = item.get("source_type", "unknown")
+        feed_name = item.get("feed_name", "Onbekend")
+        feed_url = item.get("feed_url", "")
+        score = item.get("score", 0)
+        score_raw = item.get("score_raw", 0)
+        published = item.get("published", "")
+        description = item.get("description", "")
+        pure_meta = item.get("pure_meta", {})
+        signaal = score_label(score) if score is not None else "❓"
+        
+        # Format datum als DD-MM-YYYY als het ISO format is
+        if published and "T" in published:
+            try:
+                dt = datetime.strptime(published, "%Y-%m-%dT%H:%M:%SZ")
+                published = dt.strftime("%d-%m-%Y")
+            except ValueError:
+                pass
+        
+        # Detecteer regio
+        region = detect_region(feed_url, url)
+        
+        # Build abstract met extra metadata
+        abstract_parts = []
+        if description:
+            abstract_parts.append(description)
+        if pure_meta.get("abstract"):
+            abstract_parts.append(pure_meta["abstract"])
+        
+        full_abstract = " ".join(abstract_parts) if abstract_parts else ""
+        
+        lines.append(f"### {i}. [{title}]({url})")
+        lines.append(f"- **Bron:** {feed_name} ({source_type})")
+        if region:
+            lines.append(f"- **Regio:** {region}")
+        lines.append(f"- **Score:** {score:.1f} ({score_raw:.1f}) {signaal}")
+        lines.append(f"- **Datum:** {published}")
+        
+        # Voeg DOI toe als beschikbaar
+        if pure_meta.get("doi"):
+            lines.append(f"- **DOI:** {pure_meta['doi']}")
+        if pure_meta.get("journal"):
+            lines.append(f"- **Tijdschrift:** {pure_meta['journal']}")
+        if pure_meta.get("authors"):
+            authors = ", ".join(pure_meta["authors"][:3])
+            if len(pure_meta.get("authors", [])) > 3:
+                authors += ", et al."
+            lines.append(f"- **Auteurs:** {authors}")
+        
+        if full_abstract:
+            # Voeg volledige abstract toe (geen truncatie)
+            lines.append(f"- **Abstract:** {full_abstract}")
+        lines.append("")
+    
+    # Voeg star-candidates sectie toe als er 👍 items zijn
+    if star_candidates:
+        lines.append("## Starred Items (👍)")
+        lines.append("")
+        for url in star_candidates[:10]:  # Max 10 star items
+            star_item = next((item for item in all_items if item.get("url") == url), None)
+            if star_item:
+                title = star_item.get("title", "(geen titel)")
+                feed_name = star_item.get("feed_name", "Onbekend")
+                lines.append(f"- [{title}]({url}) — {feed_name}")
+        lines.append("")
+    
+    # Atomair: een bestaand weekbestand wordt niet meer overschreven, dus een half
+    # geschreven bestand zou de hele week blijven staan.
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text("\n".join(lines), encoding="utf-8")
+    tmp.replace(path)
+    return len(unique_items)
+
+
+def stop_op_logboek() -> None:
+    """Stopt de run: zonder logboek komen alle oude items opnieuw in de feeds."""
+    print(f"❌ {LOG_FILE.name} ontbreekt of is leeg terwijl er al feeds bestaan. "
+          "Gestopt; de feeds blijven ongewijzigd. "
+          "Bewust opnieuw beginnen kan met FEEDREADER_ALLOW_EMPTY_LOG=1.")
+    sys.exit(EXIT_LOGBOEK)
+
 
 # ── Hoofdprogramma ────────────────────────────────────────────────────────────
 
@@ -764,6 +944,8 @@ def main():
     # waar `profile` hierboven uit komt. Zie feedreader_embed.py voor het waarom.
     model = maak_embedder()
     existing_identities = load_existing_log(LOG_FILE)
+    if logboek_onterecht_leeg(existing_identities, SERVE_DIR, os.environ):
+        stop_op_logboek()
     all_items = []
 
     failed_feeds = []
@@ -872,6 +1054,7 @@ def main():
                 "pure_meta":           pure_meta,
             })
 
+    bekend = []
     if failed_feeds:
         # YouTube's RSS-endpoint weigert dagelijks tot 09:00 met een 404, ongeacht het
         # IP (ADR-0012). Die uitval apart tellen: een waarschuwing die elke ochtend
@@ -947,6 +1130,10 @@ def main():
             link_is_shared=link_telling[(i["feed_url"], canonical_url(i["url"]))] > 1,
         )
 
+    # Vóór de filters hieronder: de digest kijkt een week terug, de feeds alleen
+    # naar wat nieuw is.
+    gescoord = all_items
+
     # Filter 1 — tegen eerdere runs. Vergelijkt op identiteit, niet op ruwe URL:
     # PubMed's ff=<timestamp> maakte elke link uniek per fetch, waardoor dit
     # filter niets meer tegenhield en NetNewsWire elk artikel dagelijks opnieuw
@@ -975,6 +1162,11 @@ def main():
     if n_eerder_gezien or n_dubbel_in_run:
         print(f"     Ontdubbeld: {n_eerder_gezien} al eerder gezien, "
               f"{n_dubbel_in_run} dubbel binnen deze run.")
+
+    # Logboek tijdens deze run verdwenen? Dan zou append_log hieronder een klein nieuw
+    # bestand maken, en passeert de volgende run de controle aan het begin.
+    if existing_identities and (not LOG_FILE.exists() or LOG_FILE.stat().st_size == 0):
+        stop_op_logboek()
 
     # Log alleen wat daadwerkelijk in de output terechtkomt (na leeftijds- en deduplicatiefilter)
     new_log_entries = [
@@ -1050,6 +1242,40 @@ def main():
     # Logboek bijwerken
     if new_log_entries:
         append_log(LOG_FILE, new_log_entries)
+
+    # 6. Digest genereren voor Mistral push. Ná het logboek: een digestfout mag de
+    # ontdubbeling van de volgende run niet raken.
+    print("[6/6] Digest genereren...")
+    iso = datetime.now(timezone.utc).isocalendar()
+    # ISO-jaar, net als `date +%G` in push-digest.sh: rond de jaarwisseling wijkt
+    # dat af van het kalenderjaar.
+    week_str = f"{iso[0]}-week{iso[1]:02d}"
+    # Gitignored instance-data; de upload loopt via een script buiten deze repo
+    REPO_DIR = SCRIPT_DIR.parent  # .claude/ -> ResearchVault root
+    digest_path = REPO_DIR / "vault" / ".cache" / "digest" / f"digest-{week_str}.md"
+    if digest_path.exists():
+        # Eén digest per week: een mislukte push kan zo hetzelfde bestand opnieuw proberen.
+        print(f"     Digest van {week_str} bestaat al.")
+    else:
+        try:
+            digest_items = digest_selectie(
+                gescoord,
+                existing_identities,
+                recente_identiteiten(LOG_FILE, now, DIGEST_VENSTER_DAGEN),
+            )
+            digest_stars = [
+                i["url"] for i in digest_items
+                if i.get("score", 0) >= THRESHOLD_STAR and i.get("url")
+            ]
+            if digest_items:
+                digest_count = generate_digest(digest_path, digest_items, digest_stars,
+                                               week_str, ontbrekende_feeds=len(bekend))
+                print(f"     Digest met {digest_count} items weggeschreven naar {digest_path}")
+            else:
+                # Niet wegschrijven: het weekbestand wordt niet meer overschreven.
+                print("     Geen items voor de digest; volgende run opnieuw.")
+        except Exception as fout:
+            print(f"     ⚠️  Digest mislukt ({type(fout).__name__}: {fout}); volgende run opnieuw.")
 
     # ── Samenvatting ──────────────────────────────────────────────────────────
     green  = sum(1 for i in all_items if i["score"] >= THRESHOLD_GREEN)

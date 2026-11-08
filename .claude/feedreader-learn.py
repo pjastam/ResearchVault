@@ -22,7 +22,7 @@ import json
 import os
 import sqlite3
 import sys
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from freshrss_utils import (
@@ -219,14 +219,6 @@ def main():
     if not LOG_FILE.exists():
         print("⚠️  score_log.jsonl niet gevonden. Voer eerst feedreader-score.py uit.")
         return
-
-    # Log-rotatie: archiveer als het bestand groter is dan 10 MB
-    log_size = LOG_FILE.stat().st_size
-    if log_size > 10 * 1024 * 1024:
-        archive = LOG_FILE.with_name(f"score_log.{date.today():%Y-%m-%d}.jsonl")
-        LOG_FILE.rename(archive)
-        print(f"[rotatie] score_log.jsonl gearchiveerd als {archive.name} ({log_size // 1024} KB)")
-        LOG_FILE.touch()
 
     # Logboek laden + skip-queue verwerken
     entries = load_log(LOG_FILE)

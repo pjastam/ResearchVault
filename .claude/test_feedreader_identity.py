@@ -5,15 +5,22 @@ Draait op kale stdlib (CI heeft geen pip-install-stap):
     python3 -m unittest test_feedreader_identity -v
 """
 
+import json
+import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import feedreader_identity as fi
 from feedreader_identity import (
     TRACKING_PARAMS_PER_HOST,
     canonical_url,
     dedupe_by_url,
+    digest_selectie,
     item_identity,
     item_keys,
+    logboek_onterecht_leeg,
+    recente_identiteiten,
 )
 
 
@@ -355,6 +362,119 @@ class TestPodcastCacheIds(unittest.TestCase):
         a = set(fi.podcast_cache_ids(self.AIREPORT_ZOTERO))
         b = set(fi.podcast_cache_ids(self.BBC_ZOTERO))
         self.assertEqual(a & b, set())
+
+
+class TestLeegLogboek(unittest.TestCase):
+    """De guard tegen de storing van 6 nov 2026: logboek weg, feeds vol oude items."""
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.serve = Path(tmp.name)
+
+    def test_leeg_logboek_met_bestaande_feeds_is_fout(self):
+        (self.serve / "filtered-webpage.xml").touch()
+        self.assertTrue(logboek_onterecht_leeg(set(), self.serve, {}))
+
+    def test_verse_installatie_mag_leeg_beginnen(self):
+        self.assertFalse(logboek_onterecht_leeg(set(), self.serve, {}))
+
+    def test_tv_feed_telt_niet_als_eerdere_run(self):
+        (self.serve / "filtered-tv.xml").touch()
+        self.assertFalse(logboek_onterecht_leeg(set(), self.serve, {}))
+
+    def test_gevuld_logboek_is_geen_fout(self):
+        (self.serve / "filtered-webpage.xml").touch()
+        self.assertFalse(logboek_onterecht_leeg({"pubmed:1"}, self.serve, {}))
+
+    def test_bewuste_reset_via_omgeving(self):
+        (self.serve / "filtered-webpage.xml").touch()
+        env = {"FEEDREADER_ALLOW_EMPTY_LOG": "1"}
+        self.assertFalse(logboek_onterecht_leeg(set(), self.serve, env))
+
+
+class TestRecenteIdentiteiten(unittest.TestCase):
+    NU = datetime(2026, 11, 6, 12, 0, tzinfo=timezone.utc)
+
+    def schrijf(self, regels):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        pad = Path(tmp.name) / "score_log.jsonl"
+        pad.write_text("\n".join(regels) + "\n", encoding="utf-8")
+        return pad
+
+    def regel(self, dagen_geleden, **velden):
+        moment = self.NU - timedelta(days=dagen_geleden)
+        return json.dumps({"timestamp": moment.isoformat(), **velden})
+
+    def test_venstergrens(self):
+        pad = self.schrijf([
+            self.regel(7, identity="pubmed:op-de-grens"),
+            self.regel(7.01, identity="pubmed:net-te-oud"),
+        ])
+        self.assertEqual(recente_identiteiten(pad, self.NU, 7), {"pubmed:op-de-grens"})
+
+    def test_regel_zonder_identity_valt_terug_op_url(self):
+        url = "https://example.org/artikel?utm_source=rss"
+        pad = self.schrijf([self.regel(1, url=url)])
+        self.assertEqual(recente_identiteiten(pad, self.NU, 7), {canonical_url(url)})
+
+    def test_kapotte_regels_worden_overgeslagen(self):
+        pad = self.schrijf([
+            "dit is geen json",
+            json.dumps({"identity": "pubmed:zonder-tijd"}),
+            json.dumps({"timestamp": "onzin", "identity": "pubmed:foute-tijd"}),
+            json.dumps({"timestamp": None, "identity": "pubmed:geen-tijd"}),
+            self.regel(1, identity="pubmed:goed"),
+        ])
+        self.assertEqual(recente_identiteiten(pad, self.NU, 7), {"pubmed:goed"})
+
+    def test_tijd_zonder_zone_telt_als_utc(self):
+        pad = self.schrijf([json.dumps({
+            "timestamp": "2026-11-05T12:00:00", "identity": "pubmed:naief",
+        })])
+        self.assertEqual(recente_identiteiten(pad, self.NU, 7), {"pubmed:naief"})
+
+    def test_ontbrekend_logboek_geeft_lege_set(self):
+        self.assertEqual(recente_identiteiten(Path("/bestaat/niet"), self.NU, 7), set())
+
+
+class TestDigestSelectie(unittest.TestCase):
+    @staticmethod
+    def titels(selectie):
+        return [i["titel"] for i in selectie]
+
+    def test_nieuw_en_recent_wel_ouder_niet(self):
+        items = [
+            {"titel": "nieuw", "keys": ("a",)},
+            {"titel": "recent", "keys": ("b",)},
+            {"titel": "ouder", "keys": ("c",)},
+        ]
+        selectie = digest_selectie(items, eerder_gezien={"b", "c"}, recent={"b"})
+        self.assertEqual(self.titels(selectie), ["nieuw", "recent"])
+
+    def test_dubbel_binnen_de_run_telt_een_keer(self):
+        items = [
+            {"titel": "eerste", "keys": ("a", "u")},
+            {"titel": "tweede", "keys": ("b", "u")},
+        ]
+        self.assertEqual(self.titels(digest_selectie(items, set(), set())), ["eerste"])
+
+    def test_dubbel_van_een_oud_item_laat_de_andere_vorm_niet_door(self):
+        items = [
+            {"titel": "eerste", "keys": ("c", "u")},
+            {"titel": "tweede", "keys": ("d", "u")},
+        ]
+        self.assertEqual(digest_selectie(items, {"c", "u"}, set()), [])
+
+    def test_items_zonder_sleutel_blijven_staan(self):
+        items = [{"titel": "x", "keys": ()}, {"titel": "y", "keys": ()}]
+        self.assertEqual(self.titels(digest_selectie(items, {"a"}, set())), ["x", "y"])
+
+    def test_volgorde_blijft_behouden(self):
+        items = [{"titel": t, "keys": (t,)} for t in ("hoog", "midden", "laag")]
+        selectie = digest_selectie(items, set(), set())
+        self.assertEqual(self.titels(selectie), ["hoog", "midden", "laag"])
 
 
 if __name__ == "__main__":
