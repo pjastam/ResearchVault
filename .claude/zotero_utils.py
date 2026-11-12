@@ -5,6 +5,7 @@ zotero_utils.py — Gedeelde Zotero SQLite-hulpfuncties
 Gedeeld door feedreader-score.py, feedreader-learn.py en index-score.py.
 """
 
+import os
 import shutil
 import sqlite3
 import tempfile
@@ -18,6 +19,8 @@ def make_sqlite_copy(source: Path) -> Path:
     Maakt een tijdelijke kopie van de Zotero SQLite database.
     Zotero vergrendelt het origineel tijdens gebruik; een kopie voorkomt conflicten.
     """
+    # De batch zet ZOTERO_DB_PATH op één momentopname per run (ADR-A7); zonder variabele geldt `source`.
+    source = Path(os.environ.get("ZOTERO_DB_PATH") or source)
     tmp = tempfile.NamedTemporaryFile(suffix=".sqlite", delete=False)
     tmp.close()
     shutil.copy2(source, tmp.name)

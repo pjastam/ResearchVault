@@ -13,8 +13,10 @@ Draait op kale stdlib: feedreader_core importeert numpy op modulehoogte maar
 gebruikt het alleen binnen functies, dus een stub volstaat. De CI-runner heeft
 geen pip-install-stap.
 """
+import os
 import sqlite3
 import sys
+import tempfile
 import types
 import unittest
 from pathlib import Path
@@ -23,7 +25,7 @@ sys.modules.setdefault("numpy", types.ModuleType("numpy"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from feedreader_core import WEIGHT_ANNOTATIONS, WEIGHT_DEFAULT  # noqa: E402
-from zotero_utils import get_library_keys_with_weights  # noqa: E402
+from zotero_utils import get_library_keys_with_weights, make_sqlite_copy  # noqa: E402
 
 INBOX = 99
 
@@ -122,6 +124,37 @@ class TestGewichten(unittest.TestCase):
         v = Vault()
         v.item("LOSSEANN", typenaam="annotation")
         self.assertIn("LOSSEANN", v.gewichten())
+
+
+class TestMomentopname(unittest.TestCase):
+    """ZOTERO_DB_PATH (gezet door de batch, ADR-A7) wint van het meegegeven pad."""
+
+    def setUp(self):
+        self.map = Path(tempfile.mkdtemp())
+        (self.map / "live.sqlite").write_bytes(b"live")
+        (self.map / "snap.sqlite").write_bytes(b"snap")
+        self.oud = os.environ.pop("ZOTERO_DB_PATH", None)
+
+    def tearDown(self):
+        os.environ.pop("ZOTERO_DB_PATH", None)
+        if self.oud is not None:
+            os.environ["ZOTERO_DB_PATH"] = self.oud
+
+    def _kopie(self):
+        kopie = make_sqlite_copy(self.map / "live.sqlite")
+        self.addCleanup(kopie.unlink)
+        return kopie.read_bytes()
+
+    def test_zonder_variabele_geldt_het_argument(self):
+        self.assertEqual(self._kopie(), b"live")
+
+    def test_lege_variabele_geldt_het_argument(self):
+        os.environ["ZOTERO_DB_PATH"] = ""
+        self.assertEqual(self._kopie(), b"live")
+
+    def test_variabele_wint(self):
+        os.environ["ZOTERO_DB_PATH"] = str(self.map / "snap.sqlite")
+        self.assertEqual(self._kopie(), b"snap")
 
 
 if __name__ == "__main__":
